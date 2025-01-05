@@ -1,0 +1,14 @@
+server:
+  port: ":8080"
+  mode: "debug"  # debug or release
+
+database:
+  host: "localhost"
+  port: "13306"
+  username: "root"
+  password: "123456"
+  dbname: "datax_admin"
+
+jwt:
+  secret: "datax-admin-secret"
+  expire: 24  # hours
