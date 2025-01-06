@@ -4,7 +4,7 @@
       <div class="header-left">
         <div class="logo">
           <img src="../assets/logo.svg" alt="logo" />
-          <h1>DataX Admin</h1>
+          <h1>数据集成平台</h1>
         </div>
         <a-button class="menu-trigger" type="text" @click="collapsed = !collapsed">
           <template #icon>

@@ -1,7 +1,107 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="128px" height="128px" viewBox="0 0 128 128" version="1.1" xmlns="http://www.w3.org/2000/svg">
-    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-        <rect fill="#165DFF" x="0" y="0" width="128" height="128" rx="64"></rect>
-        <path d="M64,32 L96,80 L32,80 L64,32 Z" fill="#FFFFFF"></path>
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 主背景 -->
+  <circle cx="64" cy="64" r="60" fill="url(#gradient-bg)"/>
+
+  <!-- 外环动态效果 -->
+  <circle cx="64" cy="64" r="48" stroke="url(#gradient-ring)" stroke-width="4" fill="none">
+    <animate attributeName="stroke-dasharray" from="0 301.5" to="301.5 301.5" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="stroke-dashoffset" from="301.5" to="0" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- 内环脉冲效果 -->
+  <circle cx="64" cy="64" r="36" stroke="rgba(255,255,255,0.4)" stroke-width="2" fill="none">
+    <animate attributeName="r" values="32;36;32" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- 数据流动点 -->
+  <g id="data-points">
+    <!-- 上方数据点 -->
+    <circle cx="64" cy="28" r="3" fill="white">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="2;3;2" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <!-- 右侧数据点 -->
+    <circle cx="100" cy="64" r="3" fill="white">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="2;3;2" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+    </circle>
+    <!-- 下方数据点 -->
+    <circle cx="64" cy="100" r="3" fill="white">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="1s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="2;3;2" dur="1.5s" begin="1s" repeatCount="indefinite"/>
+    </circle>
+    <!-- 左侧数据点 -->
+    <circle cx="28" cy="64" r="3" fill="white">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="2;3;2" dur="1.5s" begin="1.5s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- 中心时钟图标 -->
+  <g transform="translate(64, 64)">
+    <!-- 时钟外圈 -->
+    <circle cx="0" cy="0" r="20" stroke="white" stroke-width="2" fill="none" opacity="0.8"/>
+
+    <!-- 时钟刻度 -->
+    <g opacity="0.6">
+      <line x1="0" y1="-18" x2="0" y2="-20" stroke="white" stroke-width="2"/>
+      <line x1="18" y1="0" x2="20" y2="0" stroke="white" stroke-width="2"/>
+      <line x1="0" y1="18" x2="0" y2="20" stroke="white" stroke-width="2"/>
+      <line x1="-18" y1="0" x2="-20" y2="0" stroke="white" stroke-width="2"/>
     </g>
+
+    <!-- 时针 -->
+    <line x1="0" y1="0" x2="0" y2="-10" stroke="white" stroke-width="3" opacity="0.9">
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from="0 0 0"
+        to="360 0 0"
+        dur="12s"
+        repeatCount="indefinite"
+      />
+    </line>
+
+    <!-- 分针 -->
+    <line x1="0" y1="0" x2="0" y2="-14" stroke="white" stroke-width="2" opacity="0.8">
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from="0 0 0"
+        to="360 0 0"
+        dur="6s"
+        repeatCount="indefinite"
+      />
+    </line>
+
+    <!-- 秒针 -->
+    <line x1="0" y1="2" x2="0" y2="-16" stroke="white" stroke-width="1" opacity="0.7">
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from="0 0 0"
+        to="360 0 0"
+        dur="2s"
+        repeatCount="indefinite"
+      />
+    </line>
+
+    <!-- 中心点 -->
+    <circle cx="0" cy="0" r="2" fill="white"/>
+  </g>
+
+  <!-- 渐变定义 -->
+  <defs>
+    <linearGradient id="gradient-bg" x1="0" y1="0" x2="128" y2="128">
+      <stop offset="0%" style="stop-color:#1D39C4"/>
+      <stop offset="100%" style="stop-color:#165DFF"/>
+    </linearGradient>
+
+    <linearGradient id="gradient-ring" x1="0" y1="0" x2="128" y2="128">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.9)"/>
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0.6)"/>
+    </linearGradient>
+  </defs>
 </svg>
