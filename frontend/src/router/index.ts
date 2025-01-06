@@ -50,6 +50,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
         path: 'system',
         name: 'System',
         component: () => import('@/views/system/index.vue'),
+        redirect: '/system/users',
         meta: {
           title: '系统管理',
           requiresAuth: true,
@@ -96,6 +97,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
         path: 'job',
         name: 'Job',
         component: () => import('@/views/job/index.vue'),
+        redirect: '/job/list',
         meta: {
           title: '任务管理',
           requiresAuth: true,

@@ -168,3 +168,21 @@ func (c *UserController) ResetPassword(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "密码重置成功"})
 }
+
+// DeleteUser 删除用户
+func (c *UserController) DeleteUser(ctx *gin.Context) {
+	// 获取用户ID
+	userID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
+		return
+	}
+
+	// 调用服务删除用户
+	if err := c.userService.DeleteUser(uint(userID)); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "用户删除成功"})
+}

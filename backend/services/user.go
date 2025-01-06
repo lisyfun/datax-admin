@@ -211,3 +211,22 @@ func (s *UserService) ResetPassword(userID uint, req *types.ResetPasswordRequest
 
 	return nil
 }
+
+// DeleteUser 删除用户
+func (s *UserService) DeleteUser(userID uint) error {
+	// 检查用户是否存在
+	user := &models.User{}
+	if err := models.DB.First(user, userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("用户不存在")
+		}
+		return err
+	}
+
+	// 软删除用户
+	if err := models.DB.Delete(user).Error; err != nil {
+		return err
+	}
+
+	return nil
+}

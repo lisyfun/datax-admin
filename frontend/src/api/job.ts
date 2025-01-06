@@ -1,84 +1,54 @@
-import axios from 'axios';
-import type { TableData } from '@arco-design/web-vue/es/table/interface';
+import type { AxiosResponse } from 'axios';
+import request from '@/utils/request';
 
-export interface JobRecord {
+export interface Job {
   id: number;
   name: string;
-  type: string;
   description: string;
   cron_expr: string;
   status: number;
-  timeout: number;
-  retry_count: number;
-  retry_delay: number;
-  params: any;
-  creator: number;
-  updater: number;
-  created_at: string;
-  updated_at: string;
+  create_time: string;
+  update_time: string;
 }
 
-export interface JobHistoryRecord {
-  id: number;
-  job_id: number;
-  status: number;
-  start_time: string;
-  end_time: string;
-  duration: number;
-  output: string;
-  error: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface JobParams extends Partial<JobRecord> {
+export interface JobListParams {
   page: number;
   page_size: number;
-}
-
-export interface JobHistoryParams {
-  page: number;
-  page_size: number;
-  job_id?: number;
+  name?: string;
   status?: number;
-  start_time?: string;
-  end_time?: string;
 }
 
-export function queryJobList(params: JobParams) {
-  return axios.get<{
-    items: JobRecord[];
-    total: number;
-  }>('/api/v1/jobs', {
-    params,
-  });
+export interface JobListResponse {
+  items: Job[];
+  total: number;
 }
 
-export function queryJobHistoryList(params: JobHistoryParams) {
-  return axios.get<{
-    items: JobHistoryRecord[];
-    total: number;
-  }>('/api/v1/jobs/history', {
-    params,
-  });
+// 获取任务列表
+export function getJobList(params: JobListParams): Promise<AxiosResponse<JobListResponse>> {
+  return request.get('/jobs', { params });
 }
 
-export function createJob(data: Partial<JobRecord>) {
-  return axios.post('/api/v1/jobs', data);
+// 创建任务
+export function createJob(data: Partial<Job>): Promise<AxiosResponse<Job>> {
+  return request.post('/jobs', data);
 }
 
-export function updateJob(id: number, data: Partial<JobRecord>) {
-  return axios.put(`/api/v1/jobs/${id}`, data);
+// 更新任务
+export function updateJob(id: number, data: Partial<Job>): Promise<AxiosResponse<Job>> {
+  return request.put(`/jobs/${id}`, data);
 }
 
-export function deleteJob(id: number) {
-  return axios.delete(`/api/v1/jobs/${id}`);
+// 删除任务
+export function deleteJob(id: number): Promise<AxiosResponse<void>> {
+  return request.delete(`/jobs/${id}`);
 }
 
-export function startJob(id: number) {
-  return axios.post(`/api/v1/jobs/${id}/start`);
+// 启动任务
+export function startJob(id: number): Promise<AxiosResponse<void>> {
+  return request.post(`/jobs/${id}/start`);
 }
 
-export function stopJob(id: number) {
-  return axios.post(`/api/v1/jobs/${id}/stop`);
+// 停止任务
+export function stopJob(id: number): Promise<AxiosResponse<void>> {
+  return request.post(`/jobs/${id}/stop`);
 }

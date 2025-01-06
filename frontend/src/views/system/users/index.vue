@@ -332,11 +332,11 @@ const handleStatusChange = async (record: UserInfo, value: boolean) => {
 // 删除用户
 const handleDelete = async (record: UserInfo) => {
   try {
-    // TODO: 实现删除用户的 API
+    await userApi.deleteUser(record.id);
     Message.success('删除成功');
     fetchUsers();
   } catch (error: any) {
-    Message.error(error.response?.data?.error || '删除失败');
+    Message.error(error.response?.data?.error || '删除用户失败');
   }
 };
 

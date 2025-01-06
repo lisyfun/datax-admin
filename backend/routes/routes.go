@@ -55,6 +55,7 @@ func SetupRoutes(r *gin.Engine) {
 			authenticated.GET("/users", userController.GetUserList)
 			authenticated.PUT("/users/:id/status", userController.UpdateUserStatus)
 			authenticated.PUT("/users/:id/password/reset", userController.ResetPassword)
+			authenticated.DELETE("/users/:id", userController.DeleteUser) // 删除用户
 
 			// 角色管理相关
 			authenticated.POST("/roles", roleController.CreateRole)
