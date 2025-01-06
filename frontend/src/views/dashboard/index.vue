@@ -1,107 +1,110 @@
 <template>
   <div class="dashboard">
-    <a-row :gutter="16">
-      <a-col :span="6">
-        <a-card class="stat-card" :bordered="false">
-          <div class="stat-header">
-            <div class="stat-title">用户总数</div>
-            <icon-user class="stat-icon" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.userCount }}</div>
-            <div class="stat-label">总用户数量</div>
-          </div>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card" :bordered="false">
-          <div class="stat-header">
-            <div class="stat-title">角色总数</div>
-            <icon-user-group class="stat-icon" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.roleCount }}</div>
-            <div class="stat-label">系统角色数量</div>
-          </div>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card" :bordered="false">
-          <div class="stat-header">
-            <div class="stat-title">权限总数</div>
-            <icon-safe class="stat-icon" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.permissionCount }}</div>
-            <div class="stat-label">系统权限数量</div>
-          </div>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card" :bordered="false">
-          <div class="stat-header">
-            <div class="stat-title">在线用户</div>
-            <icon-user-add class="stat-icon" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.onlineCount }}</div>
-            <div class="stat-label">当前在线用户</div>
-          </div>
-        </a-card>
-      </a-col>
-    </a-row>
+    <a-card>
+      <template #title>仪表盘</template>
+      <a-row :gutter="16">
+        <a-col :span="6">
+          <a-card class="stat-card" :bordered="false">
+            <div class="stat-header">
+              <div class="stat-title">用户总数</div>
+              <icon-user class="stat-icon" />
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stats.userCount }}</div>
+              <div class="stat-label">总用户数量</div>
+            </div>
+          </a-card>
+        </a-col>
+        <a-col :span="6">
+          <a-card class="stat-card" :bordered="false">
+            <div class="stat-header">
+              <div class="stat-title">角色总数</div>
+              <icon-user-group class="stat-icon" />
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stats.roleCount }}</div>
+              <div class="stat-label">系统角色数量</div>
+            </div>
+          </a-card>
+        </a-col>
+        <a-col :span="6">
+          <a-card class="stat-card" :bordered="false">
+            <div class="stat-header">
+              <div class="stat-title">权限总数</div>
+              <icon-safe class="stat-icon" />
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stats.permissionCount }}</div>
+              <div class="stat-label">系统权限数量</div>
+            </div>
+          </a-card>
+        </a-col>
+        <a-col :span="6">
+          <a-card class="stat-card" :bordered="false">
+            <div class="stat-header">
+              <div class="stat-title">在线用户</div>
+              <icon-user-add class="stat-icon" />
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stats.onlineCount }}</div>
+              <div class="stat-label">当前在线用户</div>
+            </div>
+          </a-card>
+        </a-col>
+      </a-row>
 
-    <a-row :gutter="16" style="margin-top: 16px">
-      <a-col :span="12">
-        <a-card class="list-card" :bordered="false">
-          <template #title>
-            <div class="card-title">
-              <icon-history class="card-title-icon" />
-              最近登录
-            </div>
-          </template>
-          <a-table :data="recentLogins" :pagination="false" :bordered="false">
-            <template #columns>
-              <a-table-column title="用户名" data-index="username">
-                <template #cell="{ record }">
-                  <a-space>
-                    <icon-user />
-                    {{ record.username }}
-                  </a-space>
-                </template>
-              </a-table-column>
-              <a-table-column title="登录时间" data-index="loginTime">
-                <template #cell="{ record }">
-                  <a-space>
-                    <icon-calendar />
-                    {{ record.loginTime }}
-                  </a-space>
-                </template>
-              </a-table-column>
-              <a-table-column title="IP地址" data-index="ip">
-                <template #cell="{ record }">
-                  <a-space>
-                    <icon-wifi />
-                    {{ record.ip }}
-                  </a-space>
-                </template>
-              </a-table-column>
+      <a-row :gutter="16" style="margin-top: 16px">
+        <a-col :span="12">
+          <a-card class="list-card" :bordered="false">
+            <template #title>
+              <div class="card-title">
+                <icon-history class="card-title-icon" />
+                最近登录
+              </div>
             </template>
-          </a-table>
-        </a-card>
-      </a-col>
-      <a-col :span="12">
-        <a-card class="info-card" :bordered="false">
-          <template #title>
-            <div class="card-title">
-              <icon-computer class="card-title-icon" />
-              系统信息
-            </div>
-          </template>
-          <a-descriptions :data="systemInfo" layout="inline-horizontal" bordered />
-        </a-card>
-      </a-col>
-    </a-row>
+            <a-table :data="recentLogins" :pagination="false" :bordered="false">
+              <template #columns>
+                <a-table-column title="用户名" data-index="username">
+                  <template #cell="{ record }">
+                    <a-space>
+                      <icon-user />
+                      {{ record.username }}
+                    </a-space>
+                  </template>
+                </a-table-column>
+                <a-table-column title="登录时间" data-index="loginTime">
+                  <template #cell="{ record }">
+                    <a-space>
+                      <icon-calendar />
+                      {{ record.loginTime }}
+                    </a-space>
+                  </template>
+                </a-table-column>
+                <a-table-column title="IP地址" data-index="ip">
+                  <template #cell="{ record }">
+                    <a-space>
+                      <icon-wifi />
+                      {{ record.ip }}
+                    </a-space>
+                  </template>
+                </a-table-column>
+              </template>
+            </a-table>
+          </a-card>
+        </a-col>
+        <a-col :span="12">
+          <a-card class="info-card" :bordered="false">
+            <template #title>
+              <div class="card-title">
+                <icon-computer class="card-title-icon" />
+                系统信息
+              </div>
+            </template>
+            <a-descriptions :data="systemInfo" layout="inline-horizontal" bordered />
+          </a-card>
+        </a-col>
+      </a-row>
+    </a-card>
   </div>
 </template>
 
@@ -200,7 +203,7 @@ onMounted(() => {
 <style scoped>
 .dashboard {
   padding: 16px;
-  background-color: var(--color-fill-2);
+  /* background-color: var(--color-fill-2); */
   min-height: 100%;
 }
 
