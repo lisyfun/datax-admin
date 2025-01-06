@@ -146,7 +146,7 @@ const recentLogins = ref<RecentLogin[]>([]);
 const systemInfo = [
   {
     label: '系统名称',
-    value: 'DataX Admin',
+    value: 'DATAX ADMIN',
   },
   {
     label: '系统版本',

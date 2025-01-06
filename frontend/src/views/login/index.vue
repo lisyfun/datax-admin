@@ -3,7 +3,7 @@
     <div class="login-box">
       <div class="login-header">
         <img src="@/assets/logo.svg" alt="logo" class="logo" />
-        <h1 class="title">DataX Admin</h1>
+        <h1 class="title">DATAX ADMIN</h1>
         <p class="subtitle">数据集成管理平台</p>
       </div>
       <a-form
