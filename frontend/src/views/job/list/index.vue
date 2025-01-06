@@ -54,7 +54,7 @@
           </a-tag>
         </template>
         <template #type="{ record }">
-          {{ record.type === 1 ? 'Shell脚本' : 'DataX任务' }}
+          {{ record.type === 'shell' ? 'Shell脚本' : 'DataX任务' }}
         </template>
         <template #operations="{ record }">
           <a-space>
@@ -117,8 +117,8 @@
         </a-form-item>
         <a-form-item field="type" label="任务类型" :rules="[{ required: true, message: '请选择任务类型' }]">
           <a-radio-group v-model="form.type">
-            <a-radio :value="1">Shell脚本</a-radio>
-            <a-radio :value="2">DataX任务</a-radio>
+            <a-radio value="shell">Shell脚本</a-radio>
+            <a-radio value="datax">DataX任务</a-radio>
           </a-radio-group>
         </a-form-item>
         <a-form-item field="description" label="任务描述">
@@ -126,15 +126,15 @@
         </a-form-item>
         <a-form-item
           field="command"
-          :label="form.type === 1 ? '执行命令' : 'DataX配置'"
-          :rules="[{ required: true, message: form.type === 1 ? '请输入执行命令' : '请输入DataX配置' }]"
+          :label="form.type === 'shell' ? '执行命令' : 'DataX配置'"
+          :rules="[{ required: true, message: form.type === 'shell' ? '请输入执行命令' : '请输入DataX配置' }]"
         >
           <a-textarea
             v-model="form.command"
-            :placeholder="form.type === 1 ? '请输入要执行的命令' : '请输入DataX任务配置JSON'"
-            :auto-size="form.type === 2 ? { minRows: 10, maxRows: 20 } : undefined"
+            :placeholder="form.type === 'shell' ? '请输入要执行的命令' : '请输入DataX任务配置JSON'"
+            :auto-size="form.type === 'datax' ? { minRows: 10, maxRows: 20 } : undefined"
           />
-          <template v-if="form.type === 2" #extra>
+          <template v-if="form.type === 'datax'" #extra>
             <div class="datax-tools">
               <a-space>
                 <a-button type="text" @click="handleFormatJson">
@@ -149,7 +149,7 @@
             </div>
           </template>
         </a-form-item>
-        <a-form-item field="working_dir" label="工作目录" v-if="form.type === 1">
+        <a-form-item field="working_dir" label="工作目录" v-if="form.type === 'shell'">
           <a-input v-model="form.working_dir" placeholder="请输入工作目录，默认为当前目录" />
         </a-form-item>
         <a-form-item field="cron_expr" label="Cron 表达式" :rules="[{ required: true, message: '请输入 Cron 表达式' }]">
@@ -566,13 +566,14 @@ const form = reactive({
   id: 0,
   name: '',
   description: '',
-  type: 1,
+  type: 'shell' as 'shell' | 'datax',
   command: '',
   working_dir: '',
   cron_expr: '',
   timeout: 0,
   retry_times: 0,
   retry_interval: 0,
+  params: {} as Record<string, any>,
 });
 
 // 表单规则
@@ -583,6 +584,27 @@ const rules = {
   ],
   command: [
     { required: true, message: '请输入执行命令' },
+    {
+      validator: (value: string, callback: (error?: string) => void) => {
+        if (form.type === 'shell' && !value.trim()) {
+          callback('Shell命令不能为空');
+          return;
+        }
+        if (form.type === 'datax') {
+          try {
+            const json = JSON.parse(value);
+            if (!json || typeof json !== 'object') {
+              callback('DataX配置必须是有效的JSON对象');
+              return;
+            }
+          } catch (err) {
+            callback('请输入有效的JSON格式');
+            return;
+          }
+        }
+        callback();
+      },
+    }
   ],
   cron_expr: [
     { required: true, message: '请输入 Cron 表达式' },
@@ -644,13 +666,14 @@ const handleCreate = () => {
   form.id = 0;
   form.name = '';
   form.description = '';
-  form.type = 1;
+  form.type = 'shell';
   form.command = '';
   form.working_dir = '';
   form.cron_expr = '';
   form.timeout = 0;
   form.retry_times = 0;
   form.retry_interval = 0;
+  form.params = {};
   showForm.value = true;
 };
 
@@ -667,6 +690,7 @@ const handleEdit = (record: Job) => {
   form.timeout = record.timeout || 0;
   form.retry_times = record.retry_times || 0;
   form.retry_interval = record.retry_interval || 0;
+  form.params = record.params || {};
   showForm.value = true;
 };
 
@@ -745,6 +769,7 @@ const handleFormSubmit = async () => {
       timeout: form.timeout,
       retry_times: form.retry_times,
       retry_interval: form.retry_interval,
+      params: form.type === 'datax' ? JSON.parse(form.command) : {},
     };
 
     if (isEdit.value) {
