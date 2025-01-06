@@ -45,15 +45,6 @@
               <icon-down />
             </a-space>
             <template #content>
-              <a-doption @click="handleProfile">
-                <template #icon><icon-user /></template>
-                个人信息
-              </a-doption>
-              <a-doption @click="handleSettings">
-                <template #icon><icon-settings /></template>
-                系统设置
-              </a-doption>
-              <a-divider style="margin: 4px 0" />
               <a-doption @click="handleLogout">
                 <template #icon><icon-export /></template>
                 退出登录
@@ -279,16 +270,6 @@ const handleLogout = () => {
       }
     },
   });
-};
-
-// 个人信息
-const handleProfile = () => {
-  router.push('/profile');
-};
-
-// 系统设置
-const handleSettings = () => {
-  router.push('/settings');
 };
 
 // 菜单相关
