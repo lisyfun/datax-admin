@@ -13,7 +13,6 @@
           </template>
         </a-button>
         <a-breadcrumb class="breadcrumb">
-          <a-breadcrumb-item>首页</a-breadcrumb-item>
           <template v-for="(item, index) in breadcrumbItems" :key="index">
             <a-breadcrumb-item>{{ item }}</a-breadcrumb-item>
           </template>
@@ -78,66 +77,30 @@
           :style="{ width: '100%' }"
           @menu-item-click="handleMenuClick"
         >
-          <a-menu-item key="/dashboard" class="menu-item">
-            <template #icon><icon-home /></template>
-            仪表盘
-          </a-menu-item>
-          <a-sub-menu key="system">
-            <template #icon><icon-apps /></template>
-            <template #title>系统管理</template>
-            <a-menu-item key="/system/users" class="menu-item">
-              <template #icon><icon-user /></template>
-              用户管理
-            </a-menu-item>
-            <a-menu-item key="/system/roles" class="menu-item">
-              <template #icon><icon-user-group /></template>
-              角色管理
-            </a-menu-item>
-            <a-menu-item key="/system/permissions" class="menu-item">
-              <template #icon><icon-safe /></template>
-              权限管理
-            </a-menu-item>
-          </a-sub-menu>
-          <a-sub-menu key="job">
-            <template #icon><icon-calendar /></template>
-            <template #title>任务管理</template>
-            <a-menu-item key="/job/list" class="menu-item">
-              <template #icon><icon-unordered-list /></template>
-              任务列表
-            </a-menu-item>
-            <a-menu-item key="/job/history" class="menu-item">
-              <template #icon><icon-clock-circle /></template>
-              执行历史
-            </a-menu-item>
-          </a-sub-menu>
-          <a-sub-menu key="monitor">
-            <template #icon><icon-dashboard /></template>
-            <template #title>系统监控</template>
-            <a-menu-item key="/monitor/online" class="menu-item">
-              <template #icon><icon-desktop /></template>
-              在线用户
-            </a-menu-item>
-            <a-menu-item key="/monitor/server" class="menu-item">
-              <template #icon><icon-cloud /></template>
-              服务监控
-            </a-menu-item>
-            <a-menu-item key="/monitor/logs" class="menu-item">
-              <template #icon><icon-file /></template>
-              操作日志
-            </a-menu-item>
-          </a-sub-menu>
-          <a-sub-menu key="system-tool">
-            <template #icon><icon-bulb /></template>
-            <template #title>系统工具</template>
-            <a-menu-item key="/tool/generator" class="menu-item">
-              <template #icon><icon-code /></template>
-              代码生成
-            </a-menu-item>
-            <a-menu-item key="/tool/swagger" class="menu-item">
-              <template #icon><icon-robot /></template>
-              系统接口
-            </a-menu-item>
-          </a-sub-menu>
+          <template v-for="(item, index) in menuItems" :key="index">
+            <template v-if="!item.children">
+              <a-menu-item :key="item.key">
+                <template #icon>
+                  <component :is="item.icon" />
+                </template>
+                {{ item.title }}
+              </a-menu-item>
+            </template>
+            <template v-else>
+              <a-sub-menu :key="item.key">
+                <template #icon>
+                  <component :is="item.icon" />
+                </template>
+                <template #title>{{ item.title }}</template>
+                <a-menu-item v-for="child in item.children" :key="child.key">
+                  <template #icon>
+                    <component :is="child.icon" />
+                  </template>
+                  {{ child.title }}
+                </a-menu-item>
+              </a-sub-menu>
+            </template>
+          </template>
         </a-menu>
       </a-layout-sider>
       <a-layout-content class="layout-content">
@@ -185,12 +148,58 @@ import {
   IconSunFill,
 } from '@arco-design/web-vue/es/icon';
 import * as userApi from '@/api/user';
+import { appRoutes } from '../router';
 
 const router = useRouter();
 const route = useRoute();
 const collapsed = ref(false);
 const isDarkMode = ref(false);
 const isFullscreen = ref(false);
+
+interface MenuItem {
+  key: string;
+  title: string;
+  icon?: string;
+  children?: MenuItem[];
+}
+
+// 图标映射
+const iconMap: Record<string, any> = {
+  'icon-dashboard': IconDashboard,
+  'icon-apps': IconApps,
+  'icon-user': IconUser,
+  'icon-user-group': IconUserGroup,
+  'icon-safe': IconSafe,
+  'icon-calendar': IconCalendar,
+  'icon-unordered-list': IconUnorderedList,
+  'icon-clock-circle': IconClockCircle,
+  'icon-desktop': IconDesktop,
+  'icon-cloud': IconCloud,
+  'icon-file': IconFile,
+  'icon-bulb': IconBulb,
+  'icon-code': IconCode,
+  'icon-robot': IconRobot,
+};
+
+// 生成菜单项
+const menuItems = computed(() => {
+  const generateMenus = (routes: any[], parentPath = ''): MenuItem[] => {
+    return routes
+      .filter(route => !route.meta?.hideInMenu)
+      .sort((a, b) => (a.meta?.order || 0) - (b.meta?.order || 0))
+      .map(route => {
+        const fullPath = parentPath + '/' + route.path;
+        const menuItem: MenuItem = {
+          key: fullPath.replace('//', '/'), // 处理可能的双斜杠
+          title: route.meta?.title || route.name,
+          icon: route.meta?.icon ? iconMap[route.meta.icon] : undefined,
+          children: route.children ? generateMenus(route.children, fullPath) : undefined
+        };
+        return menuItem;
+      });
+  };
+  return generateMenus(appRoutes[2].children || []); // 只生成主布局下的路由
+});
 
 // 初始化主题
 const initTheme = () => {
@@ -242,17 +251,8 @@ const userInfo = ref({
 
 // 面包屑导航
 const breadcrumbItems = computed(() => {
-  const paths = route.path.split('/').filter(Boolean);
-  return paths.map(path => {
-    switch (path) {
-      case 'dashboard': return '仪表盘';
-      case 'system': return '系统管理';
-      case 'users': return '用户管理';
-      case 'roles': return '角色管理';
-      case 'permissions': return '权限管理';
-      default: return path;
-    }
-  });
+  const matched = route.matched;
+  return matched.map(record => record.meta?.title || record.name);
 });
 
 // 获取用户信息
@@ -293,13 +293,13 @@ const handleSettings = () => {
 };
 
 // 菜单相关
-const selectedKeys = computed(() => [route.path]);
+const selectedKeys = computed(() => {
+  return [route.path];
+});
+
 const openKeys = computed(() => {
-  const path = route.path;
-  if (path.startsWith('/system/')) {
-    return ['system'];
-  }
-  return [];
+  const paths = route.path.split('/').filter(Boolean);
+  return paths.slice(0, -1).map((_, index) => '/' + paths.slice(0, index + 1).join('/'));
 });
 
 const handleMenuClick = (key: string) => {
