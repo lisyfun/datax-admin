@@ -155,11 +155,10 @@
         <a-form-item field="cron_expr" label="Cron 表达式" :rules="[{ required: true, message: '请输入 Cron 表达式' }]">
           <a-input v-model="form.cron_expr" placeholder="请输入 Cron 表达式">
             <template #append>
-              <a-tooltip content="Cron 表达式在线生成">
-                <a-button @click="openCronHelper">
-                  <template #icon><icon-question-circle /></template>
-                </a-button>
-              </a-tooltip>
+              <a-button @click="showCronModal = true">
+                <template #icon><icon-edit /></template>
+                生成表达式
+              </a-button>
             </template>
           </a-input>
         </a-form-item>
@@ -192,11 +191,285 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- Cron 表达式生成器对话框 -->
+    <a-modal
+      v-model:visible="showCronModal"
+      title="Cron 表达式生成器"
+      :footer="false"
+      @cancel="handleCronCancel"
+    >
+      <div class="cron-container">
+        <a-tabs>
+          <a-tab-pane key="second" title="秒">
+            <a-radio-group v-model="cronConfig.second.type">
+              <a-space direction="vertical">
+                <a-radio value="*">每秒</a-radio>
+                <a-radio value="?">不指定</a-radio>
+                <a-radio value="fixed">
+                  周期从
+                  <a-input-number
+                    v-model="cronConfig.second.start"
+                    :min="0"
+                    :max="59"
+                    :disabled="cronConfig.second.type !== 'fixed'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  到
+                  <a-input-number
+                    v-model="cronConfig.second.end"
+                    :min="0"
+                    :max="59"
+                    :disabled="cronConfig.second.type !== 'fixed'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  秒
+                </a-radio>
+                <a-radio value="interval">
+                  从
+                  <a-input-number
+                    v-model="cronConfig.second.intervalStart"
+                    :min="0"
+                    :max="59"
+                    :disabled="cronConfig.second.type !== 'interval'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  秒开始，每
+                  <a-input-number
+                    v-model="cronConfig.second.interval"
+                    :min="1"
+                    :max="59"
+                    :disabled="cronConfig.second.type !== 'interval'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  秒执行一次
+                </a-radio>
+              </a-space>
+            </a-radio-group>
+          </a-tab-pane>
+          <a-tab-pane key="minute" title="分">
+            <a-radio-group v-model="cronConfig.minute.type">
+              <a-space direction="vertical">
+                <a-radio value="*">每分</a-radio>
+                <a-radio value="?">不指定</a-radio>
+                <a-radio value="fixed">
+                  周期从
+                  <a-input-number
+                    v-model="cronConfig.minute.start"
+                    :min="0"
+                    :max="59"
+                    :disabled="cronConfig.minute.type !== 'fixed'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  到
+                  <a-input-number
+                    v-model="cronConfig.minute.end"
+                    :min="0"
+                    :max="59"
+                    :disabled="cronConfig.minute.type !== 'fixed'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  分
+                </a-radio>
+                <a-radio value="interval">
+                  从
+                  <a-input-number
+                    v-model="cronConfig.minute.intervalStart"
+                    :min="0"
+                    :max="59"
+                    :disabled="cronConfig.minute.type !== 'interval'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  分开始，每
+                  <a-input-number
+                    v-model="cronConfig.minute.interval"
+                    :min="1"
+                    :max="59"
+                    :disabled="cronConfig.minute.type !== 'interval'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  分执行一次
+                </a-radio>
+              </a-space>
+            </a-radio-group>
+          </a-tab-pane>
+          <a-tab-pane key="hour" title="时">
+            <a-radio-group v-model="cronConfig.hour.type">
+              <a-space direction="vertical">
+                <a-radio value="*">每小时</a-radio>
+                <a-radio value="?">不指定</a-radio>
+                <a-radio value="fixed">
+                  周期从
+                  <a-input-number
+                    v-model="cronConfig.hour.start"
+                    :min="0"
+                    :max="23"
+                    :disabled="cronConfig.hour.type !== 'fixed'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  到
+                  <a-input-number
+                    v-model="cronConfig.hour.end"
+                    :min="0"
+                    :max="23"
+                    :disabled="cronConfig.hour.type !== 'fixed'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  时
+                </a-radio>
+                <a-radio value="interval">
+                  从
+                  <a-input-number
+                    v-model="cronConfig.hour.intervalStart"
+                    :min="0"
+                    :max="23"
+                    :disabled="cronConfig.hour.type !== 'interval'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  时开始，每
+                  <a-input-number
+                    v-model="cronConfig.hour.interval"
+                    :min="1"
+                    :max="23"
+                    :disabled="cronConfig.hour.type !== 'interval'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  小时执行一次
+                </a-radio>
+              </a-space>
+            </a-radio-group>
+          </a-tab-pane>
+          <a-tab-pane key="day" title="日">
+            <a-radio-group v-model="cronConfig.day.type">
+              <a-space direction="vertical">
+                <a-radio value="*">每日</a-radio>
+                <a-radio value="?">不指定</a-radio>
+                <a-radio value="fixed">
+                  周期从
+                  <a-input-number
+                    v-model="cronConfig.day.start"
+                    :min="1"
+                    :max="31"
+                    :disabled="cronConfig.day.type !== 'fixed'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  到
+                  <a-input-number
+                    v-model="cronConfig.day.end"
+                    :min="1"
+                    :max="31"
+                    :disabled="cronConfig.day.type !== 'fixed'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  日
+                </a-radio>
+                <a-radio value="interval">
+                  从
+                  <a-input-number
+                    v-model="cronConfig.day.intervalStart"
+                    :min="1"
+                    :max="31"
+                    :disabled="cronConfig.day.type !== 'interval'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  日开始，每
+                  <a-input-number
+                    v-model="cronConfig.day.interval"
+                    :min="1"
+                    :max="31"
+                    :disabled="cronConfig.day.type !== 'interval'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  天执行一次
+                </a-radio>
+              </a-space>
+            </a-radio-group>
+          </a-tab-pane>
+          <a-tab-pane key="month" title="月">
+            <a-radio-group v-model="cronConfig.month.type">
+              <a-space direction="vertical">
+                <a-radio value="*">每月</a-radio>
+                <a-radio value="?">不指定</a-radio>
+                <a-radio value="fixed">
+                  周期从
+                  <a-input-number
+                    v-model="cronConfig.month.start"
+                    :min="1"
+                    :max="12"
+                    :disabled="cronConfig.month.type !== 'fixed'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  到
+                  <a-input-number
+                    v-model="cronConfig.month.end"
+                    :min="1"
+                    :max="12"
+                    :disabled="cronConfig.month.type !== 'fixed'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  月
+                </a-radio>
+                <a-radio value="interval">
+                  从
+                  <a-input-number
+                    v-model="cronConfig.month.intervalStart"
+                    :min="1"
+                    :max="12"
+                    :disabled="cronConfig.month.type !== 'interval'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  月开始，每
+                  <a-input-number
+                    v-model="cronConfig.month.interval"
+                    :min="1"
+                    :max="12"
+                    :disabled="cronConfig.month.type !== 'interval'"
+                    style="width: 80px; margin: 0 8px"
+                  />
+                  月执行一次
+                </a-radio>
+              </a-space>
+            </a-radio-group>
+          </a-tab-pane>
+          <a-tab-pane key="week" title="周">
+            <a-radio-group v-model="cronConfig.week.type">
+              <a-space direction="vertical">
+                <a-radio value="*">每周</a-radio>
+                <a-radio value="?">不指定</a-radio>
+                <a-radio value="fixed">
+                  指定
+                  <a-space>
+                    <a-checkbox
+                      v-for="day in weekDays"
+                      :key="day.value"
+                      v-model="cronConfig.week.days"
+                      :value="day.value"
+                      :disabled="cronConfig.week.type !== 'fixed'"
+                    >
+                      {{ day.label }}
+                    </a-checkbox>
+                  </a-space>
+                </a-radio>
+              </a-space>
+            </a-radio-group>
+          </a-tab-pane>
+        </a-tabs>
+        <div class="cron-footer">
+          <a-space>
+            <a-button type="primary" @click="handleCronConfirm">确定</a-button>
+            <a-button @click="handleCronCancel">取消</a-button>
+          </a-space>
+          <div class="cron-expression">
+            表达式：{{ generatedCron }}
+          </div>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import {
   IconPlus,
@@ -503,9 +776,81 @@ const handleFormCancel = () => {
   }
 };
 
-// 打开 Cron 表达式帮助
-const openCronHelper = () => {
-  window.open('https://crontab.guru/', '_blank');
+// Cron 表达式生成器相关
+interface CronFieldConfig {
+  type: string;
+  start: number;
+  end: number;
+  intervalStart: number;
+  interval: number;
+}
+
+interface WeekConfig {
+  type: string;
+  days: string[];
+}
+
+interface CronConfig {
+  second: CronFieldConfig;
+  minute: CronFieldConfig;
+  hour: CronFieldConfig;
+  day: CronFieldConfig;
+  month: CronFieldConfig;
+  week: WeekConfig;
+}
+
+const showCronModal = ref(false);
+const cronConfig = reactive<CronConfig>({
+  second: { type: '*', start: 0, end: 59, intervalStart: 0, interval: 1 },
+  minute: { type: '*', start: 0, end: 59, intervalStart: 0, interval: 1 },
+  hour: { type: '*', start: 0, end: 23, intervalStart: 0, interval: 1 },
+  day: { type: '*', start: 1, end: 31, intervalStart: 1, interval: 1 },
+  month: { type: '*', start: 1, end: 12, intervalStart: 1, interval: 1 },
+  week: { type: '?', days: [] },
+});
+
+const weekDays = [
+  { label: '周日', value: '1' },
+  { label: '周一', value: '2' },
+  { label: '周二', value: '3' },
+  { label: '周三', value: '4' },
+  { label: '周四', value: '5' },
+  { label: '周五', value: '6' },
+  { label: '周六', value: '7' },
+];
+
+// 生成 Cron 表达式
+const generatedCron = computed(() => {
+  const parts = ['second', 'minute', 'hour', 'day', 'month', 'week'].map((field) => {
+    const config = cronConfig[field as keyof CronConfig];
+    switch (config.type) {
+      case '*':
+        return '*';
+      case '?':
+        return '?';
+      case 'fixed':
+        if (field === 'week') {
+          return (config as WeekConfig).days.length ? (config as WeekConfig).days.join(',') : '?';
+        }
+        return `${(config as CronFieldConfig).start}-${(config as CronFieldConfig).end}`;
+      case 'interval':
+        return `${(config as CronFieldConfig).intervalStart}/${(config as CronFieldConfig).interval}`;
+      default:
+        return '*';
+    }
+  });
+  return parts.join(' ');
+});
+
+// 处理 Cron 表达式确认
+const handleCronConfirm = () => {
+  form.cron_expr = generatedCron.value;
+  showCronModal.value = false;
+};
+
+// 处理 Cron 表达式取消
+const handleCronCancel = () => {
+  showCronModal.value = false;
 };
 
 // 格式化 JSON
@@ -604,5 +949,33 @@ fetchData();
 
 .datax-tools :deep(.arco-btn:hover) {
   color: rgb(var(--primary-6));
+}
+
+.cron-container {
+  .cron-footer {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-neutral-3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .cron-expression {
+    color: var(--color-text-2);
+    font-size: 14px;
+  }
+
+  :deep(.arco-tabs-content) {
+    padding: 16px 0;
+  }
+
+  :deep(.arco-radio-group) {
+    width: 100%;
+  }
+
+  :deep(.arco-space-vertical) {
+    width: 100%;
+  }
 }
 </style>
