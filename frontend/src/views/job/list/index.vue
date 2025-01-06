@@ -1,10 +1,8 @@
 <template>
-  <div class="container">
-    <div class="header">
-      <a-typography-title :heading="6" style="margin: 0">
-        任务列表
-      </a-typography-title>
-      <div class="toolbar">
+  <div class="jobs">
+    <a-card>
+      <template #title>任务列表</template>
+      <template #extra>
         <a-space>
           <a-input-search
             v-model="searchForm.name"
@@ -35,9 +33,8 @@
             刷新
           </a-button>
         </a-space>
-      </div>
-    </div>
-    <a-card class="general-card" :bordered="false">
+      </template>
+
       <a-table
         row-key="id"
         :loading="loading"
@@ -1170,25 +1167,8 @@ fetchData();
 </script>
 
 <style scoped>
-.container {
-  padding: 0 20px 20px 20px;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.general-card {
-  border-radius: 4px;
+.jobs {
+  padding: 16px;
 }
 
 .datax-tools {
