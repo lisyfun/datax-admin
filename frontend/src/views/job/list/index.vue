@@ -1166,7 +1166,8 @@ fetchData();
   .cron-preview {
     margin-bottom: 24px;
     padding: 16px;
-    background: var(--color-fill-2);
+    background: rgba(var(--primary-6), 0.08);
+    border: 1px solid rgba(var(--primary-6), 0.15);
     border-radius: 4px;
     text-align: center;
 
@@ -1182,6 +1183,10 @@ fetchData();
       font-family: monospace;
       margin: 8px 0;
       font-weight: bold;
+      padding: 8px;
+      background: var(--color-bg-2);
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
     .preview-desc {
@@ -1196,7 +1201,8 @@ fetchData();
     }
 
     .arco-tabs-nav {
-      background: var(--color-fill-2);
+      background: var(--color-bg-2);
+      border: 1px solid var(--color-border);
       border-radius: 4px;
       padding: 4px;
     }
@@ -1205,11 +1211,22 @@ fetchData();
       border-radius: 4px;
       padding: 8px 16px;
       font-size: 14px;
+
+      &:hover {
+        color: rgb(var(--primary-6));
+        background: rgba(var(--primary-6), 0.06);
+      }
+
+      &.arco-tabs-tab-active {
+        background: rgba(var(--primary-6), 0.1);
+      }
     }
   }
 
   .tab-content {
     padding: 8px;
+    background: var(--color-bg-2);
+    border-radius: 4px;
 
     .radio-content {
       display: flex;
@@ -1235,23 +1252,43 @@ fetchData();
     padding: 8px 12px;
     width: 100%;
     border-radius: 4px;
-    transition: background-color 0.1s;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
 
     &:hover {
-      background-color: var(--color-fill-2);
+      background: rgba(var(--primary-6), 0.04);
+      border-color: rgba(var(--primary-6), 0.1);
     }
   }
 
   :deep(.arco-radio-checked) {
-    background-color: var(--color-fill-2);
+    background: rgba(var(--primary-6), 0.08);
+    border-color: rgba(var(--primary-6), 0.2);
   }
 
   :deep(.arco-input-number) {
     margin: 0 4px;
+    border-color: var(--color-border);
+    background: var(--color-bg-1);
+
+    &:hover, &:focus {
+      background: var(--color-bg-2);
+      border-color: rgb(var(--primary-6));
+    }
   }
 
   :deep(.arco-select) {
     width: 100%;
+
+    .arco-select-view {
+      background: var(--color-bg-1);
+      border-color: var(--color-border);
+
+      &:hover {
+        background: var(--color-bg-2);
+        border-color: rgb(var(--primary-6));
+      }
+    }
   }
 }
 </style>
