@@ -37,7 +37,7 @@
             <template #cell="{ record }">
               <a-switch
                 :model-value="record.status === 1"
-                @onChange="(value: boolean) => handleStatusChange(record, value)"
+                @change="(value) => handleStatusChange(record, Boolean(value))"
               />
             </template>
           </a-table-column>
@@ -75,7 +75,7 @@
       @ok="handleRoleFormSubmit"
       @cancel="handleRoleFormCancel"
     >
-      <a-form ref="roleForm" :model="roleForm">
+      <a-form ref="roleFormRef" :model="roleForm">
         <a-form-item field="name" label="角色名称" :rules="[{ required: true, message: '请输入角色名称' }]">
           <a-input v-model="roleForm.name" placeholder="请输入角色名称" />
         </a-form-item>
@@ -104,7 +104,7 @@
           children: 'children',
         }"
         checkable
-        check-strictly
+        :check-strictly="true"
       />
     </a-modal>
   </div>
@@ -113,8 +113,10 @@
 <script lang="ts" setup>
 import { ref, reactive, onMounted } from 'vue';
 import { Message } from '@arco-design/web-vue';
-import type { RoleInfo } from '@/types/role';
+import type { TreeNodeData } from '@arco-design/web-vue';
+import type { RoleInfo, UpdateRoleParams, UpdateRolePermissionsParams } from '@/types/role';
 import type { PermissionInfo } from '@/types/permission';
+import { convertToTreeData } from '@/types/permission';
 import * as roleApi from '@/api/role';
 import * as permissionApi from '@/api/permission';
 
@@ -129,6 +131,7 @@ const searchKeyword = ref('');
 // 角色表单
 const showRoleForm = ref(false);
 const isEdit = ref(false);
+const roleFormRef = ref();
 const roleForm = reactive({
   id: 0,
   name: '',
@@ -138,7 +141,7 @@ const roleForm = reactive({
 
 // 权限表单
 const showPermissionForm = ref(false);
-const permissionTree = ref<PermissionInfo[]>([]);
+const permissionTree = ref<TreeNodeData[]>([]);
 const permissionForm = reactive({
   roleId: 0,
   permissionIds: [] as number[],
@@ -166,7 +169,7 @@ const fetchRoles = async () => {
 const fetchPermissionTree = async () => {
   try {
     const res = await permissionApi.getPermissionTree();
-    permissionTree.value = res.data.list;
+    permissionTree.value = convertToTreeData(res.data.list);
   } catch (error: any) {
     Message.error(error.response?.data?.error || '获取权限树失败');
   }
@@ -208,8 +211,8 @@ const handleAdd = () => {
 const handleEdit = (record: RoleInfo) => {
   isEdit.value = true;
   roleForm.id = record.id;
-  roleForm.name = record.name;
-  roleForm.code = record.code;
+  roleForm.name = record.name || '';
+  roleForm.code = record.code || '';
   roleForm.description = record.description || '';
   showRoleForm.value = true;
 };
@@ -224,9 +227,14 @@ const handleAssignPermissions = async (record: RoleInfo) => {
 // 更新状态
 const handleStatusChange = async (record: RoleInfo, value: boolean) => {
   try {
-    // TODO: 实现更新角色状态的 API
+    const updateData: UpdateRoleParams = {
+      name: record.name,
+      description: record.description,
+      status: value ? 1 : 0
+    };
+    await roleApi.updateRole(record.id, updateData);
     Message.success('状态更新成功');
-    fetchRoles();
+    await fetchRoles();
   } catch (error: any) {
     Message.error(error.response?.data?.error || '状态更新失败');
   }
@@ -246,41 +254,56 @@ const handleDelete = async (record: RoleInfo) => {
 // 提交角色表单
 const handleRoleFormSubmit = async () => {
   try {
+    if (!roleFormRef.value) return;
+    await roleFormRef.value.validate();
+
     if (isEdit.value) {
       await roleApi.updateRole(roleForm.id, {
         name: roleForm.name,
         description: roleForm.description,
+        status: roles.value.find(r => r.id === roleForm.id)?.status || 1
       });
+      Message.success('编辑成功');
     } else {
       await roleApi.createRole({
         name: roleForm.name,
         code: roleForm.code,
-        description: roleForm.description,
+        description: roleForm.description
       });
+      Message.success('新增成功');
     }
-    Message.success(isEdit.value ? '编辑成功' : '新增成功');
     showRoleForm.value = false;
     fetchRoles();
   } catch (error: any) {
-    Message.error(error.response?.data?.error || (isEdit.value ? '编辑失败' : '新增失败'));
+    if (error.response?.data?.error) {
+      Message.error(error.response.data.error);
+    } else if (error.errors) {
+      Message.error('表单验证失败，请检查输入');
+    } else {
+      Message.error(isEdit.value ? '编辑失败' : '新增失败');
+    }
   }
 };
 
 // 取消角色表单
 const handleRoleFormCancel = () => {
   showRoleForm.value = false;
+  if (roleFormRef.value) {
+    roleFormRef.value.resetFields();
+  }
 };
 
 // 提交权限表单
 const handlePermissionFormSubmit = async () => {
   try {
-    await roleApi.updateRolePermissions(permissionForm.roleId, {
-      permission_ids: permissionForm.permissionIds,
-    });
-    Message.success('权限分配成功');
+    const params: UpdateRolePermissionsParams = {
+      permission_ids: permissionForm.permissionIds
+    };
+    await roleApi.updateRolePermissions(permissionForm.roleId, params.permission_ids);
+    Message.success('权限更新成功');
     showPermissionForm.value = false;
   } catch (error: any) {
-    Message.error(error.response?.data?.error || '权限分配失败');
+    Message.error(error.response?.data?.error || '权限更新失败');
   }
 };
 

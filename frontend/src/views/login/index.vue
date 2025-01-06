@@ -9,7 +9,7 @@
         <template #title>
           <div class="login-title">系统登录</div>
         </template>
-        <a-form :model="form" @submit="handleSubmit">
+        <a-form :model="form" @submit="handleSubmit" ref="formRef">
           <a-form-item field="username" label="用户名" :rules="[{ required: true, message: '请输入用户名' }]">
             <a-input v-model="form.username" placeholder="请输入用户名" />
           </a-form-item>
@@ -36,22 +36,28 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
-import { useUserStore } from '../../stores/user';
+import type { FormInstance } from '@arco-design/web-vue';
+import * as userApi from '@/api/user';
 
 const router = useRouter();
-const userStore = useUserStore();
-
+const formRef = ref<FormInstance>();
+const loading = ref(false);
 const form = reactive({
   username: '',
   password: '',
 });
 
-const loading = ref(false);
-
 const handleSubmit = async () => {
   try {
     loading.value = true;
-    await userStore.login(form.username, form.password);
+    if (!formRef.value) return;
+    await formRef.value.validate();
+
+    const res = await userApi.login({
+      username: form.username,
+      password: form.password
+    });
+    localStorage.setItem('token', res.data.token);
     Message.success('登录成功');
     router.push('/');
   } catch (error: any) {

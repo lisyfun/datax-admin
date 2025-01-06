@@ -11,6 +11,7 @@ type CreateRoleRequest struct {
 type UpdateRoleRequest struct {
 	Name        string `json:"name" binding:"required,max=50"`
 	Description string `json:"description" binding:"max=200"`
+	Status      int    `json:"status" binding:"oneof=0 1"`
 }
 
 // RoleResponse 角色响应

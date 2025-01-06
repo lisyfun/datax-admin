@@ -36,6 +36,7 @@ func (s *RoleService) UpdateRole(id uint, req *types.UpdateRoleRequest) error {
 	return models.DB.Model(&models.Role{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"name":        req.Name,
 		"description": req.Description,
+		"status":      req.Status,
 	}).Error
 }
 

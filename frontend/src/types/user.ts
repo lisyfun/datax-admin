@@ -40,3 +40,7 @@ export interface UserListResult {
   total: number;
   items: UserInfo[];
 }
+
+export interface ResetPasswordParams {
+  password: string;
+}

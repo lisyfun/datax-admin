@@ -196,7 +196,16 @@ const handleAdd = (parent?: PermissionInfo) => {
 
 const handleStatusChange = async (record: PermissionInfo, value: boolean) => {
   try {
-    await permissionApi.updatePermission(record.id, { status: value ? 1 : 0 });
+    await permissionApi.updatePermission(record.id, {
+      name: record.name,
+      type: record.type,
+      status: value ? 1 : 0,
+      parent_id: record.parent_id,
+      path: record.path,
+      component: record.component,
+      icon: record.icon,
+      sort: record.sort
+    });
     Message.success('状态更新成功');
     await fetchPermissions();
   } catch (error) {

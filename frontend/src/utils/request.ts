@@ -1,18 +1,19 @@
 import axios from 'axios';
 import { Message } from '@arco-design/web-vue';
-import { useUserStore } from '../stores/user';
+import router from '@/router';
 
+// 创建 axios 实例
 const request = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: '/api',
   timeout: 10000,
 });
 
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
-    const userStore = useUserStore();
-    if (userStore.token) {
-      config.headers.Authorization = `Bearer ${userStore.token}`;
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -28,31 +29,22 @@ request.interceptors.response.use(
   },
   (error) => {
     if (error.response) {
-      const { status, data } = error.response;
-      switch (status) {
-        case 400:
-          Message.error(data.error || '请求参数错误');
-          break;
-        case 401:
-          Message.error('未登录或登录已过期');
-          const userStore = useUserStore();
-          userStore.logout();
-          window.location.href = '/login';
-          break;
-        case 403:
-          Message.error('没有权限');
-          break;
-        case 404:
-          Message.error('请求的资源不存在');
-          break;
-        case 500:
-          Message.error('服务器错误');
-          break;
-        default:
-          Message.error('未知错误');
+      const { status } = error.response;
+      if (status === 401) {
+        Message.error('登录已过期，请重新登录');
+        localStorage.removeItem('token');
+        router.push('/login');
+      } else if (status === 403) {
+        Message.error('没有权限访问');
+      } else if (status === 404) {
+        Message.error('请求的资源不存在');
+      } else if (status === 500) {
+        Message.error('服务器错误');
+      } else {
+        Message.error(error.response.data?.error || '请求失败');
       }
     } else {
-      Message.error('网络错误');
+      Message.error('网络错误，请检查网络连接');
     }
     return Promise.reject(error);
   }

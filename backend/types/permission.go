@@ -21,6 +21,7 @@ type UpdatePermissionRequest struct {
 	Component string `json:"component" binding:"max=200"`
 	Icon      string `json:"icon" binding:"max=50"`
 	Sort      int    `json:"sort" binding:"min=0"`
+	Status    int    `json:"status" binding:"oneof=0 1"`
 }
 
 // PermissionResponse 权限响应

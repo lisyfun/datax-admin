@@ -3,7 +3,7 @@ package types
 // UpdatePasswordRequest 修改密码请求
 type UpdatePasswordRequest struct {
 	OldPassword string `json:"old_password" binding:"required"`
-	NewPassword string `json:"new_password" binding:"required,min=6,max=50"`
+	NewPassword string `json:"new_password" binding:"required"`
 }
 
 // UpdateProfileRequest 更新个人信息请求
@@ -15,7 +15,7 @@ type UpdateProfileRequest struct {
 
 // UpdateUserStatusRequest 更新用户状态请求
 type UpdateUserStatusRequest struct {
-	Status int `json:"status" binding:"required,oneof=0 1"`
+	Status *int `json:"status" binding:"required,oneof=0 1"`
 }
 
 // UserListRequest 用户列表请求
@@ -29,4 +29,9 @@ type UserListRequest struct {
 type UserListResponse struct {
 	Total int64          `json:"total"`
 	Items []UserResponse `json:"items"`
+}
+
+// ResetPasswordRequest 重置密码请求
+type ResetPasswordRequest struct {
+	Password string `json:"password" binding:"required"`
 }

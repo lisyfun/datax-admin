@@ -37,7 +37,7 @@
             <template #cell="{ record }">
               <a-switch
                 :model-value="record.status === 1"
-                @change="(value: boolean) => handleStatusChange(record, value)"
+                @update:model-value="(value) => handleStatusChange(record, Boolean(value))"
               />
             </template>
           </a-table-column>
@@ -51,6 +51,14 @@
                 <a-button type="text" size="small" @click="handleAssignRoles(record)">
                   <template #icon><icon-user-group /></template>
                   分配角色
+                </a-button>
+                <a-button type="text" size="small" @click="handleChangePassword(record)">
+                  <template #icon><icon-lock /></template>
+                  修改密码
+                </a-button>
+                <a-button type="text" size="small" @click="handleResetPassword(record)">
+                  <template #icon><icon-refresh /></template>
+                  重置密码
                 </a-button>
                 <a-popconfirm
                   content="确定要删除该用户吗？"
@@ -75,7 +83,7 @@
       @ok="handleUserFormSubmit"
       @cancel="handleUserFormCancel"
     >
-      <a-form ref="userForm" :model="userForm" :rules="userFormRules">
+      <a-form ref="userFormRef" :model="userForm">
         <a-form-item field="username" label="用户名" :rules="[{ required: true, message: '请输入用户名' }]">
           <a-input v-model="userForm.username" placeholder="请输入用户名" :disabled="isEdit" />
         </a-form-item>
@@ -118,6 +126,37 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 密码表单对话框 -->
+    <a-modal
+      v-model:visible="showPasswordForm"
+      title="修改密码"
+      @ok="handlePasswordFormSubmit"
+      @cancel="handlePasswordFormCancel"
+    >
+      <a-form ref="passwordFormRef" :model="passwordForm">
+        <a-form-item field="oldPassword" label="旧密码" :rules="[{ required: true, message: '请输入旧密码' }]">
+          <a-input-password v-model="passwordForm.oldPassword" placeholder="请输入旧密码" />
+        </a-form-item>
+        <a-form-item field="newPassword" label="新密码" :rules="[{ required: true, message: '请输入新密码' }]">
+          <a-input-password v-model="passwordForm.newPassword" placeholder="请输入新密码" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 重置密码表单对话框 -->
+    <a-modal
+      v-model:visible="showResetPasswordForm"
+      title="重置密码"
+      @ok="handleResetPasswordFormSubmit"
+      @cancel="handleResetPasswordFormCancel"
+    >
+      <a-form ref="resetPasswordFormRef" :model="resetPasswordForm">
+        <a-form-item field="password" label="新密码" :rules="[{ required: true, message: '请输入新密码' }]">
+          <a-input-password v-model="resetPasswordForm.password" placeholder="请输入新密码" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -128,6 +167,7 @@ import type { UserInfo } from '@/types/user';
 import type { RoleInfo } from '@/types/role';
 import * as userApi from '@/api/user';
 import * as roleApi from '@/api/role';
+import { encryptPassword } from '@/utils/crypto';
 
 // 表格数据
 const users = ref<UserInfo[]>([]);
@@ -140,12 +180,30 @@ const searchKeyword = ref('');
 // 用户表单
 const showUserForm = ref(false);
 const isEdit = ref(false);
+const userFormRef = ref();
 const userForm = reactive({
   id: 0,
   username: '',
   password: '',
   nickname: '',
   email: '',
+});
+
+// 密码表单
+const showPasswordForm = ref(false);
+const passwordFormRef = ref();
+const passwordForm = reactive({
+  id: 0,
+  oldPassword: '',
+  newPassword: '',
+});
+
+// 重置密码表单
+const showResetPasswordForm = ref(false);
+const resetPasswordFormRef = ref();
+const resetPasswordForm = reactive({
+  id: 0,
+  password: '',
 });
 
 // 角色表单
@@ -224,9 +282,10 @@ const handleAdd = () => {
 const handleEdit = (record: UserInfo) => {
   isEdit.value = true;
   userForm.id = record.id;
-  userForm.username = record.username;
+  userForm.username = record.username || '';
   userForm.nickname = record.nickname || '';
   userForm.email = record.email || '';
+  userForm.password = ''; // 编辑时不需要密码
   showUserForm.value = true;
 };
 
@@ -240,11 +299,33 @@ const handleAssignRoles = async (record: UserInfo) => {
 // 更新状态
 const handleStatusChange = async (record: UserInfo, value: boolean) => {
   try {
-    await userApi.updateUserStatus(record.id, value ? 1 : 0);
+    const newStatus = value ? 1 : 0;
+    console.log('Status change triggered:', {
+      userId: record.id,
+      currentStatus: record.status,
+      newValue: value,
+      newStatus
+    });
+
+    // 立即更新 UI 状态
+    const targetUser = users.value.find(u => u.id === record.id);
+    if (targetUser) {
+      targetUser.status = newStatus;
+    }
+
+    // 发送请求
+    await userApi.updateUserStatus(record.id, newStatus);
     Message.success('状态更新成功');
-    fetchUsers();
   } catch (error: any) {
+    console.error('Status update error:', {
+      error,
+      response: error.response?.data,
+      request: error.request,
+      config: error.config
+    });
     Message.error(error.response?.data?.error || '状态更新失败');
+    // 发生错误时恢复原状态
+    await fetchUsers();
   }
 };
 
@@ -262,24 +343,49 @@ const handleDelete = async (record: UserInfo) => {
 // 提交用户表单
 const handleUserFormSubmit = async () => {
   try {
-    // TODO: 实现新增/编辑用户的 API
-    Message.success(isEdit.value ? '编辑成功' : '新增成功');
+    if (!userFormRef.value) return;
+    await userFormRef.value.validate();
+
+    if (isEdit.value) {
+      await userApi.updateProfile({
+        nickname: userForm.nickname,
+        email: userForm.email
+      });
+      Message.success('编辑成功');
+    } else {
+      await userApi.register({
+        username: userForm.username,
+        password: encryptPassword(userForm.password),
+        nickname: userForm.nickname,
+        email: userForm.email
+      });
+      Message.success('新增成功');
+    }
     showUserForm.value = false;
     fetchUsers();
   } catch (error: any) {
-    Message.error(error.response?.data?.error || (isEdit.value ? '编辑失败' : '新增失败'));
+    if (error.response?.data?.error) {
+      Message.error(error.response.data.error);
+    } else if (error.errors) {
+      Message.error('表单验证失败，请检查输入');
+    } else {
+      Message.error(isEdit.value ? '编辑失败' : '新增失败');
+    }
   }
 };
 
 // 取消用户表单
 const handleUserFormCancel = () => {
   showUserForm.value = false;
+  if (userFormRef.value) {
+    userFormRef.value.resetFields();
+  }
 };
 
 // 提交角色表单
 const handleRoleFormSubmit = async () => {
   try {
-    await roleApi.updateUserRoles(roleForm.userId, { role_ids: roleForm.roleIds });
+    await roleApi.updateUserRoles(roleForm.userId, roleForm.roleIds);
     Message.success('角色分配成功');
     showRoleForm.value = false;
   } catch (error: any) {
@@ -290,6 +396,82 @@ const handleRoleFormSubmit = async () => {
 // 取消角色表单
 const handleRoleFormCancel = () => {
   showRoleForm.value = false;
+};
+
+// 修改密码
+const handleChangePassword = (record: UserInfo) => {
+  passwordForm.id = record.id;
+  passwordForm.oldPassword = '';
+  passwordForm.newPassword = '';
+  showPasswordForm.value = true;
+};
+
+// 重置密码
+const handleResetPassword = (record: UserInfo) => {
+  resetPasswordForm.id = record.id;
+  resetPasswordForm.password = '';
+  showResetPasswordForm.value = true;
+};
+
+// 提交密码表单
+const handlePasswordFormSubmit = async () => {
+  try {
+    if (!passwordFormRef.value) return;
+    await passwordFormRef.value.validate();
+
+    await userApi.updatePassword({
+      old_password: encryptPassword(passwordForm.oldPassword),
+      new_password: encryptPassword(passwordForm.newPassword)
+    });
+    Message.success('密码修改成功');
+    showPasswordForm.value = false;
+  } catch (error: any) {
+    if (error.response?.data?.error) {
+      Message.error(error.response.data.error);
+    } else if (error.errors) {
+      Message.error('表单验证失败，请检查输入');
+    } else {
+      Message.error('密码修改失败');
+    }
+  }
+};
+
+// 取消密码表单
+const handlePasswordFormCancel = () => {
+  showPasswordForm.value = false;
+  if (passwordFormRef.value) {
+    passwordFormRef.value.resetFields();
+  }
+};
+
+// 提交重置密码表单
+const handleResetPasswordFormSubmit = async () => {
+  try {
+    if (!resetPasswordFormRef.value) return;
+    await resetPasswordFormRef.value.validate();
+
+    await userApi.resetPassword(resetPasswordForm.id, {
+      password: encryptPassword(resetPasswordForm.password)
+    });
+    Message.success('密码重置成功');
+    showResetPasswordForm.value = false;
+  } catch (error: any) {
+    if (error.response?.data?.error) {
+      Message.error(error.response.data.error);
+    } else if (error.errors) {
+      Message.error('表单验证失败，请检查输入');
+    } else {
+      Message.error('密码重置失败');
+    }
+  }
+};
+
+// 取消重置密码表单
+const handleResetPasswordFormCancel = () => {
+  showResetPasswordForm.value = false;
+  if (resetPasswordFormRef.value) {
+    resetPasswordFormRef.value.resetFields();
+  }
 };
 
 onMounted(() => {

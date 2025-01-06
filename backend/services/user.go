@@ -24,9 +24,11 @@ func (s *UserService) Register(req *types.RegisterRequest) error {
 
 	user := &models.User{
 		Username: req.Username,
-		Password: req.Password,
 		Nickname: req.Nickname,
 		Email:    req.Email,
+	}
+	if err := user.SetPassword(req.Password); err != nil {
+		return err
 	}
 
 	return models.DB.Create(user).Error
@@ -40,6 +42,11 @@ func (s *UserService) Login(req *types.LoginRequest) (*types.TokenResponse, erro
 			return nil, errors.New("用户名或密码错误")
 		}
 		return nil, err
+	}
+
+	// 检查密码格式
+	if len(user.Password) < 60 {
+		return nil, errors.New("密码格式错误")
 	}
 
 	if !user.CheckPassword(req.Password) {
@@ -86,7 +93,10 @@ func (s *UserService) UpdatePassword(userID uint, req *types.UpdatePasswordReque
 		return errors.New("原密码错误")
 	}
 
-	user.Password = req.NewPassword
+	if err := user.SetPassword(req.NewPassword); err != nil {
+		return err
+	}
+
 	return models.DB.Save(&user).Error
 }
 
@@ -108,7 +118,25 @@ func (s *UserService) UpdateProfile(userID uint, req *types.UpdateProfileRequest
 
 // UpdateUserStatus 更新用户状态
 func (s *UserService) UpdateUserStatus(userID uint, req *types.UpdateUserStatusRequest) error {
-	return models.DB.Model(&models.User{}).Where("id = ?", userID).Update("status", req.Status).Error
+	// 先检查用户是否存在
+	var user models.User
+	if err := models.DB.First(&user, userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("用户不存在")
+		}
+		return err
+	}
+
+	// 检查状态值是否有效
+	if req.Status == nil {
+		return errors.New("状态值不能为空")
+	}
+	if *req.Status != 0 && *req.Status != 1 {
+		return errors.New("无效的状态值")
+	}
+
+	// 更新状态
+	return models.DB.Model(&user).Update("status", *req.Status).Error
 }
 
 // GetUserList 获取用户列表
@@ -149,4 +177,37 @@ func (s *UserService) GetUserList(req *types.UserListRequest) (*types.UserListRe
 		Total: total,
 		Items: items,
 	}, nil
+}
+
+// ResetPassword 重置用户密码
+func (s *UserService) ResetPassword(userID uint, req *types.ResetPasswordRequest) error {
+	// 先检查用户是否存在
+	var user models.User
+	if err := models.DB.First(&user, userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("用户不存在")
+		}
+		return err
+	}
+
+	// 设置新密码
+	if err := user.SetPassword(req.Password); err != nil {
+		return err
+	}
+
+	// 保存前检查密码是否已加密
+	if len(user.Password) < 60 {
+		return errors.New("密码加密失败")
+	}
+
+	if err := models.DB.Save(&user).Error; err != nil {
+		return err
+	}
+
+	// 验证新密码是否可以正确验证
+	if !user.CheckPassword(req.Password) {
+		return errors.New("密码设置失败，无法验证")
+	}
+
+	return nil
 }

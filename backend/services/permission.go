@@ -46,6 +46,7 @@ func (s *PermissionService) UpdatePermission(id uint, req *types.UpdatePermissio
 		"component": req.Component,
 		"icon":      req.Icon,
 		"sort":      req.Sort,
+		"status":    req.Status,
 	}
 
 	return models.DB.Model(&models.Permission{}).Where("id = ?", id).Updates(updates).Error
