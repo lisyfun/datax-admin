@@ -54,7 +54,15 @@
           </a-tag>
         </template>
         <template #type="{ record }">
-          {{ record.type === 'shell' ? 'Shell脚本' : 'DataX任务' }}
+          <a-tag :color="getJobTypeColor(record.type)">
+            {{ getJobTypeText(record.type) }}
+          </a-tag>
+        </template>
+        <template #created_at="{ record }">
+          {{ formatDateTime(record.created_at) }}
+        </template>
+        <template #updated_at="{ record }">
+          {{ formatDateTime(record.updated_at) }}
         </template>
         <template #operations="{ record }">
           <a-space>
@@ -118,9 +126,45 @@
         <a-form-item field="type" label="任务类型" :rules="[{ required: true, message: '请选择任务类型' }]">
           <a-radio-group v-model="form.type">
             <a-radio value="shell">Shell脚本</a-radio>
+            <a-radio value="http">HTTP请求</a-radio>
             <a-radio value="datax">DataX任务</a-radio>
           </a-radio-group>
         </a-form-item>
+        <template v-if="form.type === 'http'">
+          <a-form-item field="url" label="请求URL" :rules="[{ required: true, message: '请输入请求URL' }, { type: 'url', message: '请输入有效的URL' }]">
+            <a-input v-model="form.url" placeholder="请输入请求URL" allow-clear />
+          </a-form-item>
+          <a-form-item field="method" label="请求方法" :rules="[{ required: true, message: '请选择请求方法' }]">
+            <a-select v-model="form.method" placeholder="请选择请求方法">
+              <a-option value="GET">GET</a-option>
+              <a-option value="POST">POST</a-option>
+              <a-option value="PUT">PUT</a-option>
+              <a-option value="DELETE">DELETE</a-option>
+              <a-option value="PATCH">PATCH</a-option>
+              <a-option value="HEAD">HEAD</a-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item field="headers" label="请求头">
+            <a-textarea
+              v-model="form.headers"
+              placeholder="请输入请求头(JSON格式)"
+              :auto-size="{ minRows: 2, maxRows: 4 }"
+            />
+          </a-form-item>
+          <a-form-item field="body" label="请求体">
+            <a-textarea
+              v-model="form.body"
+              placeholder="请输入请求体"
+              :auto-size="{ minRows: 3, maxRows: 5 }"
+            />
+          </a-form-item>
+          <a-form-item field="success_codes" label="成功状态码">
+            <a-input
+              v-model="form.success_codes"
+              placeholder="请输入成功状态码，多个用逗号分隔，如：200,201,204"
+            />
+          </a-form-item>
+        </template>
         <a-form-item field="description" label="任务描述">
           <a-textarea v-model="form.description" placeholder="请输入任务描述" />
         </a-form-item>
@@ -482,7 +526,16 @@ import {
   IconCode,
   IconFile,
 } from '@arco-design/web-vue/es/icon';
-import type { Job, JobStatus, JobListRequest } from '@/api/types';
+import type {
+  Job,
+  JobStatus,
+  JobListRequest,
+  JobShellParams,
+  JobHTTPParams,
+  JobDataXParams,
+  CreateJobRequest,
+  UpdateJobRequest,
+} from '@/api/types';
 import {
   getJobList,
   startJob,
@@ -533,11 +586,13 @@ const columns = [
   },
   {
     title: '创建时间',
-    dataIndex: 'create_time',
+    dataIndex: 'created_at',
+    slotName: 'created_at',
   },
   {
     title: '更新时间',
-    dataIndex: 'update_time',
+    dataIndex: 'updated_at',
+    slotName: 'updated_at',
   },
   {
     title: '操作',
@@ -572,9 +627,14 @@ interface FormState {
   id: number;
   name: string;
   description: string;
-  type: 'shell' | 'datax';
+  type: 'shell' | 'http' | 'datax';
   command: string;
   working_dir: string;
+  url: string;
+  method: string;
+  headers: string;
+  body: string;
+  success_codes: string;
   cron_expr: string;
   timeout: number;
   retry_count: number;
@@ -589,6 +649,11 @@ const form = reactive<FormState>({
   type: 'shell',
   command: '',
   working_dir: '',
+  url: '',
+  method: 'GET',
+  headers: '{}',
+  body: '',
+  success_codes: '200',
   cron_expr: '',
   timeout: 0,
   retry_count: 0,
@@ -603,9 +668,15 @@ const rules = {
     { maxLength: 50, message: '任务名称最多 50 个字符' },
   ],
   command: [
-    { required: true, message: '请输入执行命令' },
     {
+      required: true,
+      message: '请输入执行命令',
+      trigger: 'blur',
       validator: (value: string, callback: (error?: string) => void) => {
+        if (form.type !== 'shell' && form.type !== 'datax') {
+          callback();
+          return;
+        }
         if (form.type === 'shell' && !value.trim()) {
           callback('Shell命令不能为空');
           return;
@@ -626,6 +697,57 @@ const rules = {
       },
     }
   ],
+  url: [
+    { required: true, message: '请输入请求URL', trigger: 'blur' },
+    { validator: (value: string, callback: (error?: string) => void) => {
+        try {
+          new URL(value);
+          callback();
+        } catch (err) {
+          callback('请输入有效的URL');
+        }
+      }
+    },
+  ],
+  method: [
+    { required: true, message: '请选择请求方法' },
+  ],
+  headers: [
+    {
+      trigger: 'blur',
+      validator: (value: string, callback: (error?: string) => void) => {
+        if (form.type !== 'http') {
+          callback();
+          return;
+        }
+        try {
+          if (value) {
+            JSON.parse(value);
+          }
+          callback();
+        } catch (err) {
+          callback('请输入有效的JSON格式');
+        }
+      },
+    },
+  ],
+  success_codes: [
+    {
+      trigger: 'blur',
+      validator: (value: string, callback: (error?: string) => void) => {
+        if (form.type !== 'http') {
+          callback();
+          return;
+        }
+        const codes = value.split(',').map(code => parseInt(code.trim()));
+        if (!codes.every(code => !isNaN(code) && code >= 100 && code < 600)) {
+          callback('请输入有效的HTTP状态码（100-599）');
+          return;
+        }
+        callback();
+      },
+    },
+  ],
   cron_expr: [
     { required: true, message: '请输入 Cron 表达式' },
     {
@@ -642,7 +764,7 @@ const rules = {
   retry_delay: [
     { type: 'number' as const, min: 1, max: 3600, message: '重试间隔范围为 1-3600 秒' },
   ],
-};
+} as Record<string, any>;
 
 // 获取任务列表数据
 const fetchData = async () => {
@@ -689,6 +811,11 @@ const handleCreate = () => {
   form.type = 'shell';
   form.command = '';
   form.working_dir = '';
+  form.url = '';
+  form.method = 'GET';
+  form.headers = '{}';
+  form.body = '';
+  form.success_codes = '200';
   form.cron_expr = '';
   form.timeout = 0;
   form.retry_count = 0;
@@ -703,21 +830,32 @@ const handleEdit = (record: Job) => {
   form.id = record.id;
   form.name = record.name;
   form.description = record.description || '';
-  form.type = record.type as 'shell' | 'datax';
+  form.type = record.type as 'shell' | 'http' | 'datax';
 
-  // 从params中解析出command和working_dir
-  if (record.type === 'shell') {
-    try {
-      const params = typeof record.params === 'string' ? JSON.parse(record.params) : record.params;
+  // 从params中解析出相应的参数
+  try {
+    const params = typeof record.params === 'string' ? JSON.parse(record.params) : record.params;
+    if (record.type === 'shell') {
       form.command = params.command || '';
       form.working_dir = params.work_dir || '';
-    } catch (e) {
-      form.command = '';
-      form.working_dir = '';
+    } else if (record.type === 'http') {
+      form.url = params.url || '';
+      form.method = params.method || 'GET';
+      form.headers = JSON.stringify(params.headers || {}, null, 2);
+      form.body = params.body || '';
+      form.success_codes = (params.success_code || [200]).join(',');
+    } else {
+      form.command = typeof params === 'string' ? params : JSON.stringify(params, null, 2);
     }
-  } else {
-    form.command = typeof record.params === 'string' ? record.params : JSON.stringify(record.params, null, 2);
+  } catch (e) {
+    console.error('解析参数失败:', e);
+    form.command = '';
     form.working_dir = '';
+    form.url = '';
+    form.method = 'GET';
+    form.headers = '{}';
+    form.body = '';
+    form.success_codes = '200';
   }
 
   form.cron_expr = record.cron_expr;
@@ -793,6 +931,25 @@ const handleFormSubmit = async () => {
   try {
     await formRef.value.validate();
 
+    let params: JobShellParams | JobHTTPParams | JobDataXParams;
+    if (form.type === 'shell') {
+      params = {
+        command: form.command,
+        work_dir: form.working_dir,
+        environment: {}
+      } as JobShellParams;
+    } else if (form.type === 'http') {
+      params = {
+        url: form.url,
+        method: form.method,
+        headers: JSON.parse(form.headers),
+        body: form.body,
+        success_code: form.success_codes.split(',').map(code => parseInt(code.trim())).filter(code => !isNaN(code))
+      } as JobHTTPParams;
+    } else {
+      params = JSON.parse(form.command) as JobDataXParams;
+    }
+
     const data = {
       name: form.name,
       description: form.description,
@@ -801,15 +958,7 @@ const handleFormSubmit = async () => {
       timeout: form.timeout,
       retry_count: form.retry_count,
       retry_delay: form.retry_delay,
-      params: form.type === 'shell'
-        ? {
-            command: form.command,
-            work_dir: form.working_dir,
-            environment: {}
-          }
-        : form.type === 'datax'
-        ? JSON.parse(form.command)
-        : {}
+      params
     };
 
     if (isEdit.value) {
@@ -972,6 +1121,48 @@ const handleLoadTemplate = () => {
     }
   };
   form.command = JSON.stringify(template, null, 2);
+};
+
+// 添加任务类型相关的工具函数
+const getJobTypeText = (type: string) => {
+  switch (type) {
+    case 'shell':
+      return 'Shell脚本';
+    case 'http':
+      return 'HTTP请求';
+    case 'datax':
+      return 'DataX任务';
+    default:
+      return '未知类型';
+  }
+};
+
+const getJobTypeColor = (type: string) => {
+  switch (type) {
+    case 'shell':
+      return 'blue';
+    case 'http':
+      return 'green';
+    case 'datax':
+      return 'purple';
+    default:
+      return 'gray';
+  }
+};
+
+// 添加时间格式化函数
+const formatDateTime = (dateStr: string) => {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
 };
 
 // 初始化加载数据
