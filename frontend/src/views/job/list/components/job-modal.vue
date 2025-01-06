@@ -389,24 +389,35 @@ const handleSubmit = async () => {
   try {
     await formRef.value?.validate();
 
-    // 根据任务类型构造params
-    let jobParams: JobShellParams | JobHTTPParams | JobDataXParams;
+    // 构造基础参数
+    const params: CreateJobRequest = {
+      name: form.value.name,
+      type: form.value.type!,
+      description: form.value.description || '',
+      cron_expr: form.value.cron_expr,
+      timeout: form.value.timeout || 0,
+      retry_count: form.value.retry_count || 0,
+      retry_delay: form.value.retry_delay || 0,
+      params: {} as any, // 先初始化一个空对象
+    };
+
+    // 根据任务类型设置params
     if (form.value.type === 'shell') {
-      jobParams = {
+      params.params = {
         command: (form.value.params as JobShellParams).command,
         work_dir: (form.value.params as JobShellParams).work_dir || '',
         environment: (form.value.params as JobShellParams).environment || {},
       } as JobShellParams;
     } else if (form.value.type === 'http') {
-      jobParams = {
+      params.params = {
         url: (form.value.params as JobHTTPParams).url,
         method: (form.value.params as JobHTTPParams).method,
         headers: (form.value.params as JobHTTPParams).headers || {},
         body: (form.value.params as JobHTTPParams).body || '',
         success_code: (form.value.params as JobHTTPParams).success_code || [200],
       } as JobHTTPParams;
-    } else {
-      jobParams = {
+    } else if (form.value.type === 'datax') {
+      params.params = {
         job_path: (form.value.params as JobDataXParams).job_path,
         parameters: (form.value.params as JobDataXParams).parameters || {},
         jvm_options: (form.value.params as JobDataXParams).jvm_options || [],
@@ -414,22 +425,13 @@ const handleSubmit = async () => {
       } as JobDataXParams;
     }
 
-    const params = {
-      name: form.value.name,
-      type: form.value.type!,
-      description: form.value.description || '',
-      cron_expr: form.value.cron_expr,
-      timeout: form.value.timeout || 3600,
-      retry_count: form.value.retry_count || 3,
-      retry_delay: form.value.retry_delay || 60,
-      params: jobParams,
-    };
+    console.log(params);
 
     if (props.type === 'create') {
-      await createJob(params as CreateJobRequest);
+      await createJob(params);
       Message.success('任务创建成功');
     } else {
-      await updateJob(form.value.id!, params as UpdateJobRequest);
+      await updateJob(form.value.id!, params);
       Message.success('任务更新成功');
     }
 

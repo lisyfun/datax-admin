@@ -171,18 +171,18 @@
             :step="1"
           />
         </a-form-item>
-        <a-form-item field="retry_times" label="重试次数">
+        <a-form-item field="retry_count" label="重试次数">
           <a-input-number
-            v-model="form.retry_times"
+            v-model="form.retry_count"
             placeholder="请输入重试次数"
             :min="0"
             :max="10"
             :step="1"
           />
         </a-form-item>
-        <a-form-item field="retry_interval" label="重试间隔(秒)">
+        <a-form-item field="retry_delay" label="重试间隔(秒)">
           <a-input-number
-            v-model="form.retry_interval"
+            v-model="form.retry_delay"
             placeholder="请输入重试间隔"
             :min="1"
             :max="3600"
@@ -482,7 +482,7 @@ import {
   IconCode,
   IconFile,
 } from '@arco-design/web-vue/es/icon';
-import type { Job } from '@/api/job';
+import type { Job, JobStatus, JobListRequest } from '@/api/types';
 import {
   getJobList,
   startJob,
@@ -498,7 +498,12 @@ const loading = ref(false);
 const renderData = ref<Job[]>([]);
 const selectedKeys = ref<number[]>([]);
 
-const searchForm = reactive({
+interface SearchFormState {
+  name: string;
+  status: JobStatus | '';
+}
+
+const searchForm = reactive<SearchFormState>({
   name: '',
   status: '',
 });
@@ -562,18 +567,33 @@ const pagination = reactive({
 const showForm = ref(false);
 const isEdit = ref(false);
 const formRef = ref();
-const form = reactive({
+
+interface FormState {
+  id: number;
+  name: string;
+  description: string;
+  type: 'shell' | 'datax';
+  command: string;
+  working_dir: string;
+  cron_expr: string;
+  timeout: number;
+  retry_count: number;
+  retry_delay: number;
+  params: Record<string, any>;
+}
+
+const form = reactive<FormState>({
   id: 0,
   name: '',
   description: '',
-  type: 'shell' as 'shell' | 'datax',
+  type: 'shell',
   command: '',
   working_dir: '',
   cron_expr: '',
   timeout: 0,
-  retry_times: 0,
-  retry_interval: 0,
-  params: {} as Record<string, any>,
+  retry_count: 0,
+  retry_delay: 0,
+  params: {},
 });
 
 // 表单规则
@@ -616,10 +636,10 @@ const rules = {
   timeout: [
     { type: 'number' as const, min: 0, max: 86400, message: '超时时间范围为 0-86400 秒' },
   ],
-  retry_times: [
+  retry_count: [
     { type: 'number' as const, min: 0, max: 10, message: '重试次数范围为 0-10 次' },
   ],
-  retry_interval: [
+  retry_delay: [
     { type: 'number' as const, min: 1, max: 3600, message: '重试间隔范围为 1-3600 秒' },
   ],
 };
@@ -631,9 +651,9 @@ const fetchData = async () => {
     const { data } = await getJobList({
       page: pagination.current,
       page_size: pagination.pageSize,
-      name: searchForm.name,
-      status: searchForm.status ? Number(searchForm.status) : undefined,
-    });
+      keyword: searchForm.name,
+      status: searchForm.status ? searchForm.status as JobStatus : undefined,
+    } as JobListRequest);
     renderData.value = data.items;
     pagination.total = data.total;
   } catch (err) {
@@ -671,8 +691,8 @@ const handleCreate = () => {
   form.working_dir = '';
   form.cron_expr = '';
   form.timeout = 0;
-  form.retry_times = 0;
-  form.retry_interval = 0;
+  form.retry_count = 0;
+  form.retry_delay = 0;
   form.params = {};
   showForm.value = true;
 };
@@ -683,14 +703,28 @@ const handleEdit = (record: Job) => {
   form.id = record.id;
   form.name = record.name;
   form.description = record.description || '';
-  form.type = record.type;
-  form.command = record.command;
-  form.working_dir = record.working_dir || '';
+  form.type = record.type as 'shell' | 'datax';
+
+  // 从params中解析出command和working_dir
+  if (record.type === 'shell') {
+    try {
+      const params = typeof record.params === 'string' ? JSON.parse(record.params) : record.params;
+      form.command = params.command || '';
+      form.working_dir = params.work_dir || '';
+    } catch (e) {
+      form.command = '';
+      form.working_dir = '';
+    }
+  } else {
+    form.command = typeof record.params === 'string' ? record.params : JSON.stringify(record.params, null, 2);
+    form.working_dir = '';
+  }
+
   form.cron_expr = record.cron_expr;
   form.timeout = record.timeout || 0;
-  form.retry_times = record.retry_times || 0;
-  form.retry_interval = record.retry_interval || 0;
-  form.params = record.params || {};
+  form.retry_count = record.retry_count || 0;
+  form.retry_delay = record.retry_delay || 0;
+  form.params = {};
   showForm.value = true;
 };
 
@@ -763,13 +797,19 @@ const handleFormSubmit = async () => {
       name: form.name,
       description: form.description,
       type: form.type,
-      command: form.command,
-      working_dir: form.working_dir,
       cron_expr: form.cron_expr,
       timeout: form.timeout,
-      retry_times: form.retry_times,
-      retry_interval: form.retry_interval,
-      params: form.type === 'datax' ? JSON.parse(form.command) : {},
+      retry_count: form.retry_count,
+      retry_delay: form.retry_delay,
+      params: form.type === 'shell'
+        ? {
+            command: form.command,
+            work_dir: form.working_dir,
+            environment: {}
+          }
+        : form.type === 'datax'
+        ? JSON.parse(form.command)
+        : {}
     };
 
     if (isEdit.value) {

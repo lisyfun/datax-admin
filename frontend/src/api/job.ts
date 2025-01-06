@@ -33,6 +33,7 @@ export function getJobList(params: JobListRequest): Promise<AxiosResponse<JobLis
 
 // 创建任务
 export function createJob(data: CreateJobRequest): Promise<AxiosResponse<Job>> {
+  console.log(data);
   return request.post('/jobs', data);
 }
 
