@@ -1,75 +1,84 @@
 <template>
-  <div class="container">
-    <div class="header">
-      <div class="left">
-        <a-button type="primary" @click="() => handleAdd()">
-          <template #icon><icon-plus /></template>
-          新增权限
-        </a-button>
-      </div>
-    </div>
-
-    <a-table
-      :data="permissions"
-      :loading="loading"
-      :pagination="false"
-      row-key="id"
-      :tree-props="{
-        children: 'children'
-      }"
-    >
-      <template #columns>
-        <a-table-column title="权限名称" data-index="name" />
-        <a-table-column title="权限编码" data-index="code" />
-        <a-table-column title="类型">
-          <template #cell="{ record }">
-            <a-tag :color="record.type === 'menu' ? 'blue' : 'green'">
-              {{ record.type === 'menu' ? '菜单' : '按钮' }}
-            </a-tag>
-          </template>
-        </a-table-column>
-        <a-table-column title="路径" data-index="path" />
-        <a-table-column title="组件" data-index="component" />
-        <a-table-column title="图标">
-          <template #cell="{ record }">
-            <i v-if="record.icon" :class="record.icon"></i>
-            <span v-else>-</span>
-          </template>
-        </a-table-column>
-        <a-table-column title="排序" data-index="sort" align="center" />
-        <a-table-column title="状态" align="center">
-          <template #cell="{ record }">
-            <a-switch
-              :model-value="record.status === 1"
-              @update:model-value="(value) => handleStatusChange(record, Boolean(value))"
-            />
-          </template>
-        </a-table-column>
-        <a-table-column title="操作" align="center">
-          <template #cell="{ record }">
-            <a-space>
-              <a-button type="text" size="small" @click="() => handleAdd(record)">
-                <template #icon><icon-plus /></template>
-                新增子权限
-              </a-button>
-              <a-button type="text" size="small" @click="() => handleEdit(record)">
-                <template #icon><icon-edit /></template>
-                编辑
-              </a-button>
-              <a-popconfirm
-                content="确定要删除该权限吗？"
-                @ok="() => handleDelete(record)"
-              >
-                <a-button type="text" status="danger" size="small">
-                  <template #icon><icon-delete /></template>
-                  删除
-                </a-button>
-              </a-popconfirm>
-            </a-space>
-          </template>
-        </a-table-column>
+  <div class="permissions">
+    <a-card>
+      <template #title>权限管理</template>
+      <template #extra>
+        <a-space>
+          <a-input-search
+            v-model="searchKeyword"
+            placeholder="请输入权限名称或编码"
+            style="width: 300px"
+            @search="handleSearch"
+          />
+          <a-button type="primary" @click="() => handleAdd()">
+            <template #icon><icon-plus /></template>
+            新增权限
+          </a-button>
+        </a-space>
       </template>
-    </a-table>
+
+      <a-table
+        :data="permissions"
+        :loading="loading"
+        :pagination="false"
+        row-key="id"
+        :tree-props="{
+          children: 'children'
+        }"
+      >
+        <template #columns>
+          <a-table-column title="权限名称" data-index="name" />
+          <a-table-column title="权限编码" data-index="code" />
+          <a-table-column title="类型" align="center">
+            <template #cell="{ record }">
+              <a-tag :color="record.type === 'menu' ? 'blue' : 'green'">
+                {{ record.type === 'menu' ? '菜单' : '按钮' }}
+              </a-tag>
+            </template>
+          </a-table-column>
+          <a-table-column title="路径" data-index="path" />
+          <a-table-column title="组件" data-index="component" />
+          <a-table-column title="图标" align="center">
+            <template #cell="{ record }">
+              <i v-if="record.icon" :class="record.icon"></i>
+              <span v-else>-</span>
+            </template>
+          </a-table-column>
+          <a-table-column title="排序" data-index="sort" align="center" />
+          <a-table-column title="状态" align="center">
+            <template #cell="{ record }">
+              <a-switch
+                :model-value="record.status === 1"
+                @update:model-value="(value) => handleStatusChange(record, Boolean(value))"
+              />
+            </template>
+          </a-table-column>
+          <a-table-column title="操作" align="center">
+            <template #cell="{ record }">
+              <a-space>
+                <a-button type="text" size="small" @click="() => handleAdd(record)">
+                  <template #icon><icon-plus /></template>
+                  新增子权限
+                </a-button>
+                <a-button type="text" size="small" @click="() => handleEdit(record)">
+                  <template #icon><icon-edit /></template>
+                  编辑
+                </a-button>
+                <a-popconfirm
+                  content="确定要删除该权限吗？"
+                  @ok="() => handleDelete(record)"
+                >
+                  <a-button type="text" status="danger" size="small">
+                    <template #icon><icon-delete /></template>
+                    删除
+                  </a-button>
+                </a-popconfirm>
+              </a-space>
+            </template>
+          </a-table-column>
+        </template>
+      </a-table>
+    </a-card>
 
     <!-- 权限表单对话框 -->
     <a-modal
@@ -165,6 +174,14 @@ const formRules: Record<string, FieldRule[]> = {
     { required: true, type: 'number', message: '请输入排序' },
     { type: 'number', min: 0, message: '排序不能小于0' }
   ]
+};
+
+// 添加搜索相关变量
+const searchKeyword = ref('');
+
+// 添加搜索处理函数
+const handleSearch = () => {
+  fetchPermissions();
 };
 
 // 获取权限列表
@@ -293,14 +310,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.container {
+.permissions {
   padding: 16px;
-}
-
-.header {
-  margin-bottom: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 </style>
