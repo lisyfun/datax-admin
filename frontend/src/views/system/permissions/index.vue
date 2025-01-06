@@ -11,7 +11,7 @@
             @search="handleSearch"
           />
           <a-button type="primary" @click="() => handleAdd()">
-            <template #icon><icon-plus /></template>
+            <template #icon><IconPlus /></template>
             新增权限
           </a-button>
         </a-space>
@@ -57,11 +57,11 @@
             <template #cell="{ record }">
               <a-space>
                 <a-button type="text" size="small" @click="() => handleAdd(record)">
-                  <template #icon><icon-plus /></template>
+                  <template #icon><IconPlus /></template>
                   新增子权限
                 </a-button>
                 <a-button type="text" size="small" @click="() => handleEdit(record)">
-                  <template #icon><icon-edit /></template>
+                  <template #icon><IconEdit /></template>
                   编辑
                 </a-button>
                 <a-popconfirm
@@ -69,7 +69,7 @@
                   @ok="() => handleDelete(record)"
                 >
                   <a-button type="text" status="danger" size="small">
-                    <template #icon><icon-delete /></template>
+                    <template #icon><IconDelete /></template>
                     删除
                   </a-button>
                 </a-popconfirm>
@@ -134,6 +134,11 @@ import type { FormInstance, FieldRule } from '@arco-design/web-vue';
 import { PermissionInfo } from '@/types/permission';
 import { convertToTreeData } from '@/types/permission';
 import * as permissionApi from '@/api/permission';
+import {
+  IconPlus,
+  IconEdit,
+  IconDelete,
+} from '@arco-design/web-vue/es/icon';
 
 // 表格数据
 const permissions = ref<PermissionInfo[]>([]);

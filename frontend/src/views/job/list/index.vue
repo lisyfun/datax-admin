@@ -21,15 +21,15 @@
             <a-option :value="0">已停止</a-option>
           </a-select>
           <a-button type="primary" @click="handleCreate">
-            <template #icon><icon-plus /></template>
+            <template #icon><IconPlus /></template>
             新建任务
           </a-button>
           <a-button type="primary" status="success" @click="handleBatchExecute" :disabled="!selectedKeys.length">
-            <template #icon><icon-play-circle /></template>
+            <template #icon><IconPlayCircle /></template>
             批量执行一次
           </a-button>
           <a-button @click="fetchData">
-            <template #icon><icon-refresh /></template>
+            <template #icon><IconRefresh /></template>
             刷新
           </a-button>
         </a-space>
@@ -64,7 +64,7 @@
         <template #operations="{ record }">
           <a-space>
             <a-button type="text" size="small" @click="handleEdit(record)">
-              <template #icon><icon-edit /></template>
+              <template #icon><IconEdit /></template>
               编辑
             </a-button>
             <a-button
@@ -73,7 +73,7 @@
               status="success"
               @click="handleExecute(record)"
             >
-              <template #icon><icon-play-circle /></template>
+              <template #icon><IconPlayCircle /></template>
               执行一次
             </a-button>
             <a-button
@@ -82,7 +82,7 @@
               size="small"
               @click="handleStart(record)"
             >
-              <template #icon><icon-play-circle /></template>
+              <template #icon><IconPlayCircle /></template>
               启动
             </a-button>
             <a-button
@@ -92,7 +92,7 @@
               status="warning"
               @click="handleStop(record)"
             >
-              <template #icon><icon-pause-circle /></template>
+              <template #icon><IconPauseCircle /></template>
               停止
             </a-button>
             <a-popconfirm
@@ -100,7 +100,7 @@
               @ok="handleDelete(record)"
             >
               <a-button type="text" size="small" status="danger">
-                <template #icon><icon-delete /></template>
+                <template #icon><IconDelete /></template>
                 删除
               </a-button>
             </a-popconfirm>
@@ -179,11 +179,11 @@
             <div class="datax-tools">
               <a-space>
                 <a-button type="text" @click="handleFormatJson">
-                  <template #icon><icon-code /></template>
+                  <template #icon><IconCode /></template>
                   格式化JSON
                 </a-button>
                 <a-button type="text" @click="handleLoadTemplate">
-                  <template #icon><icon-file /></template>
+                  <template #icon><IconFile /></template>
                   加载模板
                 </a-button>
               </a-space>
@@ -197,7 +197,7 @@
           <a-input v-model="form.cron_expr" placeholder="请输入 Cron 表达式">
             <template #append>
               <a-button @click="showCronModal = true">
-                <template #icon><icon-edit /></template>
+                <template #icon><IconEdit /></template>
                 生成表达式
               </a-button>
             </template>
@@ -233,277 +233,349 @@
       </a-form>
     </a-modal>
 
-    <!-- Cron 表达式生成器对话框 -->
+    <!-- Cron表达式生成器对话框 -->
     <a-modal
       v-model:visible="showCronModal"
-      title="Cron 表达式生成器"
-      :footer="false"
-      @cancel="handleCronCancel"
+      title="生成 Cron 表达式"
+      :width="680"
+      @cancel="handleCronModalCancel"
+      @ok="handleCronModalSubmit"
     >
       <div class="cron-container">
-        <a-tabs>
-          <a-tab-pane key="second" title="秒">
-            <a-radio-group v-model="cronConfig.second.type">
-              <a-space direction="vertical">
-                <a-radio value="*">每秒</a-radio>
-                <a-radio value="?">不指定</a-radio>
-                <a-radio value="fixed">
-                  周期从
-                  <a-input-number
-                    v-model="cronConfig.second.start"
-                    :min="0"
-                    :max="59"
-                    :disabled="cronConfig.second.type !== 'fixed'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  到
-                  <a-input-number
-                    v-model="cronConfig.second.end"
-                    :min="0"
-                    :max="59"
-                    :disabled="cronConfig.second.type !== 'fixed'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  秒
-                </a-radio>
-                <a-radio value="interval">
-                  从
-                  <a-input-number
-                    v-model="cronConfig.second.intervalStart"
-                    :min="0"
-                    :max="59"
-                    :disabled="cronConfig.second.type !== 'interval'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  秒开始，每
-                  <a-input-number
-                    v-model="cronConfig.second.interval"
-                    :min="1"
-                    :max="59"
-                    :disabled="cronConfig.second.type !== 'interval'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  秒执行一次
-                </a-radio>
-              </a-space>
-            </a-radio-group>
-          </a-tab-pane>
-          <a-tab-pane key="minute" title="分">
-            <a-radio-group v-model="cronConfig.minute.type">
-              <a-space direction="vertical">
-                <a-radio value="*">每分</a-radio>
-                <a-radio value="?">不指定</a-radio>
-                <a-radio value="fixed">
-                  周期从
-                  <a-input-number
-                    v-model="cronConfig.minute.start"
-                    :min="0"
-                    :max="59"
-                    :disabled="cronConfig.minute.type !== 'fixed'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  到
-                  <a-input-number
-                    v-model="cronConfig.minute.end"
-                    :min="0"
-                    :max="59"
-                    :disabled="cronConfig.minute.type !== 'fixed'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  分
-                </a-radio>
-                <a-radio value="interval">
-                  从
-                  <a-input-number
-                    v-model="cronConfig.minute.intervalStart"
-                    :min="0"
-                    :max="59"
-                    :disabled="cronConfig.minute.type !== 'interval'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  分开始，每
-                  <a-input-number
-                    v-model="cronConfig.minute.interval"
-                    :min="1"
-                    :max="59"
-                    :disabled="cronConfig.minute.type !== 'interval'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  分执行一次
-                </a-radio>
-              </a-space>
-            </a-radio-group>
-          </a-tab-pane>
-          <a-tab-pane key="hour" title="时">
-            <a-radio-group v-model="cronConfig.hour.type">
-              <a-space direction="vertical">
-                <a-radio value="*">每小时</a-radio>
-                <a-radio value="?">不指定</a-radio>
-                <a-radio value="fixed">
-                  周期从
-                  <a-input-number
-                    v-model="cronConfig.hour.start"
-                    :min="0"
-                    :max="23"
-                    :disabled="cronConfig.hour.type !== 'fixed'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  到
-                  <a-input-number
-                    v-model="cronConfig.hour.end"
-                    :min="0"
-                    :max="23"
-                    :disabled="cronConfig.hour.type !== 'fixed'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  时
-                </a-radio>
-                <a-radio value="interval">
-                  从
-                  <a-input-number
-                    v-model="cronConfig.hour.intervalStart"
-                    :min="0"
-                    :max="23"
-                    :disabled="cronConfig.hour.type !== 'interval'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  时开始，每
-                  <a-input-number
-                    v-model="cronConfig.hour.interval"
-                    :min="1"
-                    :max="23"
-                    :disabled="cronConfig.hour.type !== 'interval'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  小时执行一次
-                </a-radio>
-              </a-space>
-            </a-radio-group>
-          </a-tab-pane>
-          <a-tab-pane key="day" title="日">
-            <a-radio-group v-model="cronConfig.day.type">
-              <a-space direction="vertical">
-                <a-radio value="*">每日</a-radio>
-                <a-radio value="?">不指定</a-radio>
-                <a-radio value="fixed">
-                  周期从
-                  <a-input-number
-                    v-model="cronConfig.day.start"
-                    :min="1"
-                    :max="31"
-                    :disabled="cronConfig.day.type !== 'fixed'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  到
-                  <a-input-number
-                    v-model="cronConfig.day.end"
-                    :min="1"
-                    :max="31"
-                    :disabled="cronConfig.day.type !== 'fixed'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  日
-                </a-radio>
-                <a-radio value="interval">
-                  从
-                  <a-input-number
-                    v-model="cronConfig.day.intervalStart"
-                    :min="1"
-                    :max="31"
-                    :disabled="cronConfig.day.type !== 'interval'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  日开始，每
-                  <a-input-number
-                    v-model="cronConfig.day.interval"
-                    :min="1"
-                    :max="31"
-                    :disabled="cronConfig.day.type !== 'interval'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  天执行一次
-                </a-radio>
-              </a-space>
-            </a-radio-group>
-          </a-tab-pane>
-          <a-tab-pane key="month" title="月">
-            <a-radio-group v-model="cronConfig.month.type">
-              <a-space direction="vertical">
-                <a-radio value="*">每月</a-radio>
-                <a-radio value="?">不指定</a-radio>
-                <a-radio value="fixed">
-                  周期从
-                  <a-input-number
-                    v-model="cronConfig.month.start"
-                    :min="1"
-                    :max="12"
-                    :disabled="cronConfig.month.type !== 'fixed'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  到
-                  <a-input-number
-                    v-model="cronConfig.month.end"
-                    :min="1"
-                    :max="12"
-                    :disabled="cronConfig.month.type !== 'fixed'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  月
-                </a-radio>
-                <a-radio value="interval">
-                  从
-                  <a-input-number
-                    v-model="cronConfig.month.intervalStart"
-                    :min="1"
-                    :max="12"
-                    :disabled="cronConfig.month.type !== 'interval'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  月开始，每
-                  <a-input-number
-                    v-model="cronConfig.month.interval"
-                    :min="1"
-                    :max="12"
-                    :disabled="cronConfig.month.type !== 'interval'"
-                    style="width: 80px; margin: 0 8px"
-                  />
-                  月执行一次
-                </a-radio>
-              </a-space>
-            </a-radio-group>
-          </a-tab-pane>
-          <a-tab-pane key="week" title="周">
-            <a-radio-group v-model="cronConfig.week.type">
-              <a-space direction="vertical">
-                <a-radio value="*">每周</a-radio>
-                <a-radio value="?">不指定</a-radio>
-                <a-radio value="fixed">
-                  指定
-                  <a-space>
-                    <a-checkbox
-                      v-for="day in weekDays"
-                      :key="day.value"
-                      v-model="cronConfig.week.days"
-                      :value="day.value"
-                      :disabled="cronConfig.week.type !== 'fixed'"
-                    >
-                      {{ day.label }}
-                    </a-checkbox>
-                  </a-space>
-                </a-radio>
-              </a-space>
-            </a-radio-group>
-          </a-tab-pane>
-        </a-tabs>
-        <div class="cron-footer">
-          <a-space>
-            <a-button type="primary" @click="handleCronConfirm">确定</a-button>
-            <a-button @click="handleCronCancel">取消</a-button>
-          </a-space>
-          <div class="cron-expression">
-            表达式：{{ generatedCron }}
-          </div>
+        <div class="cron-preview">
+          <div class="preview-title">表达式预览</div>
+          <div class="preview-content">{{ cronExpression }}</div>
+          <div class="preview-desc">从左到右依次为：秒 分 时 日 月 周</div>
         </div>
+
+        <a-tabs type="card">
+          <a-tab-pane key="second" title="秒">
+            <div class="tab-content">
+              <a-radio-group v-model="cronForm.second.type">
+                <a-space direction="vertical" size="large">
+                  <a-radio value="*">
+                    <span class="radio-label">每秒</span>
+                    <span class="radio-desc">每秒钟触发</span>
+                  </a-radio>
+                  <a-radio value="?">
+                    <div class="radio-content">
+                      <span class="radio-label">周期</span>
+                      <div class="radio-desc">从
+                        <a-input-number v-model="cronForm.second.start" :min="0" :max="59" size="small" style="width: 60px" />
+                        秒开始，每
+                        <a-input-number v-model="cronForm.second.interval" :min="1" :max="59" size="small" style="width: 60px" />
+                        秒执行一次
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="-">
+                    <div class="radio-content">
+                      <span class="radio-label">区间</span>
+                      <div class="radio-desc">从
+                        <a-input-number v-model="cronForm.second.from" :min="0" :max="59" size="small" style="width: 60px" />
+                        到
+                        <a-input-number v-model="cronForm.second.to" :min="0" :max="59" size="small" style="width: 60px" />
+                        秒之间的每秒钟触发
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="/">
+                    <div class="radio-content">
+                      <span class="radio-label">指定</span>
+                      <div class="radio-desc">
+                        <a-select
+                          v-model="cronForm.second.specify"
+                          multiple
+                          size="small"
+                          :max-tag-count="3"
+                          style="width: 360px"
+                        >
+                          <a-option v-for="i in 60" :key="i-1" :value="i-1">{{ i-1 }}秒</a-option>
+                        </a-select>
+                      </div>
+                    </div>
+                  </a-radio>
+                </a-space>
+              </a-radio-group>
+            </div>
+          </a-tab-pane>
+
+          <a-tab-pane key="minute" title="分">
+            <div class="tab-content">
+              <a-radio-group v-model="cronForm.minute.type">
+                <a-space direction="vertical" size="large">
+                  <a-radio value="*">
+                    <span class="radio-label">每分</span>
+                    <span class="radio-desc">每分钟触发</span>
+                  </a-radio>
+                  <a-radio value="?">
+                    <div class="radio-content">
+                      <span class="radio-label">周期</span>
+                      <div class="radio-desc">从
+                        <a-input-number v-model="cronForm.minute.start" :min="0" :max="59" size="small" style="width: 60px" />
+                        分开始，每
+                        <a-input-number v-model="cronForm.minute.interval" :min="1" :max="59" size="small" style="width: 60px" />
+                        分执行一次
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="-">
+                    <div class="radio-content">
+                      <span class="radio-label">区间</span>
+                      <div class="radio-desc">从
+                        <a-input-number v-model="cronForm.minute.from" :min="0" :max="59" size="small" style="width: 60px" />
+                        到
+                        <a-input-number v-model="cronForm.minute.to" :min="0" :max="59" size="small" style="width: 60px" />
+                        分之间的每分钟触发
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="/">
+                    <div class="radio-content">
+                      <span class="radio-label">指定</span>
+                      <div class="radio-desc">
+                        <a-select
+                          v-model="cronForm.minute.specify"
+                          multiple
+                          size="small"
+                          :max-tag-count="3"
+                          style="width: 360px"
+                        >
+                          <a-option v-for="i in 60" :key="i-1" :value="i-1">{{ i-1 }}分</a-option>
+                        </a-select>
+                      </div>
+                    </div>
+                  </a-radio>
+                </a-space>
+              </a-radio-group>
+            </div>
+          </a-tab-pane>
+
+          <a-tab-pane key="hour" title="时">
+            <div class="tab-content">
+              <a-radio-group v-model="cronForm.hour.type">
+                <a-space direction="vertical" size="large">
+                  <a-radio value="*">
+                    <span class="radio-label">每小时</span>
+                    <span class="radio-desc">每小时触发</span>
+                  </a-radio>
+                  <a-radio value="?">
+                    <div class="radio-content">
+                      <span class="radio-label">周期</span>
+                      <div class="radio-desc">从
+                        <a-input-number v-model="cronForm.hour.start" :min="0" :max="23" size="small" style="width: 60px" />
+                        时开始，每
+                        <a-input-number v-model="cronForm.hour.interval" :min="1" :max="23" size="small" style="width: 60px" />
+                        小时执行一次
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="-">
+                    <div class="radio-content">
+                      <span class="radio-label">区间</span>
+                      <div class="radio-desc">从
+                        <a-input-number v-model="cronForm.hour.from" :min="0" :max="23" size="small" style="width: 60px" />
+                        到
+                        <a-input-number v-model="cronForm.hour.to" :min="0" :max="23" size="small" style="width: 60px" />
+                        时之间的每小时触发
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="/">
+                    <div class="radio-content">
+                      <span class="radio-label">指定</span>
+                      <div class="radio-desc">
+                        <a-select
+                          v-model="cronForm.hour.specify"
+                          multiple
+                          size="small"
+                          :max-tag-count="3"
+                          style="width: 360px"
+                        >
+                          <a-option v-for="i in 24" :key="i-1" :value="i-1">{{ i-1 }}时</a-option>
+                        </a-select>
+                      </div>
+                    </div>
+                  </a-radio>
+                </a-space>
+              </a-radio-group>
+            </div>
+          </a-tab-pane>
+
+          <a-tab-pane key="day" title="日">
+            <div class="tab-content">
+              <a-radio-group v-model="cronForm.day.type">
+                <a-space direction="vertical" size="large">
+                  <a-radio value="*">
+                    <span class="radio-label">每日</span>
+                    <span class="radio-desc">每天触发</span>
+                  </a-radio>
+                  <a-radio value="?">
+                    <span class="radio-label">不指定</span>
+                    <span class="radio-desc">当使用星期时，日必须设置为不指定</span>
+                  </a-radio>
+                  <a-radio value="L">
+                    <span class="radio-label">最后一天</span>
+                    <span class="radio-desc">每月最后一天触发</span>
+                  </a-radio>
+                  <a-radio value="W">
+                    <span class="radio-label">工作日</span>
+                    <span class="radio-desc">每月最近的工作日触发</span>
+                  </a-radio>
+                  <a-radio value="cycle">
+                    <div class="radio-content">
+                      <span class="radio-label">周期</span>
+                      <div class="radio-desc">从
+                        <a-input-number v-model="cronForm.day.start" :min="1" :max="31" size="small" style="width: 60px" />
+                        日开始，每
+                        <a-input-number v-model="cronForm.day.interval" :min="1" :max="31" size="small" style="width: 60px" />
+                        天执行一次
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="-">
+                    <div class="radio-content">
+                      <span class="radio-label">区间</span>
+                      <div class="radio-desc">从
+                        <a-input-number v-model="cronForm.day.from" :min="1" :max="31" size="small" style="width: 60px" />
+                        到
+                        <a-input-number v-model="cronForm.day.to" :min="1" :max="31" size="small" style="width: 60px" />
+                        日之间的每天触发
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="/">
+                    <div class="radio-content">
+                      <span class="radio-label">指定</span>
+                      <div class="radio-desc">
+                        <a-select
+                          v-model="cronForm.day.specify"
+                          multiple
+                          size="small"
+                          :max-tag-count="3"
+                          style="width: 360px"
+                        >
+                          <a-option v-for="i in 31" :key="i" :value="i">{{ i }}日</a-option>
+                        </a-select>
+                      </div>
+                    </div>
+                  </a-radio>
+                </a-space>
+              </a-radio-group>
+            </div>
+          </a-tab-pane>
+
+          <a-tab-pane key="month" title="月">
+            <div class="tab-content">
+              <a-radio-group v-model="cronForm.month.type">
+                <a-space direction="vertical" size="large">
+                  <a-radio value="*">
+                    <span class="radio-label">每月</span>
+                    <span class="radio-desc">每月触发</span>
+                  </a-radio>
+                  <a-radio value="?">
+                    <div class="radio-content">
+                      <span class="radio-label">周期</span>
+                      <div class="radio-desc">从
+                        <a-input-number v-model="cronForm.month.start" :min="1" :max="12" size="small" style="width: 60px" />
+                        月开始，每
+                        <a-input-number v-model="cronForm.month.interval" :min="1" :max="12" size="small" style="width: 60px" />
+                        月执行一次
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="-">
+                    <div class="radio-content">
+                      <span class="radio-label">区间</span>
+                      <div class="radio-desc">从
+                        <a-input-number v-model="cronForm.month.from" :min="1" :max="12" size="small" style="width: 60px" />
+                        到
+                        <a-input-number v-model="cronForm.month.to" :min="1" :max="12" size="small" style="width: 60px" />
+                        月之间的每月触发
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="/">
+                    <div class="radio-content">
+                      <span class="radio-label">指定</span>
+                      <div class="radio-desc">
+                        <a-select
+                          v-model="cronForm.month.specify"
+                          multiple
+                          size="small"
+                          :max-tag-count="3"
+                          style="width: 360px"
+                        >
+                          <a-option v-for="i in 12" :key="i" :value="i">{{ i }}月</a-option>
+                        </a-select>
+                      </div>
+                    </div>
+                  </a-radio>
+                </a-space>
+              </a-radio-group>
+            </div>
+          </a-tab-pane>
+
+          <a-tab-pane key="week" title="周">
+            <div class="tab-content">
+              <a-radio-group v-model="cronForm.week.type">
+                <a-space direction="vertical" size="large">
+                  <a-radio value="*">
+                    <span class="radio-label">每周</span>
+                    <span class="radio-desc">每周的每一天触发</span>
+                  </a-radio>
+                  <a-radio value="?">
+                    <span class="radio-label">不指定</span>
+                    <span class="radio-desc">当使用日期时，星期必须设置为不指定</span>
+                  </a-radio>
+                  <a-radio value="L">
+                    <span class="radio-label">最后一周</span>
+                    <span class="radio-desc">每月最后一个星期几触发</span>
+                  </a-radio>
+                  <a-radio value="cycle">
+                    <div class="radio-content">
+                      <span class="radio-label">周期</span>
+                      <div class="radio-desc">从星期
+                        <a-input-number v-model="cronForm.week.start" :min="1" :max="7" size="small" style="width: 60px" />
+                        开始，每隔
+                        <a-input-number v-model="cronForm.week.interval" :min="1" :max="7" size="small" style="width: 60px" />
+                        天执行一次
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="-">
+                    <div class="radio-content">
+                      <span class="radio-label">区间</span>
+                      <div class="radio-desc">从星期
+                        <a-input-number v-model="cronForm.week.from" :min="1" :max="7" size="small" style="width: 60px" />
+                        到星期
+                        <a-input-number v-model="cronForm.week.to" :min="1" :max="7" size="small" style="width: 60px" />
+                        之间的每天触发
+                      </div>
+                    </div>
+                  </a-radio>
+                  <a-radio value="/">
+                    <div class="radio-content">
+                      <span class="radio-label">指定</span>
+                      <div class="radio-desc">
+                        <a-select
+                          v-model="cronForm.week.specify"
+                          multiple
+                          size="small"
+                          :max-tag-count="3"
+                          style="width: 360px"
+                        >
+                          <a-option v-for="i in 7" :key="i" :value="i">星期{{ ['日', '一', '二', '三', '四', '五', '六'][i % 7] }}</a-option>
+                        </a-select>
+                      </div>
+                    </div>
+                  </a-radio>
+                </a-space>
+              </a-radio-group>
+            </div>
+          </a-tab-pane>
+
+        </a-tabs>
       </div>
     </a-modal>
   </div>
@@ -514,12 +586,11 @@ import { ref, reactive, computed } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import {
   IconPlus,
+  IconPlayCircle,
+  IconPauseCircle,
   IconRefresh,
   IconEdit,
   IconDelete,
-  IconPlayCircle,
-  IconPauseCircle,
-  IconQuestionCircle,
   IconCode,
   IconFile,
 } from '@arco-design/web-vue/es/icon';
@@ -530,8 +601,6 @@ import type {
   JobShellParams,
   JobHTTPParams,
   JobDataXParams,
-  CreateJobRequest,
-  UpdateJobRequest,
 } from '@/api/types';
 import {
   getJobList,
@@ -658,110 +727,91 @@ const form = reactive<FormState>({
   params: {},
 });
 
-// 表单规则
+// 添加表单验证规则
 const rules = {
   name: [
-    { required: true, message: '请输入任务名称' },
-    { maxLength: 50, message: '任务名称最多 50 个字符' },
+    { required: true, message: '请输入任务名称' }
   ],
-  command: [
-    {
-      required: true,
-      message: '请输入执行命令',
-      trigger: 'blur',
-      validator: (value: string, callback: (error?: string) => void) => {
-        if (form.type !== 'shell' && form.type !== 'datax') {
-          callback();
-          return;
-        }
-        if (form.type === 'shell' && !value.trim()) {
-          callback('Shell命令不能为空');
-          return;
-        }
-        if (form.type === 'datax') {
-          try {
-            const json = JSON.parse(value);
-            if (!json || typeof json !== 'object') {
-              callback('DataX配置必须是有效的JSON对象');
-              return;
-            }
-          } catch (err) {
-            callback('请输入有效的JSON格式');
-            return;
-          }
-        }
-        callback();
-      },
-    }
-  ],
-  url: [
-    { required: true, message: '请输入请求URL', trigger: 'blur' },
-    { validator: (value: string, callback: (error?: string) => void) => {
-        try {
-          new URL(value);
-          callback();
-        } catch (err) {
-          callback('请输入有效的URL');
-        }
-      }
-    },
-  ],
-  method: [
-    { required: true, message: '请选择请求方法' },
-  ],
-  headers: [
-    {
-      trigger: 'blur',
-      validator: (value: string, callback: (error?: string) => void) => {
-        if (form.type !== 'http') {
-          callback();
-          return;
-        }
-        try {
-          if (value) {
-            JSON.parse(value);
-          }
-          callback();
-        } catch (err) {
-          callback('请输入有效的JSON格式');
-        }
-      },
-    },
-  ],
-  success_codes: [
-    {
-      trigger: 'blur',
-      validator: (value: string, callback: (error?: string) => void) => {
-        if (form.type !== 'http') {
-          callback();
-          return;
-        }
-        const codes = value.split(',').map(code => parseInt(code.trim()));
-        if (!codes.every(code => !isNaN(code) && code >= 100 && code < 600)) {
-          callback('请输入有效的HTTP状态码（100-599）');
-          return;
-        }
-        callback();
-      },
-    },
+  type: [
+    { required: true, message: '请选择任务类型' }
   ],
   cron_expr: [
-    { required: true, message: '请输入 Cron 表达式' },
-    {
-      pattern: /^(\*|([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])|\*\/([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])) (\*|([0-9]|1[0-9]|2[0-3])|\*\/([0-9]|1[0-9]|2[0-3])) (\*|([1-9]|1[0-9]|2[0-9]|3[0-1])|\*\/([1-9]|1[0-9]|2[0-9]|3[0-1])) (\*|([1-9]|1[0-2])|\*\/([1-9]|1[0-2])) (\*|([0-6])|\*\/([0-6]))$/,
-      message: '请输入正确的 Cron 表达式',
-    },
-  ],
-  timeout: [
-    { type: 'number' as const, min: 0, max: 86400, message: '超时时间范围为 0-86400 秒' },
-  ],
-  retry_count: [
-    { type: 'number' as const, min: 0, max: 10, message: '重试次数范围为 0-10 次' },
-  ],
-  retry_delay: [
-    { type: 'number' as const, min: 1, max: 3600, message: '重试间隔范围为 1-3600 秒' },
-  ],
-} as Record<string, any>;
+    { required: true, message: '请输入 Cron 表达式' }
+  ]
+};
+
+// 添加Cron表达式生成器对话框控制变量
+const showCronModal = ref(false);
+
+// Cron表达式生成器相关
+interface CronField {
+  type: string;
+  start: number;
+  interval: number;
+  from: number;
+  to: number;
+  specify: number[];
+}
+
+interface CronForm {
+  second: CronField;
+  minute: CronField;
+  hour: CronField;
+  day: CronField;
+  month: CronField;
+  week: CronField;
+}
+
+const cronForm = reactive<CronForm>({
+  second: { type: '*', start: 0, interval: 1, from: 0, to: 59, specify: [] },
+  minute: { type: '*', start: 0, interval: 1, from: 0, to: 59, specify: [] },
+  hour: { type: '*', start: 0, interval: 1, from: 0, to: 23, specify: [] },
+  day: { type: '*', start: 1, interval: 1, from: 1, to: 31, specify: [] },
+  month: { type: '*', start: 1, interval: 1, from: 1, to: 12, specify: [] },
+  week: { type: '?', start: 1, interval: 1, from: 1, to: 7, specify: [] }
+});
+
+// 生成Cron表达式
+const generateCronExpression = (field: CronField): string => {
+  switch (field.type) {
+    case '*':
+      return '*';
+    case '?':
+      return '?';
+    case '-':
+      return `${field.from}-${field.to}`;
+    case '/':
+      return field.specify.sort((a, b) => a - b).join(',');
+    case 'L':
+      return 'L';
+    case 'W':
+      return 'W';
+    case 'cycle':
+      return `${field.start}/${field.interval}`;
+    default:
+      return field.type;
+  }
+};
+
+const cronExpression = computed(() => {
+  const second = generateCronExpression(cronForm.second);
+  const minute = generateCronExpression(cronForm.minute);
+  const hour = generateCronExpression(cronForm.hour);
+  const day = generateCronExpression(cronForm.day);
+  const month = generateCronExpression(cronForm.month);
+  const week = generateCronExpression(cronForm.week);
+  return `${second} ${minute} ${hour} ${day} ${month} ${week}`;
+});
+
+// 处理Cron表达式生成器对话框
+const handleCronModalCancel = () => {
+  showCronModal.value = false;
+};
+
+const handleCronModalSubmit = () => {
+  form.cron_expr = cronExpression.value;
+  showCronModal.value = false;
+};
 
 // 获取任务列表数据
 const fetchData = async () => {
@@ -987,83 +1037,6 @@ const handleFormCancel = () => {
   }
 };
 
-// Cron 表达式生成器相关
-interface CronFieldConfig {
-  type: string;
-  start: number;
-  end: number;
-  intervalStart: number;
-  interval: number;
-}
-
-interface WeekConfig {
-  type: string;
-  days: string[];
-}
-
-interface CronConfig {
-  second: CronFieldConfig;
-  minute: CronFieldConfig;
-  hour: CronFieldConfig;
-  day: CronFieldConfig;
-  month: CronFieldConfig;
-  week: WeekConfig;
-}
-
-const showCronModal = ref(false);
-const cronConfig = reactive<CronConfig>({
-  second: { type: '*', start: 0, end: 59, intervalStart: 0, interval: 1 },
-  minute: { type: '*', start: 0, end: 59, intervalStart: 0, interval: 1 },
-  hour: { type: '*', start: 0, end: 23, intervalStart: 0, interval: 1 },
-  day: { type: '*', start: 1, end: 31, intervalStart: 1, interval: 1 },
-  month: { type: '*', start: 1, end: 12, intervalStart: 1, interval: 1 },
-  week: { type: '?', days: [] },
-});
-
-const weekDays = [
-  { label: '周日', value: '1' },
-  { label: '周一', value: '2' },
-  { label: '周二', value: '3' },
-  { label: '周三', value: '4' },
-  { label: '周四', value: '5' },
-  { label: '周五', value: '6' },
-  { label: '周六', value: '7' },
-];
-
-// 生成 Cron 表达式
-const generatedCron = computed(() => {
-  const parts = ['second', 'minute', 'hour', 'day', 'month', 'week'].map((field) => {
-    const config = cronConfig[field as keyof CronConfig];
-    switch (config.type) {
-      case '*':
-        return '*';
-      case '?':
-        return '?';
-      case 'fixed':
-        if (field === 'week') {
-          return (config as WeekConfig).days.length ? (config as WeekConfig).days.join(',') : '?';
-        }
-        return `${(config as CronFieldConfig).start}-${(config as CronFieldConfig).end}`;
-      case 'interval':
-        return `${(config as CronFieldConfig).intervalStart}/${(config as CronFieldConfig).interval}`;
-      default:
-        return '*';
-    }
-  });
-  return parts.join(' ');
-});
-
-// 处理 Cron 表达式确认
-const handleCronConfirm = () => {
-  form.cron_expr = generatedCron.value;
-  showCronModal.value = false;
-};
-
-// 处理 Cron 表达式取消
-const handleCronCancel = () => {
-  showCronModal.value = false;
-};
-
 // 格式化 JSON
 const handleFormatJson = () => {
   try {
@@ -1188,29 +1161,96 @@ fetchData();
 }
 
 .cron-container {
-  .cron-footer {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid var(--color-neutral-3);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  padding: 0 16px;
+
+  .cron-preview {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--color-fill-2);
+    border-radius: 4px;
+    text-align: center;
+
+    .preview-title {
+      color: var(--color-text-2);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .preview-content {
+      color: rgb(var(--primary-6));
+      font-size: 20px;
+      font-family: monospace;
+      margin: 8px 0;
+      font-weight: bold;
+    }
+
+    .preview-desc {
+      color: var(--color-text-3);
+      font-size: 12px;
+    }
   }
 
-  .cron-expression {
-    color: var(--color-text-2);
-    font-size: 14px;
+  :deep(.arco-tabs-card) {
+    .arco-tabs-header {
+      margin-bottom: 16px;
+    }
+
+    .arco-tabs-nav {
+      background: var(--color-fill-2);
+      border-radius: 4px;
+      padding: 4px;
+    }
+
+    .arco-tabs-tab {
+      border-radius: 4px;
+      padding: 8px 16px;
+      font-size: 14px;
+    }
   }
 
-  :deep(.arco-tabs-content) {
-    padding: 16px 0;
+  .tab-content {
+    padding: 8px;
+
+    .radio-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .radio-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-text-1);
+    }
+
+    .radio-desc {
+      color: var(--color-text-3);
+      font-size: 13px;
+      line-height: 32px;
+    }
   }
 
-  :deep(.arco-radio-group) {
+  :deep(.arco-radio) {
+    align-items: flex-start;
+    padding: 8px 12px;
     width: 100%;
+    border-radius: 4px;
+    transition: background-color 0.1s;
+
+    &:hover {
+      background-color: var(--color-fill-2);
+    }
   }
 
-  :deep(.arco-space-vertical) {
+  :deep(.arco-radio-checked) {
+    background-color: var(--color-fill-2);
+  }
+
+  :deep(.arco-input-number) {
+    margin: 0 4px;
+  }
+
+  :deep(.arco-select) {
     width: 100%;
   }
 }

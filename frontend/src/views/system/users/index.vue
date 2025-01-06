@@ -11,7 +11,7 @@
             @search="handleSearch"
           />
           <a-button type="primary" @click="handleAdd">
-            <template #icon><icon-plus /></template>
+            <template #icon><IconPlus /></template>
             新增用户
           </a-button>
         </a-space>
@@ -45,19 +45,19 @@
             <template #cell="{ record }">
               <a-space>
                 <a-button type="text" size="small" @click="handleEdit(record)">
-                  <template #icon><icon-edit /></template>
+                  <template #icon><IconEdit /></template>
                   编辑
                 </a-button>
                 <a-button type="text" size="small" @click="handleAssignRoles(record)">
-                  <template #icon><icon-user-group /></template>
+                  <template #icon><IconUserGroup /></template>
                   分配角色
                 </a-button>
                 <a-button type="text" size="small" @click="handleChangePassword(record)">
-                  <template #icon><icon-lock /></template>
+                  <template #icon><IconLock /></template>
                   修改密码
                 </a-button>
                 <a-button type="text" size="small" @click="handleResetPassword(record)">
-                  <template #icon><icon-refresh /></template>
+                  <template #icon><IconRefresh /></template>
                   重置密码
                 </a-button>
                 <a-popconfirm
@@ -65,7 +65,7 @@
                   @ok="handleDelete(record)"
                 >
                   <a-button type="text" status="danger" size="small">
-                    <template #icon><icon-delete /></template>
+                    <template #icon><IconDelete /></template>
                     删除
                   </a-button>
                 </a-popconfirm>
@@ -85,7 +85,11 @@
     >
       <a-form ref="userFormRef" :model="userForm">
         <a-form-item field="username" label="用户名" :rules="[{ required: true, message: '请输入用户名' }]">
-          <a-input v-model="userForm.username" placeholder="请输入用户名" :disabled="isEdit" />
+          <a-input v-model="userForm.username" placeholder="请输入用户名" :disabled="isEdit">
+            <template #prefix>
+              <IconUser />
+            </template>
+          </a-input>
         </a-form-item>
         <a-form-item
           v-if="!isEdit"
@@ -93,7 +97,11 @@
           label="密码"
           :rules="[{ required: true, message: '请输入密码' }]"
         >
-          <a-input-password v-model="userForm.password" placeholder="请输入密码" />
+          <a-input-password v-model="userForm.password" placeholder="请输入密码">
+            <template #prefix>
+              <IconLock />
+            </template>
+          </a-input-password>
         </a-form-item>
         <a-form-item field="nickname" label="昵称">
           <a-input v-model="userForm.nickname" placeholder="请输入昵称" />
@@ -168,6 +176,15 @@ import type { RoleInfo } from '@/types/role';
 import * as userApi from '@/api/user';
 import * as roleApi from '@/api/role';
 import { encryptPassword } from '@/utils/crypto';
+import {
+  IconPlus,
+  IconEdit,
+  IconDelete,
+  IconUserGroup,
+  IconLock,
+  IconRefresh,
+  IconUser,
+} from '@arco-design/web-vue/es/icon';
 
 // 表格数据
 const users = ref<UserInfo[]>([]);
