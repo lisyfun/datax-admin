@@ -7,8 +7,15 @@ export interface Job {
   description: string;
   cron_expr: string;
   status: number;
+  type: number;  // 任务类型：1-Shell脚本 2-DataX任务
+  command: string;
+  working_dir: string;
+  timeout: number;
+  retry_times: number;
+  retry_interval: number;
   create_time: string;
   update_time: string;
+  datax_json?: string;  // DataX 任务的配置 JSON
 }
 
 export interface JobListParams {
@@ -51,4 +58,14 @@ export function startJob(id: number): Promise<AxiosResponse<void>> {
 // 停止任务
 export function stopJob(id: number): Promise<AxiosResponse<void>> {
   return request.post(`/jobs/${id}/stop`);
+}
+
+// 执行一次任务
+export function executeJob(id: number): Promise<AxiosResponse<void>> {
+  return request.post(`/jobs/${id}/execute`);
+}
+
+// 批量执行任务
+export function executeJobs(ids: number[]): Promise<AxiosResponse<void>> {
+  return request.post('/jobs/execute', { ids });
 }

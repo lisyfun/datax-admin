@@ -121,7 +121,6 @@ import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { Message, Modal } from '@arco-design/web-vue';
 import {
-  IconHome,
   IconApps,
   IconUser,
   IconUserGroup,
