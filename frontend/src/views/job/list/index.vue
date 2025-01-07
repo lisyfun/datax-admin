@@ -162,36 +162,53 @@
             />
           </a-form-item>
         </template>
+
+        <template v-if="form.type === 'shell'">
+          <a-form-item
+            field="command"
+            label="执行命令"
+            :rules="[{ required: true, message: '请输入执行命令' }]"
+          >
+            <a-textarea
+              v-model="form.command"
+              placeholder="请输入要执行的命令"
+            />
+          </a-form-item>
+          <a-form-item field="working_dir" label="工作目录">
+            <a-input v-model="form.working_dir" placeholder="请输入工作目录，默认为当前目录" />
+          </a-form-item>
+        </template>
+
+        <template v-if="form.type === 'datax'">
+          <a-form-item
+            field="command"
+            label="DataX配置"
+            :rules="[{ required: true, message: '请输入DataX配置' }]"
+          >
+            <a-textarea
+              v-model="form.command"
+              placeholder="请输入DataX任务配置JSON"
+              :auto-size="{ minRows: 10, maxRows: 20 }"
+            />
+            <template #extra>
+              <div class="datax-tools">
+                <a-space>
+                  <a-button type="text" @click="handleFormatJson">
+                    <template #icon><IconCode /></template>
+                    格式化JSON
+                  </a-button>
+                  <a-button type="text" @click="handleLoadTemplate">
+                    <template #icon><IconFile /></template>
+                    加载模板
+                  </a-button>
+                </a-space>
+              </div>
+            </template>
+          </a-form-item>
+        </template>
+
         <a-form-item field="description" label="任务描述">
           <a-textarea v-model="form.description" placeholder="请输入任务描述" />
-        </a-form-item>
-        <a-form-item
-          field="command"
-          :label="form.type === 'shell' ? '执行命令' : 'DataX配置'"
-          :rules="[{ required: true, message: form.type === 'shell' ? '请输入执行命令' : '请输入DataX配置' }]"
-        >
-          <a-textarea
-            v-model="form.command"
-            :placeholder="form.type === 'shell' ? '请输入要执行的命令' : '请输入DataX任务配置JSON'"
-            :auto-size="form.type === 'datax' ? { minRows: 10, maxRows: 20 } : undefined"
-          />
-          <template v-if="form.type === 'datax'" #extra>
-            <div class="datax-tools">
-              <a-space>
-                <a-button type="text" @click="handleFormatJson">
-                  <template #icon><IconCode /></template>
-                  格式化JSON
-                </a-button>
-                <a-button type="text" @click="handleLoadTemplate">
-                  <template #icon><IconFile /></template>
-                  加载模板
-                </a-button>
-              </a-space>
-            </div>
-          </template>
-        </a-form-item>
-        <a-form-item field="working_dir" label="工作目录" v-if="form.type === 'shell'">
-          <a-input v-model="form.working_dir" placeholder="请输入工作目录，默认为当前目录" />
         </a-form-item>
         <a-form-item field="cron_expr" label="Cron 表达式" :rules="[{ required: true, message: '请输入 Cron 表达式' }]">
           <a-input v-model="form.cron_expr" placeholder="请输入 Cron 表达式">
@@ -257,7 +274,7 @@
                     <span class="radio-label">每秒</span>
                     <span class="radio-desc">每秒钟触发</span>
                   </a-radio>
-                  <a-radio value="?">
+                  <a-radio value="cycle">
                     <div class="radio-content">
                       <span class="radio-label">周期</span>
                       <div class="radio-desc">从
@@ -308,7 +325,7 @@
                     <span class="radio-label">每分</span>
                     <span class="radio-desc">每分钟触发</span>
                   </a-radio>
-                  <a-radio value="?">
+                  <a-radio value="cycle">
                     <div class="radio-content">
                       <span class="radio-label">周期</span>
                       <div class="radio-desc">从
@@ -359,7 +376,7 @@
                     <span class="radio-label">每小时</span>
                     <span class="radio-desc">每小时触发</span>
                   </a-radio>
-                  <a-radio value="?">
+                  <a-radio value="cycle">
                     <div class="radio-content">
                       <span class="radio-label">周期</span>
                       <div class="radio-desc">从
@@ -412,7 +429,7 @@
                   </a-radio>
                   <a-radio value="?">
                     <span class="radio-label">不指定</span>
-                    <span class="radio-desc">当使用星期时，日必须设置为不指定</span>
+                    <span class="radio-desc">使用星期时必须选择此项</span>
                   </a-radio>
                   <a-radio value="L">
                     <span class="radio-label">最后一天</span>
@@ -473,7 +490,7 @@
                     <span class="radio-label">每月</span>
                     <span class="radio-desc">每月触发</span>
                   </a-radio>
-                  <a-radio value="?">
+                  <a-radio value="cycle">
                     <div class="radio-content">
                       <span class="radio-label">周期</span>
                       <div class="radio-desc">从
@@ -526,7 +543,7 @@
                   </a-radio>
                   <a-radio value="?">
                     <span class="radio-label">不指定</span>
-                    <span class="radio-desc">当使用日期时，星期必须设置为不指定</span>
+                    <span class="radio-desc">使用日期时必须选择此项</span>
                   </a-radio>
                   <a-radio value="L">
                     <span class="radio-label">最后一周</span>
@@ -582,7 +599,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import {
   IconPlus,
@@ -631,34 +648,36 @@ const columns = [
   {
     title: '任务名称',
     dataIndex: 'name',
+    align: 'center' as const,
   },
   {
     title: '任务类型',
     dataIndex: 'type',
     slotName: 'type',
+    align: 'center' as const,
   },
   {
     title: '任务描述',
     dataIndex: 'description',
+    align: 'center' as const,
   },
   {
     title: 'Cron 表达式',
     dataIndex: 'cron_expr',
+    width: 200,
+    align: 'center' as const,
   },
   {
     title: '状态',
     dataIndex: 'status',
     slotName: 'status',
+    align: 'center' as const,
   },
   {
     title: '创建时间',
     dataIndex: 'created_at',
     slotName: 'created_at',
-  },
-  {
-    title: '更新时间',
-    dataIndex: 'updated_at',
-    slotName: 'updated_at',
+    align: 'center' as const,
   },
   {
     title: '操作',
@@ -745,7 +764,7 @@ const showCronModal = ref(false);
 
 // Cron表达式生成器相关
 interface CronField {
-  type: string;
+  type: '*' | '?' | '-' | '/' | 'L' | 'W' | 'cycle';
   start: number;
   interval: number;
   from: number;
@@ -789,7 +808,7 @@ const generateCronExpression = (field: CronField): string => {
     case 'cycle':
       return `${field.start}/${field.interval}`;
     default:
-      return field.type;
+      return '*';
   }
 };
 
@@ -797,14 +816,32 @@ const cronExpression = computed(() => {
   const second = generateCronExpression(cronForm.second);
   const minute = generateCronExpression(cronForm.minute);
   const hour = generateCronExpression(cronForm.hour);
-  const day = generateCronExpression(cronForm.day);
+  let day = generateCronExpression(cronForm.day);
   const month = generateCronExpression(cronForm.month);
-  const week = generateCronExpression(cronForm.week);
+  let week = generateCronExpression(cronForm.week);
+
+  if (week !== '?' && week !== '*') {
+    day = '?';
+  }
+  else if (day !== '?' && day !== '*') {
+    week = '?';
+  }
+  else if (day === '*' && week === '*') {
+    week = '?';
+  }
+
   return `${second} ${minute} ${hour} ${day} ${month} ${week}`;
 });
 
 // 处理Cron表达式生成器对话框
 const handleCronModalCancel = () => {
+  // 重置表单状态
+  cronForm.second.type = '*';
+  cronForm.minute.type = '*';
+  cronForm.hour.type = '*';
+  cronForm.day.type = '*';
+  cronForm.month.type = '*';
+  cronForm.week.type = '?';
   showCronModal.value = false;
 };
 
@@ -1135,6 +1172,21 @@ const formatDateTime = (dateStr: string) => {
   });
 };
 
+// 监听日期和星期的变化，自动处理互斥关系
+watch(() => cronForm.day.type, (newType) => {
+  if (newType !== '?' && newType !== '*') {
+    // 如果日期被指定了具体值，则星期必须设置为不指定
+    cronForm.week.type = '?';
+  }
+});
+
+watch(() => cronForm.week.type, (newType) => {
+  if (newType !== '?' && newType !== '*') {
+    // 如果星期被指定了具体值，则日期必须设置为不指定
+    cronForm.day.type = '?';
+  }
+});
+
 // 初始化加载数据
 fetchData();
 </script>
@@ -1143,6 +1195,7 @@ fetchData();
 .jobs {
   padding: 16px;
 }
+
 
 .datax-tools {
   margin-top: 8px;

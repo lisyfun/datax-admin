@@ -94,7 +94,7 @@
       </template>
 
       <!-- HTTP任务参数 -->
-      <template v-if="form.type === 'http'">
+      <template v-else-if="form.type === 'http'">
         <a-form-item
           field="params.url"
           label="请求URL"
@@ -134,7 +134,7 @@
       </template>
 
       <!-- DataX任务参数 -->
-      <template v-if="form.type === 'datax'">
+      <template v-else-if="form.type === 'datax'">
         <a-form-item
           field="params.job_path"
           label="任务文件路径"
@@ -284,6 +284,13 @@ const rules = {
 // 处理任务类型变更
 const handleTypeChange = (value: unknown) => {
   const jobType = value as JobType;
+  // 重置所有文本框的值
+  environmentText.value = '';
+  headersText.value = '';
+  successCodeText.value = '';
+  parametersText.value = '';
+  jvmOptionsText.value = '';
+
   switch (jobType) {
     case 'shell':
       form.value.params = {
@@ -459,30 +466,33 @@ watch(
   () => props.visible,
   (val) => {
     if (val && props.type === 'edit' && props.data) {
+      // 编辑模式下，加载现有数据
       form.value = { ...generateFormModel(), ...props.data };
-      // 初始化文本框的值
+
+      // 根据任务类型初始化文本框的值
       if (form.value.type === 'shell') {
         environmentText.value = JSON.stringify(
-          (form.value.params as JobShellParams).environment,
+          (form.value.params as JobShellParams).environment || {},
           null,
           2
         );
       } else if (form.value.type === 'http') {
         headersText.value = JSON.stringify(
-          (form.value.params as JobHTTPParams).headers,
+          (form.value.params as JobHTTPParams).headers || {},
           null,
           2
         );
-        successCodeText.value = (form.value.params as JobHTTPParams).success_code.join(',');
+        successCodeText.value = ((form.value.params as JobHTTPParams).success_code || [200]).join(',');
       } else if (form.value.type === 'datax') {
         parametersText.value = JSON.stringify(
-          (form.value.params as JobDataXParams).parameters,
+          (form.value.params as JobDataXParams).parameters || {},
           null,
           2
         );
-        jvmOptionsText.value = (form.value.params as JobDataXParams).jvm_options.join('\n');
+        jvmOptionsText.value = ((form.value.params as JobDataXParams).jvm_options || []).join('\n');
       }
     } else if (!val) {
+      // 关闭弹窗时重置所有状态
       form.value = generateFormModel();
       environmentText.value = '';
       headersText.value = '';
