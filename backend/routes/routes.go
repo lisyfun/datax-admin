@@ -76,6 +76,13 @@ func SetupRoutes(r *gin.Engine) {
 			authenticated.GET("/permissions", permissionController.GetPermissionTree)
 			authenticated.GET("/user/permissions", permissionController.GetUserPermissions)
 
+			// 菜单管理相关
+			menuController := controllers.NewMenuController()
+			authenticated.POST("/menus", menuController.CreateMenu)
+			authenticated.PUT("/menus/:id", menuController.UpdateMenu)
+			authenticated.DELETE("/menus/:id", menuController.DeleteMenu)
+			authenticated.GET("/menus", menuController.GetMenuList)
+
 			// 任务管理相关
 			jobController := controllers.NewJobController()
 			authenticated.POST("/jobs", jobController.CreateJob)                // 创建任务
