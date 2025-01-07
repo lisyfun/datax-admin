@@ -157,7 +157,7 @@ func (s *RoleService) UpdateUserRoles(userID uint, req *types.UpdateUserRolesReq
 func (s *RoleService) GetUserRoles(userID uint) ([]uint, error) {
 	var roles []uint
 	err := models.DB.Model(&models.UserRole{}).
-		Where("user_id = ?", userID).
+		Where("user_id = ? AND deleted_at IS NULL", userID).
 		Pluck("role_id", &roles).Error
 	return roles, err
 }

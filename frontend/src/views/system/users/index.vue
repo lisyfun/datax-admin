@@ -33,11 +33,25 @@
           <a-table-column title="用户名" data-index="username" />
           <a-table-column title="昵称" data-index="nickname" />
           <a-table-column title="邮箱" data-index="email" />
+          <a-table-column title="角色" align="center">
+            <template #cell="{ record }">
+              <a-space wrap>
+                <a-tag
+                  v-for="role in record.roles"
+                  :key="role.id"
+                  color="blue"
+                >
+                  {{ role.name }}
+                </a-tag>
+                <a-tag v-if="!record.roles?.length" color="gray">暂无角色</a-tag>
+              </a-space>
+            </template>
+          </a-table-column>
           <a-table-column title="状态" align="center">
             <template #cell="{ record }">
               <a-switch
                 :model-value="record.status === 1"
-                @update:model-value="(value) => handleStatusChange(record, Boolean(value))"
+                @change="(value: boolean) => handleStatusChange(record, value)"
               />
             </template>
           </a-table-column>
@@ -266,7 +280,8 @@ const fetchRoles = async () => {
 const fetchUserRoles = async (userId: number) => {
   try {
     const res = await roleApi.getUserRoles(userId);
-    roleForm.roleIds = res.data.roles;
+    // 直接使用后端返回的角色ID数组
+    roleForm.roleIds = res.data.roles || [];
   } catch (error: any) {
     Message.error(error.response?.data?.error || '获取用户角色失败');
   }
@@ -309,20 +324,15 @@ const handleEdit = (record: UserInfo) => {
 // 分配角色
 const handleAssignRoles = async (record: UserInfo) => {
   roleForm.userId = record.id;
+  // 获取用户当前的角色
   await fetchUserRoles(record.id);
   showRoleForm.value = true;
 };
 
 // 更新状态
-const handleStatusChange = async (record: UserInfo, value: boolean) => {
+const handleStatusChange = async (record: UserInfo, value: boolean): Promise<void> => {
   try {
     const newStatus = value ? 1 : 0;
-    console.log('Status change triggered:', {
-      userId: record.id,
-      currentStatus: record.status,
-      newValue: value,
-      newStatus
-    });
 
     // 立即更新 UI 状态
     const targetUser = users.value.find(u => u.id === record.id);
@@ -334,12 +344,6 @@ const handleStatusChange = async (record: UserInfo, value: boolean) => {
     await userApi.updateUserStatus(record.id, newStatus);
     Message.success('状态更新成功');
   } catch (error: any) {
-    console.error('Status update error:', {
-      error,
-      response: error.response?.data,
-      request: error.request,
-      config: error.config
-    });
     Message.error(error.response?.data?.error || '状态更新失败');
     // 发生错误时恢复原状态
     await fetchUsers();
@@ -405,6 +409,8 @@ const handleRoleFormSubmit = async () => {
     await roleApi.updateUserRoles(roleForm.userId, roleForm.roleIds);
     Message.success('角色分配成功');
     showRoleForm.value = false;
+    // 刷新用户列表以显示最新的角色信息
+    await fetchUsers();
   } catch (error: any) {
     Message.error(error.response?.data?.error || '角色分配失败');
   }
@@ -413,6 +419,8 @@ const handleRoleFormSubmit = async () => {
 // 取消角色表单
 const handleRoleFormCancel = () => {
   showRoleForm.value = false;
+  // 清空角色选择
+  roleForm.roleIds = [];
 };
 
 // 修改密码

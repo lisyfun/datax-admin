@@ -21,10 +21,11 @@ type TokenResponse struct {
 
 // UserResponse 用户信息响应
 type UserResponse struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
-	Nickname string `json:"nickname"`
-	Email    string `json:"email"`
-	Avatar   string `json:"avatar"`
-	Status   int    `json:"status"`
+	ID       uint           `json:"id"`
+	Username string         `json:"username"`
+	Nickname string         `json:"nickname"`
+	Email    string         `json:"email"`
+	Avatar   string         `json:"avatar"`
+	Status   int            `json:"status"`
+	Roles    []RoleResponse `json:"roles,omitempty"`
 }

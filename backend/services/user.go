@@ -163,6 +163,27 @@ func (s *UserService) GetUserList(req *types.UserListRequest) (*types.UserListRe
 	// 转换为响应格式
 	items := make([]types.UserResponse, len(users))
 	for i, user := range users {
+		// 查询用户角色
+		var roles []models.Role
+		if err := models.DB.Model(&models.Role{}).
+			Joins("JOIN user_roles ON user_roles.role_id = roles.id").
+			Where("user_roles.user_id = ? AND user_roles.deleted_at IS NULL", user.ID).
+			Find(&roles).Error; err != nil {
+			return nil, err
+		}
+
+		// 转换角色信息
+		roleResponses := make([]types.RoleResponse, len(roles))
+		for j, role := range roles {
+			roleResponses[j] = types.RoleResponse{
+				ID:          role.ID,
+				Name:        role.Name,
+				Code:        role.Code,
+				Description: role.Description,
+				Status:      role.Status,
+			}
+		}
+
 		items[i] = types.UserResponse{
 			ID:       user.ID,
 			Username: user.Username,
@@ -170,6 +191,7 @@ func (s *UserService) GetUserList(req *types.UserListRequest) (*types.UserListRe
 			Email:    user.Email,
 			Avatar:   user.Avatar,
 			Status:   user.Status,
+			Roles:    roleResponses,
 		}
 	}
 

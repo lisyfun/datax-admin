@@ -28,6 +28,11 @@ export interface UserInfo {
   email: string;
   avatar: string;
   status: number;
+  roles?: {
+    id: number;
+    name: string;
+    code: string;
+  }[];
 }
 
 export interface UserListParams {
