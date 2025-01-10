@@ -11,6 +11,7 @@
             @search="handleSearch"
             allow-clear
             @clear="handleClear"
+            @press-enter="handleSearch"
           />
           <a-select
             v-model="searchForm.status"
