@@ -198,39 +198,59 @@ func (s *JobService) GetJobList(req *types.JobListRequest) (*types.JobListRespon
 
 // GetJobHistoryList 获取任务执行历史列表
 func (s *JobService) GetJobHistoryList(req *types.JobHistoryListRequest) (*types.JobHistoryListResponse, error) {
-	var total int64
-	var histories []models.JobHistory
+	// 使用原生SQL查询以便于调试
+	query := `
+		SELECT
+			h.*,
+			j.name as job_name
+		FROM job_histories h
+		LEFT JOIN jobs j ON j.id = h.job_id
+		WHERE 1=1
+	`
+	var params []interface{}
 
-	query := models.DB.Model(&models.JobHistory{})
-
-	// 添加查询条件
+	// 构建查询条件
 	if req.JobID != nil {
-		query = query.Where("job_id = ?", *req.JobID)
+		query += " AND h.job_id = ?"
+		params = append(params, *req.JobID)
 	}
 	if req.Status != nil {
-		query = query.Where("status = ?", *req.Status)
+		query += " AND h.status = ?"
+		params = append(params, *req.Status)
+	}
+	if req.Keyword != "" {
+		query += " AND j.name LIKE ?"
+		params = append(params, "%"+req.Keyword+"%")
 	}
 	if !req.StartTime.IsZero() {
-		query = query.Where("start_time >= ?", req.StartTime)
+		query += " AND h.start_time >= ?"
+		params = append(params, req.StartTime)
 	}
 	if !req.EndTime.IsZero() {
-		query = query.Where("end_time <= ?", req.EndTime)
+		query += " AND h.end_time <= ?"
+		params = append(params, req.EndTime)
 	}
 
 	// 获取总数
-	if err := query.Count(&total).Error; err != nil {
+	var total int64
+	countQuery := "SELECT COUNT(*) FROM (" + query + ") as t"
+	if err := models.DB.Raw(countQuery, params...).Count(&total).Error; err != nil {
 		return nil, err
 	}
 
-	// 获取分页数据
-	if err := query.Limit(req.PageSize).Offset((req.Page - 1) * req.PageSize).
-		Order("id DESC").Find(&histories).Error; err != nil {
+	// 添加排序和分页
+	query += " ORDER BY h.id DESC LIMIT ? OFFSET ?"
+	params = append(params, req.PageSize, (req.Page-1)*req.PageSize)
+
+	// 执行查询
+	var items []models.JobHistory
+	if err := models.DB.Raw(query, params...).Scan(&items).Error; err != nil {
 		return nil, err
 	}
 
 	return &types.JobHistoryListResponse{
 		Total: total,
-		Items: histories,
+		Items: items,
 	}, nil
 }
 

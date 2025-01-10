@@ -68,17 +68,17 @@ type JobDataXParams struct {
 
 // JobHistory 任务执行历史
 type JobHistory struct {
-	ID        uint           `gorm:"primarykey" json:"id"`
-	JobID     uint           `gorm:"not null;index" json:"job_id"` // 任务ID
-	Status    int            `gorm:"default:0" json:"status"`      // 执行状态(0:失败 1:成功)
-	StartTime time.Time      `json:"start_time"`                   // 开始时间
-	EndTime   time.Time      `json:"end_time"`                     // 结束时间
-	Duration  int64          `json:"duration"`                     // 执行时长(毫秒)
-	Output    string         `gorm:"type:text" json:"output"`      // 执行输出
-	Error     string         `gorm:"type:text" json:"error"`       // 错误信息
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	JobID     uint      `json:"job_id"`
+	JobName   string    `json:"job_name"`
+	Status    int       `json:"status"` // 0:失败 1:成功
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
+	Duration  int64     `json:"duration"` // 执行时长(毫秒)
+	Output    string    `json:"output"`   // 执行输出
+	Error     string    `json:"error"`    // 错误信息
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // TableName 指定表名

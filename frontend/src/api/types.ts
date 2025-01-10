@@ -72,3 +72,35 @@ export interface JobListResponse {
   items: Job[];
   total: number;
 }
+
+// 任务执行历史
+export interface JobHistory {
+  id: number;
+  job_id: number;
+  job_name: string;
+  status: number;
+  start_time: string;
+  end_time: string;
+  duration: number;
+  output: string;
+  error: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 任务历史列表请求
+export interface JobHistoryListRequest {
+  page?: number;
+  page_size?: number;
+  job_id?: number;
+  keyword?: string;
+  status?: number;
+  start_time?: string;
+  end_time?: string;
+}
+
+// 任务历史列表响应
+export interface JobHistoryListResponse {
+  total: number;
+  items: JobHistory[];
+}

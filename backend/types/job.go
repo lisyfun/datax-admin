@@ -45,10 +45,11 @@ type JobListResponse struct {
 
 // JobHistoryListRequest 任务历史列表请求
 type JobHistoryListRequest struct {
-	Page      int       `form:"page,default=1" binding:"required,min=1"`
-	PageSize  int       `form:"page_size,default=10" binding:"required,min=5,max=100"`
-	JobID     *uint     `form:"job_id"`
-	Status    *int      `form:"status" binding:"omitempty,oneof=0 1"`
+	Page      int       `form:"page"`
+	PageSize  int       `form:"page_size"`
+	JobID     *int      `form:"job_id"`
+	Status    *int      `form:"status"`
+	Keyword   string    `form:"keyword"`
 	StartTime time.Time `form:"start_time"`
 	EndTime   time.Time `form:"end_time"`
 }

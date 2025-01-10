@@ -11,6 +11,9 @@ import type {
   UpdateJobRequest,
   JobListRequest,
   JobListResponse,
+  JobHistory,
+  JobHistoryListRequest,
+  JobHistoryListResponse,
 } from './types';
 
 export type {
@@ -24,6 +27,9 @@ export type {
   UpdateJobRequest,
   JobListRequest,
   JobListResponse,
+  JobHistory,
+  JobHistoryListRequest,
+  JobHistoryListResponse,
 };
 
 // 获取任务列表
@@ -65,4 +71,9 @@ export function executeJob(id: number): Promise<AxiosResponse<void>> {
 // 批量执行任务
 export function executeJobs(ids: number[]): Promise<AxiosResponse<void>> {
   return request.post('/jobs/execute', { ids });
+}
+
+// 获取任务执行历史
+export function getJobHistoryList(params: JobHistoryListRequest): Promise<AxiosResponse<JobHistoryListResponse>> {
+  return request.get('/jobs/history', { params });
 }

@@ -17,9 +17,8 @@
             allow-clear
             @change="handleSearch"
           >
-            <a-option value="success">成功</a-option>
-            <a-option value="failed">失败</a-option>
-            <a-option value="running">运行中</a-option>
+            <a-option :value="1">成功</a-option>
+            <a-option :value="0">失败</a-option>
           </a-select>
           <a-button @click="fetchData">
             <template #icon><icon-refresh /></template>
@@ -48,16 +47,11 @@
               <template #icon><icon-eye /></template>
               查看
             </a-button>
-            <a-button type="text" size="small" @click="handleDownload(record)">
-              <template #icon><icon-download /></template>
-              下载日志
-            </a-button>
           </a-space>
         </template>
       </a-table>
     </a-card>
 
-    <!-- 查看日志对话框 -->
     <a-modal
       v-model:visible="showLogModal"
       title="执行日志"
@@ -73,14 +67,19 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onBeforeUnmount } from 'vue';
 import { Message } from '@arco-design/web-vue';
-import { IconRefresh, IconEye, IconDownload } from '@arco-design/web-vue/es/icon';
+import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
+import { IconRefresh, IconEye } from '@arco-design/web-vue/es/icon';
+import { getJobHistoryList } from '@/api/job';
+import type { JobHistory } from '@/api/types';
+import { formatDateTime } from '@/utils/date';
 
 const loading = ref(false);
-const renderData = ref([]);
+const renderData = ref<JobHistory[]>([]);
 const showLogModal = ref(false);
 const currentLog = ref('');
+let isUnmounted = false;
 
 interface SearchFormState {
   jobName: string;
@@ -95,19 +94,22 @@ const searchForm = reactive<SearchFormState>({
 const columns = [
   {
     title: '任务名称',
-    dataIndex: 'jobName',
+    dataIndex: 'job_name',
   },
   {
     title: '开始时间',
-    dataIndex: 'startTime',
+    dataIndex: 'start_time',
+    render: (data: any) => formatDateTime(data?.record?.start_time),
   },
   {
     title: '结束时间',
-    dataIndex: 'endTime',
+    dataIndex: 'end_time',
+    render: (data: any) => formatDateTime(data?.record?.end_time),
   },
   {
     title: '执行时长',
     dataIndex: 'duration',
+    render: (data: any) => data?.record?.duration ? `${data.record.duration}ms` : '-',
   },
   {
     title: '状态',
@@ -121,7 +123,7 @@ const columns = [
     width: 200,
     align: 'center' as const,
   },
-];
+] as TableColumnData[];
 
 const pagination = reactive({
   total: 0,
@@ -131,27 +133,23 @@ const pagination = reactive({
   showJumper: true,
 });
 
-const getStatusColor = (status: string) => {
+const getStatusColor = (status: number) => {
   switch (status) {
-    case 'success':
+    case 1:
       return 'green';
-    case 'failed':
+    case 0:
       return 'red';
-    case 'running':
-      return 'blue';
     default:
       return 'gray';
   }
 };
 
-const getStatusText = (status: string) => {
+const getStatusText = (status: number) => {
   switch (status) {
-    case 'success':
+    case 1:
       return '成功';
-    case 'failed':
+    case 0:
       return '失败';
-    case 'running':
-      return '运行中';
     default:
       return '未知';
   }
@@ -159,69 +157,75 @@ const getStatusText = (status: string) => {
 
 // 获取历史数据
 const fetchData = async () => {
+  if (isUnmounted) return;
+
   try {
     loading.value = true;
-    // TODO: 调用API获取历史数据
-    // const { data } = await getJobHistory({
-    //   page: pagination.current,
-    //   page_size: pagination.pageSize,
-    //   job_name: searchForm.jobName,
-    //   status: searchForm.status || undefined,
-    // });
-    // renderData.value = data.items;
-    // pagination.total = data.total;
+    const { data } = await getJobHistoryList({
+      page: pagination.current,
+      page_size: pagination.pageSize,
+      keyword: searchForm.jobName || undefined,
+      status: searchForm.status ? parseInt(searchForm.status) : undefined,
+    });
+
+    if (!isUnmounted) {
+      renderData.value = data.items;
+      pagination.total = data.total;
+    }
   } catch (err) {
-    Message.error('获取执行历史失败');
+    if (!isUnmounted) {
+      Message.error('获取执行历史失败');
+    }
   } finally {
-    loading.value = false;
+    if (!isUnmounted) {
+      loading.value = false;
+    }
   }
 };
 
 // 搜索
 const handleSearch = () => {
+  if (isUnmounted) return;
   pagination.current = 1;
   fetchData();
 };
 
 // 分页变化
 const onPageChange = (current: number) => {
+  if (isUnmounted) return;
   pagination.current = current;
   fetchData();
 };
 
 const onPageSizeChange = (pageSize: number) => {
+  if (isUnmounted) return;
   pagination.pageSize = pageSize;
   fetchData();
 };
 
 // 查看日志
-const handleView = async (record: any) => {
-  try {
-    // TODO: 调用API获取日志内容
-    // const { data } = await getJobLog(record.id);
-    // currentLog.value = data.content;
-    showLogModal.value = true;
-  } catch (err) {
-    Message.error('获取日志失败');
+const handleView = async (record: JobHistory) => {
+  if (isUnmounted) return;
+  currentLog.value = record.output || '无输出';
+  if (record.error) {
+    currentLog.value += `\n\n错误信息：\n${record.error}`;
   }
-};
-
-// 下载日志
-const handleDownload = async (record: any) => {
-  try {
-    // TODO: 调用API下载日志
-    // await downloadJobLog(record.id);
-    Message.success('日志下载成功');
-  } catch (err) {
-    Message.error('日志下载失败');
-  }
+  showLogModal.value = true;
 };
 
 // 关闭日志对话框
 const handleLogModalClose = () => {
+  if (isUnmounted) return;
   showLogModal.value = false;
   currentLog.value = '';
 };
+
+onBeforeUnmount(() => {
+  isUnmounted = true;
+  renderData.value = [];
+  currentLog.value = '';
+  showLogModal.value = false;
+});
 
 // 初始化加载数据
 fetchData();

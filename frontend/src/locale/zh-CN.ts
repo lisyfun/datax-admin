@@ -114,4 +114,31 @@ export default {
       viewOutput: '查看输出',
     },
   },
+  'menu.jobs': '任务管理',
+  'menu.jobs.list': '任务列表',
+  'menu.jobs.history': '执行历史',
+
+  'jobHistory.columns.jobId': '任务ID',
+  'jobHistory.columns.status': '执行状态',
+  'jobHistory.columns.startTime': '开始时间',
+  'jobHistory.columns.endTime': '结束时间',
+  'jobHistory.columns.duration': '执行时长',
+  'jobHistory.columns.output': '执行输出',
+  'jobHistory.columns.error': '错误信息',
+  'jobHistory.columns.time': '执行时间',
+
+  'jobHistory.form.jobId.placeholder': '请输入任务ID',
+  'jobHistory.form.status.placeholder': '请选择执行状态',
+  'jobHistory.form.startTime.placeholder': '开始时间',
+  'jobHistory.form.endTime.placeholder': '结束时间',
+
+  'jobHistory.status.success': '成功',
+  'jobHistory.status.failed': '失败',
+
+  'jobHistory.actions.viewOutput': '查看输出',
+  'jobHistory.output.title': '执行详情',
+
+  'common.search': '搜索',
+  'common.reset': '重置',
+  'common.error.query': '查询失败',
 };
