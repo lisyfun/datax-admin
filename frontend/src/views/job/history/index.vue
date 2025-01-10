@@ -271,9 +271,6 @@ onBeforeUnmount(() => {
   currentLog.value = '';
   showLogModal.value = false;
 });
-
-// 初始化加载数据
-fetchData();
 </script>
 
 <style scoped>
