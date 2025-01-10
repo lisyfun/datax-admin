@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -134,23 +133,27 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 		return
 	}
 
-	// 检查DataX路径
-	dataxHome := os.Getenv("DATAX_HOME")
-	if dataxHome == "" {
+	// 创建临时JSON文件
+	tmpFile, err := os.CreateTemp("", "datax-*.json")
+	if err != nil {
 		history.Status = 0
-		history.Error = "环境变量DATAX_HOME未设置"
+		history.Error = fmt.Sprintf("创建临时文件失败: %v", err)
 		return
 	}
+	defer os.Remove(tmpFile.Name())
+
+	// 写入JSON配置
+	if _, err := tmpFile.WriteString(dataxParams.JobConfig); err != nil {
+		history.Status = 0
+		history.Error = fmt.Sprintf("写入配置失败: %v", err)
+		return
+	}
+	tmpFile.Close()
 
 	// 构建命令参数
 	args := []string{
-		filepath.Join(dataxHome, "bin/datax.py"),
-		dataxParams.JobPath,
-	}
-
-	// 添加JVM参数
-	if len(dataxParams.JVMOptions) > 0 {
-		args = append(args, "-j", strings.Join(dataxParams.JVMOptions, " "))
+		"-job",
+		tmpFile.Name(),
 	}
 
 	// 添加速率限制
@@ -160,11 +163,9 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 
 	// 添加自定义参数
 	if len(dataxParams.Parameters) > 0 {
-		params := make([]string, 0, len(dataxParams.Parameters))
 		for k, v := range dataxParams.Parameters {
-			params = append(params, fmt.Sprintf("-p\"%s=%s\"", k, v))
+			args = append(args, fmt.Sprintf("-p%s=%s", k, v))
 		}
-		args = append(args, params...)
 	}
 
 	// 创建上下文，处理超时
@@ -176,8 +177,7 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	}
 
 	// 准备命令
-	cmd := exec.CommandContext(ctx, "python", args...)
-	cmd.Dir = dataxHome
+	cmd := exec.CommandContext(ctx, "./bin/datax", args...)
 
 	// 捕获输出
 	var stdout, stderr bytes.Buffer
@@ -185,7 +185,7 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	cmd.Stderr = &stderr
 
 	// 执行命令
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		history.Status = 0
 		history.Error = fmt.Sprintf("执行DataX任务失败: %v\n%s", err, stderr.String())

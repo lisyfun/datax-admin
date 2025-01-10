@@ -61,10 +61,9 @@ type JobHTTPParams struct {
 
 // JobDataXParams DataX任务参数
 type JobDataXParams struct {
-	JobPath    string            `json:"job_path"`    // 任务文件路径
-	Parameters map[string]string `json:"parameters"`  // 任务参数
-	JVMOptions []string          `json:"jvm_options"` // JVM参数
-	Speed      int               `json:"speed"`       // 速率限制
+	JobConfig  string            `json:"job_config"` // 任务JSON配置
+	Parameters map[string]string `json:"parameters"` // 任务参数
+	Speed      int               `json:"speed"`      // 速率限制
 }
 
 // JobHistory 任务执行历史

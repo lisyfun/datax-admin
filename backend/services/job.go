@@ -17,8 +17,10 @@ type JobService struct {
 
 // NewJobService 创建任务服务
 func NewJobService() *JobService {
+	scheduler := cron.NewScheduler()
+	scheduler.Start() // 启动调度器
 	return &JobService{
-		scheduler: cron.NewScheduler(),
+		scheduler: scheduler,
 	}
 }
 
@@ -270,8 +272,8 @@ func (s *JobService) validateAndSerializeParams(jobType string, params interface
 		if err = mapToStruct(params, &dataxParams); err != nil {
 			return "", err
 		}
-		if dataxParams.JobPath == "" {
-			return "", errors.New("DataX任务路径不能为空")
+		if dataxParams.JobConfig == "" {
+			return "", errors.New("DataX任务配置不能为空")
 		}
 		data, err := json.Marshal(dataxParams)
 		if err != nil {
