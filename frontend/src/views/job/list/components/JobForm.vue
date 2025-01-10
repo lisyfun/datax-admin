@@ -69,31 +69,86 @@
       </template>
 
       <template v-if="form.type === 'datax'">
-        <a-form-item
-          field="command"
-          label="DataX配置"
-          :rules="[{ required: true, message: '请输入DataX配置' }]"
-        >
-          <a-textarea
-            v-model="form.command"
-            placeholder="请输入DataX任务配置JSON"
-            :auto-size="{ minRows: 10, maxRows: 20 }"
-          />
-          <template #extra>
-            <div class="datax-tools">
-              <a-space>
-                <a-button type="text" @click="handleFormatJson">
-                  <template #icon><icon-code /></template>
-                  格式化JSON
-                </a-button>
-                <a-button type="text" @click="handleLoadTemplate">
-                  <template #icon><icon-file /></template>
-                  加载模板
+        <a-form-item label="任务参数">
+          <div class="datax-params">
+            <div v-for="(param, index) in form.datax_params.parameters" :key="index" class="parameter-item">
+              <a-space :size="8" fill>
+                <a-input
+                  v-model="param.key"
+                  placeholder="参数名"
+                  allow-clear
+                />
+                <a-input
+                  v-model="param.value"
+                  placeholder="参数值"
+                  allow-clear
+                />
+                <a-button
+                  type="text"
+                  status="danger"
+                  @click="removeParameter(index)"
+                >
+                  <template #icon><icon-delete /></template>
                 </a-button>
               </a-space>
             </div>
-          </template>
+            <div class="parameter-add">
+              <a-button type="dashed" long @click="addParameter">
+                <template #icon><icon-plus /></template>
+                添加参数
+              </a-button>
+            </div>
+          </div>
         </a-form-item>
+
+        <a-form-item
+          label="任务内容"
+          field="job_content"
+          :rules="[{ required: true, message: '请配置DataX任务' }]"
+        >
+          <div class="datax-buttons">
+            <a-space>
+              <a-button type="primary" @click="handleConfigReader">
+                <template #icon><icon-edit /></template>
+                Reader配置
+              </a-button>
+              <a-button type="primary" @click="handleConfigWriter">
+                <template #icon><icon-edit /></template>
+                Writer配置
+              </a-button>
+            </a-space>
+          </div>
+        </a-form-item>
+
+        <!-- Reader配置弹窗 -->
+        <a-modal
+          v-model:visible="showReaderModal"
+          title="Reader配置"
+          @ok="showReaderModal = false"
+          @cancel="showReaderModal = false"
+          :width="600"
+        >
+          <ReaderForm
+            v-if="currentReader"
+            v-model="currentReader"
+            @update:model-value="handleReaderUpdate"
+          />
+        </a-modal>
+
+        <!-- Writer配置弹窗 -->
+        <a-modal
+          v-model:visible="showWriterModal"
+          title="Writer配置"
+          @ok="showWriterModal = false"
+          @cancel="showWriterModal = false"
+          :width="600"
+        >
+          <WriterForm
+            v-if="currentWriter"
+            v-model="currentWriter"
+            @update:model-value="handleWriterUpdate"
+          />
+        </a-modal>
       </template>
 
       <a-form-item field="description" label="任务描述">
@@ -147,12 +202,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed, watch } from 'vue';
-import { Message } from '@arco-design/web-vue';
+import { ref, reactive, computed, watch, h } from 'vue';
+import { Message, Modal } from '@arco-design/web-vue';
 import { IconCode, IconFile, IconEdit } from '@arco-design/web-vue/es/icon';
 import type { Job, JobShellParams, JobHTTPParams, JobDataXParams } from '@/api/types';
 import { createJob, updateJob } from '@/api/job';
 import CronGenerator from './CronGenerator.vue';
+import ReaderForm from './ReaderForm.vue';
+import WriterForm from './WriterForm.vue';
 
 const props = defineProps<{
   visible: boolean;
@@ -167,6 +224,12 @@ const emit = defineEmits<{
 
 const formRef = ref();
 const showCronModal = ref(false);
+
+// 状态变量
+const showReaderModal = ref(false);
+const showWriterModal = ref(false);
+const currentReader = ref<any>(null);
+const currentWriter = ref<any>(null);
 
 interface FormState {
   id: number;
@@ -185,9 +248,14 @@ interface FormState {
   retry_count: number;
   retry_delay: number;
   params: Record<string, any>;
+  datax_params: {
+    parameters: Array<{ key: string; value: string }>;
+    job_content: string;
+  };
 }
 
-const form = reactive<FormState>({
+// 初始化表单数据
+const initFormState = (): FormState => ({
   id: 0,
   name: '',
   description: '',
@@ -204,7 +272,21 @@ const form = reactive<FormState>({
   retry_count: 0,
   retry_delay: 0,
   params: {},
+  datax_params: {
+    parameters: [],
+    job_content: '',
+  },
 });
+
+const form = reactive<FormState>(initFormState());
+
+// 重置表单
+const resetForm = () => {
+  Object.assign(form, initFormState());
+  if (formRef.value) {
+    formRef.value.resetFields();
+  }
+};
 
 // 表单验证规则
 const rules = {
@@ -222,8 +304,8 @@ const rules = {
 // 格式化 JSON
 const handleFormatJson = () => {
   try {
-    const jsonObj = JSON.parse(form.command);
-    form.command = JSON.stringify(jsonObj, null, 2);
+    const content = JSON.parse(form.datax_params.job_content);
+    form.datax_params.job_content = JSON.stringify(content, null, 2);
   } catch (err) {
     Message.error('JSON 格式错误，无法格式化');
   }
@@ -232,52 +314,60 @@ const handleFormatJson = () => {
 // 加载模板
 const handleLoadTemplate = () => {
   const template = {
-    "job": {
-      "setting": {
-        "speed": {
-          "channel": 3
-        }
-      },
-      "content": [
-        {
-          "reader": {
-            "name": "mysqlreader",
-            "parameter": {
-              "username": "root",
-              "password": "password",
-              "column": ["*"],
-              "connection": [
-                {
-                  "table": ["table"],
-                  "jdbcUrl": ["jdbc:mysql://localhost:3306/database"]
-                }
-              ]
-            }
-          },
-          "writer": {
-            "name": "mysqlwriter",
-            "parameter": {
-              "username": "root",
-              "password": "password",
-              "column": ["*"],
-              "connection": [
-                {
-                  "table": ["table"],
-                  "jdbcUrl": "jdbc:mysql://localhost:3306/database"
-                }
-              ]
-            }
+    "reader": {
+      "name": "mysqlreader",
+      "parameter": {
+        "username": "root",
+        "password": "password",
+        "column": ["*"],
+        "connection": [
+          {
+            "table": ["table"],
+            "jdbcUrl": ["jdbc:mysql://localhost:3306/database"]
           }
-        }
-      ]
+        ]
+      }
+    },
+    "writer": {
+      "name": "mysqlwriter",
+      "parameter": {
+        "username": "root",
+        "password": "password",
+        "column": ["*"],
+        "connection": [
+          {
+            "table": ["table"],
+            "jdbcUrl": "jdbc:mysql://localhost:3306/database"
+          }
+        ]
+      }
     }
   };
-  form.command = JSON.stringify(template, null, 2);
+  form.datax_params.job_content = JSON.stringify(template, null, 2);
 };
 
 // 显示Cron表达式生成器
 const showCronGenerator = () => {
   showCronModal.value = true;
+};
+
+// 添加参数
+const addParameter = () => {
+  form.datax_params.parameters.push({ key: '', value: '' });
+};
+
+// 删除参数
+const removeParameter = (index: number) => {
+  form.datax_params.parameters.splice(index, 1);
+};
+
+// 处理JSON更新
+const handleJsonUpdate = ({ value }: { path: string[], value: any }) => {
+  try {
+    form.datax_params.job_content = JSON.stringify(value, null, 2);
+  } catch (err) {
+    Message.error('JSON格式错误');
+  }
 };
 
 // 提交表单
@@ -303,7 +393,18 @@ const handleSubmit = async () => {
         success_code: form.success_codes.split(',').map(code => parseInt(code.trim())).filter(code => !isNaN(code))
       } as JobHTTPParams;
     } else {
-      params = JSON.parse(form.command) as JobDataXParams;
+      // 处理DataX参数
+      const parameters: Record<string, string> = {};
+      form.datax_params.parameters.forEach(({ key, value }) => {
+        if (key && value) {
+          parameters[key] = value;
+        }
+      });
+
+      params = {
+        parameters,
+        ...JSON.parse(form.datax_params.job_content)
+      } as JobDataXParams;
     }
 
     const data = {
@@ -341,18 +442,30 @@ const handleSubmit = async () => {
 // 取消表单
 const handleCancel = () => {
   emit('update:visible', false);
-  if (formRef.value) {
-    formRef.value.resetFields();
-  }
+  resetForm();
 };
+
+// 监听visible变化，当弹窗关闭时重置表单
+watch(() => props.visible, (newVal) => {
+  if (!newVal) {
+    resetForm();
+  }
+});
 
 // 监听jobData变化，更新表单数据
 watch(() => props.jobData, (newVal: Job | undefined) => {
-  if (newVal) {
+  if (newVal && props.visible) {
+    // 先重置表单，再设置新数据
+    resetForm();
+
     form.id = newVal.id;
     form.name = newVal.name;
     form.description = newVal.description || '';
     form.type = newVal.type as 'shell' | 'http' | 'datax';
+    form.cron_expr = newVal.cron_expr;
+    form.timeout = newVal.timeout || 0;
+    form.retry_count = newVal.retry_count || 0;
+    form.retry_delay = newVal.retry_delay || 0;
 
     try {
       const params = typeof newVal.params === 'string' ? JSON.parse(newVal.params) : newVal.params;
@@ -365,25 +478,21 @@ watch(() => props.jobData, (newVal: Job | undefined) => {
         form.headers = JSON.stringify(params.headers || {}, null, 2);
         form.body = params.body || '';
         form.success_codes = (params.success_code || [200]).join(',');
-      } else {
-        form.command = typeof params === 'string' ? params : JSON.stringify(params, null, 2);
+      } else if (newVal.type === 'datax') {
+        // 处理DataX参数
+        form.datax_params.parameters = Object.entries(params.parameters || {}).map(([key, value]) => ({
+          key,
+          value: String(value)
+        }));
+
+        // 移除DataX特定参数，剩下的作为job内容
+        const { parameters, ...jobContent } = params;
+        form.datax_params.job_content = JSON.stringify(jobContent, null, 2);
       }
     } catch (e) {
       console.error('解析参数失败:', e);
-      form.command = '';
-      form.working_dir = '';
-      form.url = '';
-      form.method = 'GET';
-      form.headers = '{}';
-      form.body = '';
-      form.success_codes = '200';
+      Message.error('解析任务参数失败');
     }
-
-    form.cron_expr = newVal.cron_expr;
-    form.timeout = newVal.timeout || 0;
-    form.retry_count = newVal.retry_count || 0;
-    form.retry_delay = newVal.retry_delay || 0;
-    form.params = {};
   }
 }, { immediate: true });
 
@@ -392,22 +501,141 @@ const modelVisible = computed({
   get: () => props.visible,
   set: (value) => emit('update:visible', value)
 });
+
+// 配置Reader
+const handleConfigReader = () => {
+  try {
+    const content = JSON.parse(form.datax_params.job_content || '{}');
+    const job = content.job || { content: [{}] };
+    currentReader.value = job.content[0].reader || {
+      name: 'mysqlreader',
+      parameter: {
+        username: '',
+        password: '',
+        host: 'localhost',
+        port: 3306,
+        database: '',
+        table: '',
+        columns: [],
+        where: '1=1',
+        batchSize: 20000
+      }
+    };
+    showReaderModal.value = true;
+  } catch (err) {
+    Message.error('JSON格式错误，请先输入正确的JSON');
+  }
+};
+
+// 配置Writer
+const handleConfigWriter = () => {
+  try {
+    const content = JSON.parse(form.datax_params.job_content || '{}');
+    const job = content.job || { content: [{}] };
+    currentWriter.value = job.content[0].writer || {
+      name: 'mysqlwriter',
+      parameter: {
+        username: '',
+        password: '',
+        host: 'localhost',
+        port: 3306,
+        database: '',
+        table: '',
+        columns: [],
+        writeMode: 'insert',
+        batchSize: 10000,
+        preSql: [],
+        postSql: []
+      }
+    };
+    showWriterModal.value = true;
+  } catch (err) {
+    Message.error('JSON格式错误，请先输入正确的JSON');
+  }
+};
+
+// 处理Reader配置更新
+const handleReaderUpdate = (val: any) => {
+  try {
+    const content = JSON.parse(form.datax_params.job_content || '{}');
+    const job = content.job || {
+      content: [{}],
+      setting: {
+        speed: {
+          channel: 24,
+          bytes: 52428800
+        },
+        errorLimit: {
+          record: 0,
+          percentage: 0.02
+        }
+      }
+    };
+    job.content[0].reader = val;
+    content.job = job;
+    form.datax_params.job_content = JSON.stringify(content, null, 2);
+  } catch (err) {
+    Message.error('JSON格式错误');
+  }
+};
+
+// 处理Writer配置更新
+const handleWriterUpdate = (val: any) => {
+  try {
+    const content = JSON.parse(form.datax_params.job_content || '{}');
+    const job = content.job || {
+      content: [{}],
+      setting: {
+        speed: {
+          channel: 24,
+          bytes: 52428800
+        },
+        errorLimit: {
+          record: 0,
+          percentage: 0.02
+        }
+      }
+    };
+    job.content[0].writer = val;
+    content.job = job;
+    form.datax_params.job_content = JSON.stringify(content, null, 2);
+  } catch (err) {
+    Message.error('JSON格式错误');
+  }
+};
 </script>
 
 <style scoped>
-.datax-tools {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--color-neutral-3);
+.datax-params {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.datax-tools :deep(.arco-btn) {
-  padding: 0 4px;
-  font-size: 14px;
-  color: var(--color-text-3);
+.parameter-item {
+  display: flex;
+  align-items: center;
 }
 
-.datax-tools :deep(.arco-btn:hover) {
-  color: rgb(var(--primary-6));
+.parameter-item :deep(.arco-space-fill) {
+  width: 100%;
+}
+
+.parameter-item :deep(.arco-input-wrapper) {
+  flex: 1;
+}
+
+.parameter-add {
+  margin-top: 4px;
+}
+
+.parameter-add :deep(.arco-btn) {
+  border-style: dashed;
+}
+
+.datax-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
 }
 </style>
