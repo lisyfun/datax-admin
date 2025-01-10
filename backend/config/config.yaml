@@ -12,3 +12,7 @@ database:
 jwt:
   secret: "datax-admin-secret"
   expire: 24  # hours
+
+datax:
+  bin: "/Users/lisongyu/workspace/go/src/datax-admin/bin/datax"  # DataX 可执行文件绝对路径
+  home: "/Users/lisongyu/workspace/go/src/datax-admin"

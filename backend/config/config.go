@@ -10,6 +10,7 @@ type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Database DatabaseConfig `mapstructure:"database"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
+	DataX    DataXConfig    `mapstructure:"datax"`
 }
 
 type ServerConfig struct {
@@ -28,6 +29,11 @@ type DatabaseConfig struct {
 type JWTConfig struct {
 	Secret string `mapstructure:"secret"`
 	Expire int    `mapstructure:"expire"` // token过期时间（小时）
+}
+
+type DataXConfig struct {
+	Bin  string `yaml:"bin"`  // DataX可执行文件路径
+	Home string `yaml:"home"` // DataX安装目录
 }
 
 var GlobalConfig Config

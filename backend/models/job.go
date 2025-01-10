@@ -63,15 +63,14 @@ type JobHTTPParams struct {
 type JobDataXParams struct {
 	JobConfig  string            `json:"job_config"` // 任务JSON配置
 	Parameters map[string]string `json:"parameters"` // 任务参数
-	Speed      int               `json:"speed"`      // 速率限制
 }
 
 // JobHistory 任务执行历史
 type JobHistory struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	JobID     uint      `json:"job_id"`
-	JobName   string    `json:"job_name"`
-	Status    int       `json:"status"` // 0:失败 1:成功
+	JobName   string    `json:"job_name" gorm:"-"` // 虚拟字段，不存储到数据库
+	Status    int       `json:"status"`            // 0:失败 1:成功
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
 	Duration  int64     `json:"duration"` // 执行时长(毫秒)

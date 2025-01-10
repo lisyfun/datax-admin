@@ -8,7 +8,9 @@
             v-model="searchForm.name"
             placeholder="请输入任务名称"
             style="width: 300px"
+            allow-clear
             @search="handleSearch"
+            @press-enter="handleSearch"
           />
           <a-select
             v-model="searchForm.status"
@@ -94,6 +96,14 @@
             >
               <template #icon><IconPauseCircle /></template>
               停止
+            </a-button>
+            <a-button
+              type="text"
+              size="small"
+              @click="handleHistory(record)"
+            >
+              <template #icon><IconHistory /></template>
+              执行历史
             </a-button>
             <a-popconfirm
               content="确定要删除该任务吗？"
@@ -601,6 +611,7 @@
 <script lang="ts" setup>
 import { ref, reactive, computed, watch } from 'vue';
 import { Message } from '@arco-design/web-vue';
+import { useRouter } from 'vue-router';
 import {
   IconPlus,
   IconPlayCircle,
@@ -610,6 +621,7 @@ import {
   IconDelete,
   IconCode,
   IconFile,
+  IconHistory,
 } from '@arco-design/web-vue/es/icon';
 import type {
   Job,
@@ -629,6 +641,8 @@ import {
   createJob,
   updateJob,
 } from '@/api/job';
+
+const router = useRouter();
 
 const loading = ref(false);
 const renderData = ref<Job[]>([]);
@@ -1186,6 +1200,17 @@ watch(() => cronForm.week.type, (newType) => {
     cronForm.day.type = '?';
   }
 });
+
+// 跳转到执行历史
+const handleHistory = (record: Job) => {
+  router.push({
+    path: '/job/history',
+    query: {
+      job_id: record.id.toString(),
+      job_name: record.name
+    }
+  });
+};
 
 // 初始化加载数据
 fetchData();

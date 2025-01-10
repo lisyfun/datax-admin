@@ -3,6 +3,7 @@ package services
 import (
 	"bytes"
 	"context"
+	"datax-admin/config"
 	"datax-admin/models"
 	"fmt"
 	"io"
@@ -146,6 +147,15 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	if _, err := tmpFile.WriteString(dataxParams.JobConfig); err != nil {
 		history.Status = 0
 		history.Error = fmt.Sprintf("写入配置失败: %v", err)
+		tmpFile.Close()
+		return
+	}
+
+	// 确保数据写入磁盘并关闭文件
+	if err := tmpFile.Sync(); err != nil {
+		history.Status = 0
+		history.Error = fmt.Sprintf("同步文件失败: %v", err)
+		tmpFile.Close()
 		return
 	}
 	tmpFile.Close()
@@ -154,18 +164,6 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	args := []string{
 		"-job",
 		tmpFile.Name(),
-	}
-
-	// 添加速率限制
-	if dataxParams.Speed > 0 {
-		args = append(args, "-s", fmt.Sprintf("%d", dataxParams.Speed))
-	}
-
-	// 添加自定义参数
-	if len(dataxParams.Parameters) > 0 {
-		for k, v := range dataxParams.Parameters {
-			args = append(args, fmt.Sprintf("-p%s=%s", k, v))
-		}
 	}
 
 	// 创建上下文，处理超时
@@ -177,7 +175,10 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	}
 
 	// 准备命令
-	cmd := exec.CommandContext(ctx, "./bin/datax", args...)
+	cmd := exec.CommandContext(ctx, config.GlobalConfig.DataX.Bin, args...)
+
+	// 设置工作目录为 DataX bin 目录的父目录
+	cmd.Dir = config.GlobalConfig.DataX.Home
 
 	// 捕获输出
 	var stdout, stderr bytes.Buffer
@@ -188,9 +189,27 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	err = cmd.Run()
 	if err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("执行DataX任务失败: %v\n%s", err, stderr.String())
+		// 同时记录错误信息和标准输出
+		errMsg := stderr.String()
+		outMsg := stdout.String()
+		if errMsg != "" && outMsg != "" {
+			history.Error = fmt.Sprintf("执行DataX任务失败: %v\n标准错误输出:\n%s\n标准输出:\n%s", err, errMsg, outMsg)
+		} else if errMsg != "" {
+			history.Error = fmt.Sprintf("执行DataX任务失败: %v\n标准错误输出:\n%s", err, errMsg)
+		} else if outMsg != "" {
+			history.Error = fmt.Sprintf("执行DataX任务失败: %v\n标准输出:\n%s", err, outMsg)
+		} else {
+			history.Error = fmt.Sprintf("执行DataX任务失败: %v", err)
+		}
 	} else {
 		history.Status = 1
-		history.Output = stdout.String()
+		// 记录标准输出和标准错误（如果有）
+		outMsg := stdout.String()
+		errMsg := stderr.String()
+		if errMsg != "" {
+			history.Output = fmt.Sprintf("标准输出:\n%s\n标准错误输出:\n%s", outMsg, errMsg)
+		} else {
+			history.Output = outMsg
+		}
 	}
 }

@@ -9,6 +9,8 @@
             placeholder="请输入任务名称"
             style="width: 300px"
             @search="handleSearch"
+            allow-clear
+            @clear="handleClear"
           />
           <a-select
             v-model="searchForm.status"
@@ -67,14 +69,17 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onBeforeUnmount } from 'vue';
+import { ref, reactive, onBeforeUnmount, onMounted } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
-import { IconRefresh, IconEye } from '@arco-design/web-vue/es/icon';
+import { IconRefresh, IconEye, IconClose } from '@arco-design/web-vue/es/icon';
 import { getJobHistoryList } from '@/api/job';
 import type { JobHistory } from '@/api/types';
 import { formatDateTime } from '@/utils/date';
+import { useRoute, useRouter } from 'vue-router';
 
+const route = useRoute();
+const router = useRouter();
 const loading = ref(false);
 const renderData = ref<JobHistory[]>([]);
 const showLogModal = ref(false);
@@ -84,11 +89,25 @@ let isUnmounted = false;
 interface SearchFormState {
   jobName: string;
   status: string;
+  jobId?: number;
 }
 
 const searchForm = reactive<SearchFormState>({
   jobName: '',
   status: '',
+  jobId: undefined,
+});
+
+// 初始化查询参数
+onMounted(() => {
+  const { job_id, job_name } = route.query;
+  if (job_id) {
+    searchForm.jobId = parseInt(job_id as string);
+  }
+  if (job_name) {
+    searchForm.jobName = job_name as string;
+  }
+  fetchData();
 });
 
 const columns = [
@@ -166,6 +185,7 @@ const fetchData = async () => {
       page_size: pagination.pageSize,
       keyword: searchForm.jobName || undefined,
       status: searchForm.status ? parseInt(searchForm.status) : undefined,
+      job_id: searchForm.jobId,
     });
 
     if (!isUnmounted) {
@@ -183,10 +203,33 @@ const fetchData = async () => {
   }
 };
 
+// 清除筛选条件
+const handleClear = () => {
+  searchForm.status = '';
+  searchForm.jobId = undefined;
+  // 清除URL中的查询参数
+  router.replace({
+    path: route.path
+  });
+  fetchData();
+};
+
 // 搜索
 const handleSearch = () => {
   if (isUnmounted) return;
   pagination.current = 1;
+  // 更新URL查询参数
+  const query: Record<string, string> = {};
+  if (searchForm.jobId) {
+    query.job_id = searchForm.jobId.toString();
+  }
+  if (searchForm.jobName) {
+    query.job_name = searchForm.jobName;
+  }
+  router.replace({
+    path: route.path,
+    query
+  });
   fetchData();
 };
 
