@@ -60,6 +60,7 @@
       title="执行日志"
       :footer="false"
       :mask-closable="true"
+      :width="800"
       @cancel="handleLogModalClose"
     >
       <div class="log-content">
@@ -281,20 +282,21 @@ fetchData();
 }
 
 .log-content {
-  max-height: 500px;
+  max-height: 600px;
   overflow-y: auto;
   background-color: var(--color-fill-2);
-  padding: 16px;
   border-radius: 4px;
+  border: 1px solid var(--color-border);
 }
 
 .log-content pre {
   margin: 0;
+  padding: 16px;
+  font-family: Monaco, Menlo, Consolas, "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: monospace;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--color-text-2);
+  color: var(--color-text-1);
 }
 </style>
