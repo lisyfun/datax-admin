@@ -142,3 +142,19 @@ func (c *JobController) GetJobHistoryList(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, resp)
 }
+
+// ExecuteJob 执行任务
+func (c *JobController) ExecuteJob(ctx *gin.Context) {
+	jobID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的任务ID"})
+		return
+	}
+
+	if err := c.jobService.ExecuteJob(uint(jobID)); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "任务执行成功"})
+}

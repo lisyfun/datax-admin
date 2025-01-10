@@ -69,12 +69,13 @@ func (s *JobService) UpdateJob(jobID uint, req *types.UpdateJobRequest, userID u
 	}
 
 	// 验证并序列化任务参数
+	var params string
 	if req.Params != nil {
-		params, err := s.validateAndSerializeParams(string(job.Type), req.Params)
+		var err error
+		params, err = s.validateAndSerializeParams(string(job.Type), req.Params)
 		if err != nil {
 			return err
 		}
-		job.Params = params
 	}
 
 	updates := map[string]interface{}{
@@ -86,6 +87,10 @@ func (s *JobService) UpdateJob(jobID uint, req *types.UpdateJobRequest, userID u
 		"retry_delay": req.RetryDelay,
 		"updater":     userID,
 		"updated_at":  time.Now(),
+	}
+
+	if req.Params != nil {
+		updates["params"] = params
 	}
 
 	return models.DB.Model(&job).Updates(updates).Error
@@ -317,4 +322,22 @@ func mapToStruct(in interface{}, out interface{}) error {
 		return err
 	}
 	return json.Unmarshal(bytes, out)
+}
+
+// ExecuteJob 手动执行任务
+func (s *JobService) ExecuteJob(jobID uint) error {
+	var job models.Job
+	if err := models.DB.First(&job, jobID).Error; err != nil {
+		return err
+	}
+
+	// 检查任务状态
+	if job.Status == models.JobStatusDisabled {
+		return errors.New("任务已禁用")
+	}
+
+	// 异步执行任务
+	go s.executeJob(&job)
+
+	return nil
 }

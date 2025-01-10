@@ -90,6 +90,7 @@ func SetupRoutes(r *gin.Engine) {
 			authenticated.DELETE("/jobs/:id", jobController.DeleteJob)          // 删除任务
 			authenticated.POST("/jobs/:id/start", jobController.StartJob)       // 启动任务
 			authenticated.POST("/jobs/:id/stop", jobController.StopJob)         // 停止任务
+			authenticated.POST("/jobs/:id/execute", jobController.ExecuteJob)   // 执行任务
 			authenticated.GET("/jobs", jobController.GetJobList)                // 获取任务列表
 			authenticated.GET("/jobs/history", jobController.GetJobHistoryList) // 获取任务历史列表
 		}
