@@ -1,0 +1,65 @@
+{
+  "job": {
+    "content": [
+      {
+        "reader": {
+          "name": "postgresqlreader",
+          "parameter": {
+            "username": "postgres",
+            "password": "123456",
+            "host": "localhost",
+            "port": 15432,
+            "database": "source_db",
+            "schema": "public",
+            "table": "users",
+            "columns": [
+              "id",
+              "username",
+              "email",
+              "age",
+              "created_at",
+              "updated_at"
+            ],
+            "where": "created_at > '2023-01-01'",
+            "selectSql": "select * from users where id > 1000",
+            "batchSize": 10000
+          }
+        },
+        "writer": {
+          "name": "postgresqlwriter",
+          "parameter": {
+            "username": "postgres",
+            "password": "123456",
+            "host": "localhost",
+            "port": 15432,
+            "database": "target_db",
+            "schema": "public",
+            "table": "users",
+            "columns": [
+              "id",
+              "username",
+              "email",
+              "age",
+              "created_at",
+              "updated_at"
+            ],
+            "batchSize": 10000,
+            "preSql": ["select count(*) as total_count from users"],
+            "postSql": ["select count(*) as total_count from users"],
+            "writeMode": "replace"
+          }
+        }
+      }
+    ],
+    "setting": {
+      "speed": {
+        "channel": 16,
+        "bytes": 52428800
+      },
+      "errorLimit": {
+        "record": 0,
+        "percentage": 0.02
+      }
+    }
+  }
+}

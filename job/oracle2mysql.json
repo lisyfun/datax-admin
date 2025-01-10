@@ -1,0 +1,49 @@
+{
+  "job": {
+    "content": [
+      {
+        "reader": {
+          "name": "oraclereader",
+          "parameter": {
+            "username": "sys",
+            "password": "123456",
+            "host": "127.0.0.1",
+            "port": 1521,
+            "service": "ORCL",
+            "table": "USERS",
+            "columns": [],
+            "selectSql": "select ID, NAME, EMAIL, AGE from USERS",
+            "where": "id > 0",
+            "batchSize": 20000
+          }
+        },
+        "writer": {
+          "name": "mysqlwriter",
+          "parameter": {
+            "username": "root",
+            "password": "123456",
+            "host": "127.0.0.1",
+            "port": 13306,
+            "database": "datax_target",
+            "table": "users",
+            "columns": ["id", "username", "email", "age"],
+            "preSql": [
+              "select count(*) from users",
+              "truncate users"
+            ],
+            "postSql": [
+              "select count(*) from users"
+            ],
+            "batchSize": 1000,
+            "writeMode": "insert"
+          }
+        }
+      }
+    ],
+    "setting": {
+      "speed": {
+        "channel": 5
+      }
+    }
+  }
+}
