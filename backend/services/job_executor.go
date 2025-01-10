@@ -187,29 +187,37 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 
 	// 执行命令
 	err = cmd.Run()
+
+	// 获取输出内容
+	outMsg := stdout.String()
+	errMsg := stderr.String()
+
+	// 合并输出内容
+	var combinedOutput string
+	if outMsg != "" && errMsg != "" {
+		combinedOutput = fmt.Sprintf("标准输出:\n%s\n\n标准错误输出:\n%s", outMsg, errMsg)
+	} else if outMsg != "" {
+		combinedOutput = outMsg
+	} else if errMsg != "" {
+		combinedOutput = errMsg
+	}
+
 	if err != nil {
-		history.Status = 0
-		// 同时记录错误信息和标准输出
-		errMsg := stderr.String()
-		outMsg := stdout.String()
-		if errMsg != "" && outMsg != "" {
-			history.Error = fmt.Sprintf("执行DataX任务失败: %v\n标准错误输出:\n%s\n标准输出:\n%s", err, errMsg, outMsg)
-		} else if errMsg != "" {
-			history.Error = fmt.Sprintf("执行DataX任务失败: %v\n标准错误输出:\n%s", err, errMsg)
-		} else if outMsg != "" {
-			history.Error = fmt.Sprintf("执行DataX任务失败: %v\n标准输出:\n%s", err, outMsg)
+		// 检查错误输出中是否包含关键的错误信息
+		isRealError := strings.Contains(strings.ToLower(errMsg), "error") ||
+			strings.Contains(strings.ToLower(errMsg), "exception") ||
+			strings.Contains(strings.ToLower(errMsg), "failed")
+
+		if isRealError {
+			history.Status = 0
+			history.Error = fmt.Sprintf("执行DataX任务失败: %v\n%s", err, combinedOutput)
 		} else {
-			history.Error = fmt.Sprintf("执行DataX任务失败: %v", err)
+			// 如果标准错误输出中没有明显的错误信息，认为是正常的日志输出
+			history.Status = 1
+			history.Output = combinedOutput
 		}
 	} else {
 		history.Status = 1
-		// 记录标准输出和标准错误（如果有）
-		outMsg := stdout.String()
-		errMsg := stderr.String()
-		if errMsg != "" {
-			history.Output = fmt.Sprintf("标准输出:\n%s\n标准错误输出:\n%s", outMsg, errMsg)
-		} else {
-			history.Output = outMsg
-		}
+		history.Output = combinedOutput
 	}
 }

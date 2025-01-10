@@ -316,7 +316,21 @@ func (s *JobService) executeJob(job *models.Job) {
 	defer func() {
 		history.EndTime = time.Now()
 		history.Duration = history.EndTime.Sub(history.StartTime).Milliseconds()
-		models.DB.Create(history)
+
+		// 添加错误处理和重试逻辑
+		maxRetries := 3
+		for i := 0; i < maxRetries; i++ {
+			if err := models.DB.Create(history).Error; err != nil {
+				if i == maxRetries-1 {
+					// 如果是最后一次重试，记录错误
+					fmt.Printf("Failed to save job history after %d retries: %v\n", maxRetries, err)
+				}
+				// 等待一小段时间后重试
+				time.Sleep(time.Second * time.Duration(i+1))
+				continue
+			}
+			break
+		}
 	}()
 
 	var params interface{}
