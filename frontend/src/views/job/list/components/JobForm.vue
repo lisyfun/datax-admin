@@ -103,8 +103,24 @@
 
         <a-form-item
           label="任务内容"
-          field="job_content"
-          :rules="[{ required: true, message: '请配置DataX任务' }]"
+          field="datax_params.job_content"
+          :rules="[{
+            required: true,
+            validator: (value: string) => {
+              try {
+                const content = JSON.parse(value || '{}');
+                const reader = content.job?.content?.[0]?.reader;
+                const writer = content.job?.content?.[0]?.writer;
+                if (!reader || !writer) {
+                  return false;
+                }
+                return true;
+              } catch {
+                return false;
+              }
+            },
+            message: '请配置DataX任务的Reader和Writer'
+          }]"
         >
           <div class="datax-buttons">
             <a-space>
@@ -202,9 +218,15 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed, watch, h } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { Message, Modal } from '@arco-design/web-vue';
-import { IconCode, IconFile, IconEdit } from '@arco-design/web-vue/es/icon';
+import {
+  IconDelete,
+  IconPlus,
+  IconEdit,
+  IconCode,
+  IconFile
+} from '@arco-design/web-vue/es/icon';
 import type { Job, JobShellParams, JobHTTPParams, JobDataXParams } from '@/api/types';
 import { createJob, updateJob } from '@/api/job';
 import CronGenerator from './CronGenerator.vue';
@@ -301,7 +323,24 @@ const rules = {
   ],
   cron_expr: [
     { required: true, message: '请输入 Cron 表达式' }
-  ]
+  ],
+  'datax_params.job_content': [{
+    required: true,
+    validator: (value: string) => {
+      try {
+        const content = JSON.parse(value || '{}');
+        const reader = content.job?.content?.[0]?.reader;
+        const writer = content.job?.content?.[0]?.writer;
+        if (!reader || !writer) {
+          return false;
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    message: '请配置DataX任务的Reader和Writer'
+  }]
 };
 
 // 格式化 JSON
@@ -317,32 +356,46 @@ const handleFormatJson = () => {
 // 加载模板
 const handleLoadTemplate = () => {
   const template = {
-    "reader": {
-      "name": "mysqlreader",
-      "parameter": {
-        "username": "root",
-        "password": "password",
-        "column": ["*"],
-        "connection": [
-          {
-            "table": ["table"],
-            "jdbcUrl": ["jdbc:mysql://localhost:3306/database"]
+    job: {
+      content: [{
+        reader: {
+          name: 'mysqlreader',
+          parameter: {
+            username: 'root',
+            password: 'password',
+            column: ['*'],
+            connection: [
+              {
+                table: ['table'],
+                jdbcUrl: ['jdbc:mysql://localhost:3306/database']
+              }
+            ]
           }
-        ]
-      }
-    },
-    "writer": {
-      "name": "mysqlwriter",
-      "parameter": {
-        "username": "root",
-        "password": "password",
-        "column": ["*"],
-        "connection": [
-          {
-            "table": ["table"],
-            "jdbcUrl": "jdbc:mysql://localhost:3306/database"
+        },
+        writer: {
+          name: 'mysqlwriter',
+          parameter: {
+            username: 'root',
+            password: 'password',
+            column: ['*'],
+            connection: [
+              {
+                table: ['table'],
+                jdbcUrl: 'jdbc:mysql://localhost:3306/database'
+              }
+            ]
           }
-        ]
+        }
+      }],
+      setting: {
+        speed: {
+          channel: 24,
+          bytes: 52428800
+        },
+        errorLimit: {
+          record: 0,
+          percentage: 0.02
+        }
       }
     }
   };
@@ -609,7 +662,7 @@ const handleConfigReader = () => {
     const content = JSON.parse(form.datax_params.job_content || '{}');
     console.log('Reader配置 - 当前内容:', content);
 
-    // 从job.content[0]中获取reader配置
+    // 从 job.content[0] 中获取 reader 配置
     const reader = content.job?.content?.[0]?.reader || {
       name: 'mysqlreader',
       parameter: {
@@ -640,7 +693,7 @@ const handleConfigWriter = () => {
     const content = JSON.parse(form.datax_params.job_content || '{}');
     console.log('Writer配置 - 当前内容:', content);
 
-    // 从job.content[0]中获取writer配置
+    // 从 job.content[0] 中获取 writer 配置
     const writer = content.job?.content?.[0]?.writer || {
       name: 'mysqlwriter',
       parameter: {
