@@ -55,6 +55,7 @@ func SetupRoutes(r *gin.Engine) {
 			authenticated.GET("/user/info", userController.GetUserInfo)
 			authenticated.PUT("/user/password", userController.UpdatePassword)
 			authenticated.PUT("/user/profile", userController.UpdateProfile)
+			authenticated.POST("/user/logout", userController.Logout)
 
 			// 用户管理相关
 			authenticated.GET("/users", userController.GetUserList)

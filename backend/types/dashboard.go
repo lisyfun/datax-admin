@@ -26,11 +26,21 @@ type RecentLogin struct {
 
 // SystemInfo 系统信息
 type SystemInfo struct {
-	SystemName string `json:"systemName"` // 系统名称
-	Version    string `json:"version"`    // 系统版本
-	OS         string `json:"os"`         // 操作系统
-	GoVersion  string `json:"goVersion"`  // Go版本
-	DBVersion  string `json:"dbVersion"`  // 数据库版本
+	SystemName   string `json:"systemName"`   // 系统名称
+	Version      string `json:"version"`      // 系统版本
+	OS           string `json:"os"`           // 操作系统
+	GoVersion    string `json:"goVersion"`    // Go版本
+	DBVersion    string `json:"dbVersion"`    // 数据库版本
+	Uptime       string `json:"uptime"`       // 系统运行时间
+	CPUUsage     string `json:"cpuUsage"`     // CPU使用率
+	MemoryTotal  string `json:"memoryTotal"`  // 内存总量
+	MemoryUsed   string `json:"memoryUsed"`   // 已用内存
+	MemoryUsage  string `json:"memoryUsage"`  // 内存使用率
+	DiskTotal    string `json:"diskTotal"`    // 磁盘总量
+	DiskUsed     string `json:"diskUsed"`     // 已用磁盘
+	DiskUsage    string `json:"diskUsage"`    // 磁盘使用率
+	NumGoroutine int    `json:"numGoroutine"` // Goroutine数量
+	NumCPU       int    `json:"numCPU"`       // CPU核心数
 }
 
 // DashboardResponse 仪表盘响应数据

@@ -1,9 +1,9 @@
 package services
 
 import (
-	"datax-admin/middleware"
 	"datax-admin/models"
 	"datax-admin/types"
+	"datax-admin/utils"
 	"errors"
 	"log"
 	"time"
@@ -40,36 +40,32 @@ func (s *UserService) Register(req *types.RegisterRequest) error {
 func (s *UserService) Login(req *types.LoginRequest) (*types.LoginResponse, error) {
 	var user models.User
 	if err := models.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, errors.New("用户不存在")
-		}
-		return nil, err
+		return nil, errors.New("用户不存在")
 	}
 
-	if !user.CheckPassword(req.Password) {
+	if !utils.ComparePasswords(user.Password, req.Password) {
 		return nil, errors.New("密码错误")
 	}
 
-	if user.Status != 1 {
-		return nil, errors.New("用户已被禁用")
-	}
-
 	// 生成 JWT token
-	token, err := middleware.GenerateToken(user.ID)
+	token, err := utils.GenerateToken(user.ID, user.Username)
 	if err != nil {
 		return nil, err
 	}
 
 	// 记录登录日志
 	loginLog := models.LoginLog{
+		UserID:    user.ID,
 		Username:  user.Username,
 		IP:        req.IP,
 		LoginTime: time.Now(),
 	}
 	if err := models.DB.Create(&loginLog).Error; err != nil {
-		// 记录日志失败不影响登录
 		log.Printf("记录登录日志失败: %v", err)
 	}
+
+	// 更新用户在线状态
+	UpdateUserOnlineStatus(user.ID)
 
 	return &types.LoginResponse{
 		Token: token,
@@ -82,6 +78,13 @@ func (s *UserService) Login(req *types.LoginRequest) (*types.LoginResponse, erro
 			Status:   user.Status,
 		},
 	}, nil
+}
+
+// Logout 用户登出
+func (s *UserService) Logout(userID uint) error {
+	// 移除用户在线状态
+	RemoveUserOnlineStatus(userID)
+	return nil
 }
 
 // GetUserInfo 获取用户信息

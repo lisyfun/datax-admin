@@ -3,9 +3,55 @@ package services
 import (
 	"datax-admin/models"
 	"datax-admin/types"
+	"fmt"
 	"runtime"
+	"sync"
 	"time"
+
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/disk"
+	"github.com/shirou/gopsutil/v3/mem"
 )
+
+var (
+	onlineUsers     = make(map[uint]time.Time)
+	onlineUsersLock sync.RWMutex
+	startTime       = time.Now()
+)
+
+// UpdateUserOnlineStatus 更新用户在线状态
+func UpdateUserOnlineStatus(userID uint) {
+	onlineUsersLock.Lock()
+	defer onlineUsersLock.Unlock()
+	onlineUsers[userID] = time.Now()
+}
+
+// RemoveUserOnlineStatus 移除用户在线状态
+func RemoveUserOnlineStatus(userID uint) {
+	onlineUsersLock.Lock()
+	defer onlineUsersLock.Unlock()
+	delete(onlineUsers, userID)
+}
+
+// GetOnlineUserCount 获取在线用户数
+func GetOnlineUserCount() int64 {
+	onlineUsersLock.RLock()
+	defer onlineUsersLock.RUnlock()
+
+	now := time.Now()
+	count := int64(0)
+
+	// 清理超过30分钟未活动的用户
+	for userID, lastActive := range onlineUsers {
+		if now.Sub(lastActive) > 30*time.Minute {
+			delete(onlineUsers, userID)
+		} else {
+			count++
+		}
+	}
+
+	return count
+}
 
 // DashboardService 仪表盘服务
 type DashboardService struct{}
@@ -13,6 +59,57 @@ type DashboardService struct{}
 // NewDashboardService 创建仪表盘服务
 func NewDashboardService() *DashboardService {
 	return &DashboardService{}
+}
+
+// GetSystemInfo 获取系统信息
+func (s *DashboardService) GetSystemInfo() (*types.SystemInfo, error) {
+	// 获取数据库版本
+	var version string
+	if err := models.DB.Raw("SELECT VERSION()").Scan(&version).Error; err != nil {
+		return nil, err
+	}
+
+	// 获取CPU使用率
+	cpuPercent, err := cpu.Percent(time.Second, false)
+	if err != nil {
+		cpuPercent = []float64{0}
+	}
+
+	// 获取内存使用情况
+	memInfo, err := mem.VirtualMemory()
+	if err != nil {
+		memInfo = &mem.VirtualMemoryStat{}
+	}
+
+	// 获取磁盘使用情况
+	diskInfo, err := disk.Usage("/")
+	if err != nil {
+		diskInfo = &disk.UsageStat{}
+	}
+
+	// 计算系统运行时间
+	uptime := time.Since(startTime)
+	days := int(uptime.Hours() / 24)
+	hours := int(uptime.Hours()) % 24
+	minutes := int(uptime.Minutes()) % 60
+
+	return &types.SystemInfo{
+		SystemName:   "DATAX ADMIN",
+		Version:      "v1.0.0",
+		OS:           runtime.GOOS + " " + runtime.GOARCH,
+		GoVersion:    runtime.Version(),
+		DBVersion:    version,
+		Uptime:       fmt.Sprintf("%d天%d小时%d分钟", days, hours, minutes),
+		CPUUsage:     fmt.Sprintf("%.2f%%", cpuPercent[0]),
+		MemoryTotal:  fmt.Sprintf("%.2f GB", float64(memInfo.Total)/1024/1024/1024),
+		MemoryUsed:   fmt.Sprintf("%.2f GB", float64(memInfo.Used)/1024/1024/1024),
+		MemoryUsage:  fmt.Sprintf("%.2f%%", memInfo.UsedPercent),
+		DiskTotal:    fmt.Sprintf("%.2f GB", float64(diskInfo.Total)/1024/1024/1024),
+		DiskUsed:     fmt.Sprintf("%.2f GB", float64(diskInfo.Used)/1024/1024/1024),
+		DiskUsage:    fmt.Sprintf("%.2f%%", diskInfo.UsedPercent),
+		NumGoroutine: runtime.NumGoroutine(),
+		NumCPU:       runtime.NumCPU(),
+	}, nil
 }
 
 // GetDashboardData 获取仪表盘数据
@@ -40,8 +137,8 @@ func (s *DashboardService) GetDashboardData() (*types.DashboardResponse, error) 
 	}
 	stats.PermissionCount = permissionCount
 
-	// TODO: 获取在线用户数（需要实现用户会话管理）
-	stats.OnlineCount = 1
+	// 获取在线用户数
+	stats.OnlineCount = GetOnlineUserCount()
 
 	// 获取任务执行统计
 	var successCount, failedCount int64
@@ -65,12 +162,9 @@ func (s *DashboardService) GetDashboardData() (*types.DashboardResponse, error) 
 	}
 
 	// 获取系统信息
-	systemInfo := types.SystemInfo{
-		SystemName: "DATAX ADMIN",
-		Version:    "v1.0.0",
-		OS:         runtime.GOOS + " " + runtime.GOARCH,
-		GoVersion:  runtime.Version(),
-		DBVersion:  "MySQL 8.0", // TODO: 从数据库获取版本信息
+	systemInfo, err := s.GetSystemInfo()
+	if err != nil {
+		return nil, err
 	}
 
 	// 获取最近7天的任务执行趋势
@@ -82,75 +176,44 @@ func (s *DashboardService) GetDashboardData() (*types.DashboardResponse, error) 
 	return &types.DashboardResponse{
 		Stats:        stats,
 		RecentLogins: recentLogins,
-		SystemInfo:   systemInfo,
+		SystemInfo:   *systemInfo,
 		TrendData:    trendData,
 	}, nil
 }
 
-// getJobExecutionTrend 获取任务执行趋势
+// getJobExecutionTrend 获取最近7天的任务执行趋势
 func (s *DashboardService) getJobExecutionTrend() ([]types.JobExecutionTrend, error) {
+	var trends []types.JobExecutionTrend
+
 	// 获取最近7天的日期
 	now := time.Now()
-	startDate := now.AddDate(0, 0, -6).Format("2006-01-02")
-	endDate := now.Format("2006-01-02")
+	for i := 6; i >= 0; i-- {
+		date := now.AddDate(0, 0, -i)
+		startTime := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+		endTime := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 999999999, date.Location())
 
-	// 查询最近7天的任务执行记录
-	var records []struct {
-		Date         string
-		SuccessCount int64
-		FailedCount  int64
-	}
-
-	query := `
-		SELECT
-			DATE(start_time) as date,
-			SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as success_count,
-			SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as failed_count
-		FROM job_histories
-		WHERE start_time >= ? AND start_time < DATE_ADD(?, INTERVAL 1 DAY)
-		GROUP BY DATE(start_time)
-		ORDER BY date ASC
-	`
-
-	if err := models.DB.Raw(query, startDate, endDate).Scan(&records).Error; err != nil {
-		return nil, err
-	}
-
-	// 构建趋势数据，确保每天都有数据
-	trendData := make([]types.JobExecutionTrend, 7)
-	recordMap := make(map[string]struct {
-		SuccessCount int64
-		FailedCount  int64
-	})
-
-	// 将查询结果转换为map
-	for _, record := range records {
-		recordMap[record.Date] = struct {
-			SuccessCount int64
-			FailedCount  int64
-		}{
-			SuccessCount: record.SuccessCount,
-			FailedCount:  record.FailedCount,
-		}
-	}
-
-	// 填充趋势数据
-	for i := 0; i < 7; i++ {
-		date := now.AddDate(0, 0, -6+i).Format("2006-01-02")
-		record, exists := recordMap[date]
-		if !exists {
-			record = struct {
-				SuccessCount int64
-				FailedCount  int64
-			}{0, 0}
+		// 获取成功任务数
+		var successCount int64
+		if err := models.DB.Model(&models.JobHistory{}).
+			Where("status = ? AND created_at BETWEEN ? AND ?", 1, startTime, endTime).
+			Count(&successCount).Error; err != nil {
+			return nil, err
 		}
 
-		trendData[i] = types.JobExecutionTrend{
-			Date:         date,
-			SuccessCount: record.SuccessCount,
-			FailedCount:  record.FailedCount,
+		// 获取失败任务数
+		var failedCount int64
+		if err := models.DB.Model(&models.JobHistory{}).
+			Where("status = ? AND created_at BETWEEN ? AND ?", 2, startTime, endTime).
+			Count(&failedCount).Error; err != nil {
+			return nil, err
 		}
+
+		trends = append(trends, types.JobExecutionTrend{
+			Date:         date.Format("2006-01-02"),
+			SuccessCount: successCount,
+			FailedCount:  failedCount,
+		})
 	}
 
-	return trendData, nil
+	return trends, nil
 }

@@ -138,7 +138,7 @@
                 系统信息
               </div>
             </template>
-            <a-descriptions :data="systemInfo" layout="inline-horizontal" bordered />
+            <a-descriptions :column="3" :data="systemInfoData" layout="inline-horizontal" bordered />
           </a-card>
         </a-col>
       </a-row>
@@ -147,7 +147,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import {
   IconUser,
   IconUserGroup,
@@ -161,9 +161,8 @@ import {
   IconCloseCircle,
   IconBarChart,
 } from '@arco-design/web-vue/es/icon';
-import axios from 'axios';
 import * as echarts from 'echarts';
-
+import { getDashboard } from '@/api/dashboard';
 interface Stats {
   userCount: number;
   roleCount: number;
@@ -185,6 +184,24 @@ interface JobExecutionTrend {
   failedCount: number;
 }
 
+interface SystemInfo {
+  systemName: string;
+  version: string;
+  os: string;
+  goVersion: string;
+  dbVersion: string;
+  uptime: string;
+  cpuUsage: string;
+  memoryTotal: string;
+  memoryUsed: string;
+  memoryUsage: string;
+  diskTotal: string;
+  diskUsed: string;
+  diskUsage: string;
+  numGoroutine: number;
+  numCPU: number;
+}
+
 const stats = ref<Stats>({
   userCount: 0,
   roleCount: 0,
@@ -196,28 +213,40 @@ const stats = ref<Stats>({
 
 const recentLogins = ref<RecentLogin[]>([]);
 const trendData = ref<JobExecutionTrend[]>([]);
+const systemInfo = ref<SystemInfo>({
+  systemName: '',
+  version: '',
+  os: '',
+  goVersion: '',
+  dbVersion: '',
+  uptime: '',
+  cpuUsage: '',
+  memoryTotal: '',
+  memoryUsed: '',
+  memoryUsage: '',
+  diskTotal: '',
+  diskUsed: '',
+  diskUsage: '',
+  numGoroutine: 0,
+  numCPU: 0,
+});
 
-const systemInfo = ref([
-  {
-    label: '系统名称',
-    value: 'DATAX ADMIN',
-  },
-  {
-    label: '系统版本',
-    value: 'v1.0.0',
-  },
-  {
-    label: '服务器操作系统',
-    value: 'CentOS 7.9',
-  },
-  {
-    label: 'Go 版本',
-    value: 'go1.22.2',
-  },
-  {
-    label: '数据库版本',
-    value: 'MySQL 8.0',
-  },
+const systemInfoData = computed(() => [
+  { label: '系统名称', value: systemInfo.value.systemName },
+  { label: '系统版本', value: systemInfo.value.version },
+  { label: '操作系统', value: systemInfo.value.os },
+  { label: 'Go版本', value: systemInfo.value.goVersion },
+  { label: '数据库版本', value: systemInfo.value.dbVersion },
+  { label: '运行时间', value: systemInfo.value.uptime },
+  { label: 'CPU使用率', value: systemInfo.value.cpuUsage },
+  { label: '内存总量', value: systemInfo.value.memoryTotal },
+  { label: '已用内存', value: systemInfo.value.memoryUsed },
+  { label: '内存使用率', value: systemInfo.value.memoryUsage },
+  { label: '磁盘总量', value: systemInfo.value.diskTotal },
+  { label: '已用磁盘', value: systemInfo.value.diskUsed },
+  { label: '磁盘使用率', value: systemInfo.value.diskUsage },
+  { label: 'Goroutine数量', value: String(systemInfo.value.numGoroutine) },
+  { label: 'CPU核心数', value: String(systemInfo.value.numCPU) },
 ]);
 
 const chartRef = ref<HTMLElement>();
@@ -283,33 +312,11 @@ const updateChart = () => {
 
 const fetchStats = async () => {
   try {
-    const { data } = await axios.get('/api/v1/dashboard');
+    const { data } = await getDashboard();
     stats.value = data.stats;
     recentLogins.value = data.recentLogins;
     trendData.value = data.trendData;
-    // 更新系统信息
-    systemInfo.value = [
-      {
-        label: '系统名称',
-        value: data.systemInfo.systemName,
-      },
-      {
-        label: '系统版本',
-        value: data.systemInfo.version,
-      },
-      {
-        label: '服务器操作系统',
-        value: data.systemInfo.os,
-      },
-      {
-        label: 'Go 版本',
-        value: data.systemInfo.goVersion,
-      },
-      {
-        label: '数据库版本',
-        value: data.systemInfo.dbVersion,
-      },
-    ];
+    systemInfo.value = data.systemInfo;
     updateChart();
   } catch (error) {
     console.error('获取仪表盘数据失败:', error);

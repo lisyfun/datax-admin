@@ -189,3 +189,14 @@ func (c *UserController) DeleteUser(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "用户删除成功"})
 }
+
+// Logout 用户登出
+func (c *UserController) Logout(ctx *gin.Context) {
+	userID := ctx.GetUint("userID")
+	if err := c.userService.Logout(userID); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "登出成功"})
+}
