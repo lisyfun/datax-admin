@@ -198,59 +198,56 @@ func (s *JobService) GetJobList(req *types.JobListRequest) (*types.JobListRespon
 
 // GetJobHistoryList 获取任务执行历史列表
 func (s *JobService) GetJobHistoryList(req *types.JobHistoryListRequest) (*types.JobHistoryListResponse, error) {
-	// 使用原生SQL查询以便于调试
-	query := `
-		SELECT
-			h.*,
-			j.name as job_name
-		FROM job_histories h
-		LEFT JOIN jobs j ON j.id = h.job_id
-		WHERE 1=1
-	`
-	var params []interface{}
+	var items []struct {
+		models.JobHistory
+		JobName string `json:"job_name"`
+	}
+
+	query := models.DB.Model(&models.JobHistory{}).
+		Select("job_histories.*, jobs.name as job_name").
+		Joins("LEFT JOIN jobs ON jobs.id = job_histories.job_id")
 
 	// 构建查询条件
 	if req.JobID != nil {
-		query += " AND h.job_id = ?"
-		params = append(params, *req.JobID)
+		query = query.Where("job_histories.job_id = ?", *req.JobID)
 	}
 	if req.Status != nil {
-		query += " AND h.status = ?"
-		params = append(params, *req.Status)
+		query = query.Where("job_histories.status = ?", *req.Status)
 	}
 	if req.Keyword != "" {
-		query += " AND j.name LIKE ?"
-		params = append(params, "%"+req.Keyword+"%")
+		query = query.Where("jobs.name LIKE ?", "%"+req.Keyword+"%")
 	}
 	if !req.StartTime.IsZero() {
-		query += " AND h.start_time >= ?"
-		params = append(params, req.StartTime)
+		query = query.Where("start_time >= ?", req.StartTime)
 	}
 	if !req.EndTime.IsZero() {
-		query += " AND h.end_time <= ?"
-		params = append(params, req.EndTime)
+		query = query.Where("end_time <= ?", req.EndTime)
 	}
 
 	// 获取总数
 	var total int64
-	countQuery := "SELECT COUNT(*) FROM (" + query + ") as t"
-	if err := models.DB.Raw(countQuery, params...).Count(&total).Error; err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		return nil, err
 	}
 
 	// 添加排序和分页
-	query += " ORDER BY h.id DESC LIMIT ? OFFSET ?"
-	params = append(params, req.PageSize, (req.Page-1)*req.PageSize)
-
-	// 执行查询
-	var items []models.JobHistory
-	if err := models.DB.Raw(query, params...).Scan(&items).Error; err != nil {
+	if err := query.Order("job_histories.id DESC").
+		Limit(req.PageSize).
+		Offset((req.Page - 1) * req.PageSize).
+		Find(&items).Error; err != nil {
 		return nil, err
+	}
+
+	// 转换为 JobHistory 切片
+	histories := make([]models.JobHistory, len(items))
+	for i, item := range items {
+		histories[i] = item.JobHistory
+		histories[i].JobName = item.JobName
 	}
 
 	return &types.JobHistoryListResponse{
 		Total: total,
-		Items: items,
+		Items: histories,
 	}, nil
 }
 
