@@ -487,17 +487,31 @@ watch(() => props.jobData, (newVal: Job | undefined) => {
         form.body = params.body || '';
         form.success_codes = Array.isArray(params.success_code) ? params.success_code.join(',') : '200';
       } else if (newVal.type === 'datax') {
-        // 处理DataX参数
-        const parameters = params.parameters || {};
-        form.datax_params.parameters = Object.entries(parameters).map(([key, value]) => ({
-          key,
-          value: String(value)
-        }));
+        try {
+          // 解析整个params对象
+          const dataxParams = typeof params === 'string' ? JSON.parse(params) : params;
+          console.log('DataX原始参数:', dataxParams);
 
-        // 移除DataX特定参数，剩下的作为job内容
-        const { parameters: _, ...jobContent } = params;
-        form.datax_params.job_content = JSON.stringify(jobContent, null, 2);
-        console.log('DataX任务内容:', form.datax_params);
+          // 处理parameters参数
+          const parameters = dataxParams.parameters || {};
+          form.datax_params.parameters = Object.entries(parameters).map(([key, value]) => ({
+            key,
+            value: String(value)
+          }));
+
+          // 处理job_config
+          let jobConfig = dataxParams.job_config;
+          if (typeof jobConfig === 'string') {
+            jobConfig = JSON.parse(jobConfig);
+          }
+          console.log('解析后的job_config:', jobConfig);
+
+          // 设置job_content
+          form.datax_params.job_content = JSON.stringify(jobConfig, null, 2);
+        } catch (e) {
+          console.error('解析DataX参数失败:', e);
+          Message.error(`解析DataX参数失败: ${(e as Error).message}`);
+        }
       }
     } catch (e) {
       console.error('解析任务参数失败:', e);
@@ -516,8 +530,10 @@ const modelVisible = computed({
 const handleConfigReader = () => {
   try {
     const content = JSON.parse(form.datax_params.job_content || '{}');
-    const job = content.job || { content: [{}] };
-    currentReader.value = job.content[0].reader || {
+    console.log('Reader配置 - 当前内容:', content);
+
+    // 从job.content[0]中获取reader配置
+    const reader = content.job?.content?.[0]?.reader || {
       name: 'mysqlreader',
       parameter: {
         username: '',
@@ -531,8 +547,12 @@ const handleConfigReader = () => {
         batchSize: 20000
       }
     };
+
+    currentReader.value = reader;
+    console.log('Reader配置 - 解析结果:', currentReader.value);
     showReaderModal.value = true;
   } catch (err) {
+    console.error('Reader配置解析失败:', err);
     Message.error('JSON格式错误，请先输入正确的JSON');
   }
 };
@@ -541,8 +561,10 @@ const handleConfigReader = () => {
 const handleConfigWriter = () => {
   try {
     const content = JSON.parse(form.datax_params.job_content || '{}');
-    const job = content.job || { content: [{}] };
-    currentWriter.value = job.content[0].writer || {
+    console.log('Writer配置 - 当前内容:', content);
+
+    // 从job.content[0]中获取writer配置
+    const writer = content.job?.content?.[0]?.writer || {
       name: 'mysqlwriter',
       parameter: {
         username: '',
@@ -558,8 +580,12 @@ const handleConfigWriter = () => {
         postSql: []
       }
     };
+
+    currentWriter.value = writer;
+    console.log('Writer配置 - 解析结果:', currentWriter.value);
     showWriterModal.value = true;
   } catch (err) {
+    console.error('Writer配置解析失败:', err);
     Message.error('JSON格式错误，请先输入正确的JSON');
   }
 };
@@ -568,23 +594,32 @@ const handleConfigWriter = () => {
 const handleReaderUpdate = (val: any) => {
   try {
     const content = JSON.parse(form.datax_params.job_content || '{}');
-    const job = content.job || {
-      content: [{}],
-      setting: {
-        speed: {
-          channel: 24,
-          bytes: 52428800
-        },
-        errorLimit: {
-          record: 0,
-          percentage: 0.02
+    if (!content.job) {
+      content.job = {
+        content: [{}],
+        setting: {
+          speed: {
+            channel: 24,
+            bytes: 52428800
+          },
+          errorLimit: {
+            record: 0,
+            percentage: 0.02
+          }
         }
-      }
-    };
-    job.content[0].reader = val;
-    content.job = job;
+      };
+    }
+    if (!content.job.content) {
+      content.job.content = [{}];
+    }
+    if (!content.job.content[0]) {
+      content.job.content[0] = {};
+    }
+    content.job.content[0].reader = val;
     form.datax_params.job_content = JSON.stringify(content, null, 2);
+    console.log('Reader配置更新后:', content);
   } catch (err) {
+    console.error('Reader配置更新失败:', err);
     Message.error('JSON格式错误');
   }
 };
@@ -593,23 +628,32 @@ const handleReaderUpdate = (val: any) => {
 const handleWriterUpdate = (val: any) => {
   try {
     const content = JSON.parse(form.datax_params.job_content || '{}');
-    const job = content.job || {
-      content: [{}],
-      setting: {
-        speed: {
-          channel: 24,
-          bytes: 52428800
-        },
-        errorLimit: {
-          record: 0,
-          percentage: 0.02
+    if (!content.job) {
+      content.job = {
+        content: [{}],
+        setting: {
+          speed: {
+            channel: 24,
+            bytes: 52428800
+          },
+          errorLimit: {
+            record: 0,
+            percentage: 0.02
+          }
         }
-      }
-    };
-    job.content[0].writer = val;
-    content.job = job;
+      };
+    }
+    if (!content.job.content) {
+      content.job.content = [{}];
+    }
+    if (!content.job.content[0]) {
+      content.job.content[0] = {};
+    }
+    content.job.content[0].writer = val;
     form.datax_params.job_content = JSON.stringify(content, null, 2);
+    console.log('Writer配置更新后:', content);
   } catch (err) {
+    console.error('Writer配置更新失败:', err);
     Message.error('JSON格式错误');
   }
 };
