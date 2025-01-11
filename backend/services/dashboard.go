@@ -152,13 +152,23 @@ func (s *DashboardService) GetDashboardData() (*types.DashboardResponse, error) 
 	stats.FailedCount = failedCount
 
 	// 获取最近登录记录
-	var recentLogins []types.RecentLogin
+	var loginLogs []models.LoginLog
 	if err := models.DB.Model(&models.LoginLog{}).
-		Select("username, login_time as loginTime, ip").
+		Select("username, login_time, ip").
 		Order("login_time desc").
 		Limit(10).
-		Scan(&recentLogins).Error; err != nil {
+		Find(&loginLogs).Error; err != nil {
 		return nil, err
+	}
+
+	// 转换为响应格式
+	recentLogins := make([]types.RecentLogin, len(loginLogs))
+	for i, log := range loginLogs {
+		recentLogins[i] = types.RecentLogin{
+			Username:  log.Username,
+			LoginTime: log.LoginTime.Format("2006-01-02 15:04:05"),
+			IP:        log.IP,
+		}
 	}
 
 	// 获取系统信息

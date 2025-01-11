@@ -46,7 +46,13 @@ func (c *UserController) Login(ctx *gin.Context) {
 	}
 
 	// 获取客户端 IP
-	req.IP = ctx.ClientIP()
+	if ip := ctx.GetHeader("X-Real-IP"); ip != "" {
+		req.IP = ip
+	} else if ip := ctx.GetHeader("X-Forwarded-For"); ip != "" {
+		req.IP = ip
+	} else {
+		req.IP = ctx.ClientIP()
+	}
 
 	resp, err := c.userService.Login(&req)
 	if err != nil {

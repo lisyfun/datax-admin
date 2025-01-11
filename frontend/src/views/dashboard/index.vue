@@ -111,7 +111,7 @@
                   <template #cell="{ record }">
                     <a-space>
                       <icon-calendar />
-                      {{ record.loginTime }}
+                      {{ formatDateTime(record.loginTime) }}
                     </a-space>
                   </template>
                 </a-table-column>
@@ -119,7 +119,9 @@
                   <template #cell="{ record }">
                     <a-space>
                       <icon-wifi />
-                      {{ record.ip }}
+                      <a-tooltip content="登录IP">
+                        {{ record.ip }}
+                      </a-tooltip>
                     </a-space>
                   </template>
                 </a-table-column>
@@ -163,6 +165,7 @@ import {
 } from '@arco-design/web-vue/es/icon';
 import * as echarts from 'echarts';
 import { getDashboard } from '@/api/dashboard';
+import { formatDateTime } from '@/utils/date';
 
 interface Stats {
   userCount: number;
