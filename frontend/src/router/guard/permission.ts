@@ -58,26 +58,25 @@ export default function setupPermissionGuard(router: Router) {
 
 // 根据菜单生成路由配置
 function generateRoutesFromMenu(menus: any[]): RouteRecordRaw[] {
-  return menus
-    .filter((menu) => menu.type === 1 && !menu.hidden) // 只处理显示的菜单类型
-    .map((menu) => {
-      const route: RouteRecordRaw = {
-        path: menu.path,
-        name: menu.name,
-        component: loadComponent(menu.component),
-        meta: {
-          title: menu.name,
-          icon: menu.icon,
-          keepAlive: menu.cache,
-        },
-      };
+  return menus.map((menu) => {
+    const route = {
+      path: menu.path,
+      name: menu.name,
+      component: loadComponent(menu.component),
+      meta: {
+        title: menu.title,
+        icon: menu.icon,
+        keepAlive: menu.cache,
+      },
+      children: [] as RouteRecordRaw[],
+    } as RouteRecordRaw;
 
-      if (menu.children?.length) {
-        route.children = generateRoutesFromMenu(menu.children);
-      }
+    if (menu.children?.length) {
+      route.children = generateRoutesFromMenu(menu.children);
+    }
 
-      return route;
-    });
+    return route;
+  });
 }
 
 // 动态加载组件

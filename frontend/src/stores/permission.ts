@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { PermissionInfo } from '../types/permission';
-import * as permissionApi from '../api/permission';
+import type { PermissionInfo } from '@/types/permission';
+import * as permissionApi from '@/api/permission';
 
 export const usePermissionStore = defineStore('permission', () => {
   const permissions = ref<PermissionInfo[]>([]);
@@ -15,8 +15,8 @@ export const usePermissionStore = defineStore('permission', () => {
     menuTree.value = buildMenuTree(menus);
   }
 
-  async function getPermissionTree(type?: 'menu' | 'button') {
-    const res = await permissionApi.getPermissionTree({ type });
+  async function getPermissionTree() {
+    const res = await permissionApi.getPermissionTree();
     return res.data.list;
   }
 

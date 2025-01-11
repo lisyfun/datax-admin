@@ -1,12 +1,12 @@
-import { DEFAULT_LAYOUT } from '../base';
-import { AppRouteRecordRaw } from '../types';
+import { DEFAULT_LAYOUT } from '@/router/base';
+import { AppRouteRecordRaw } from '@/router/types';
 
 const SYSTEM: AppRouteRecordRaw = {
   path: '/system',
   name: 'system',
   component: DEFAULT_LAYOUT,
   meta: {
-    locale: 'menu.system',
+    title: 'menu.system',
     requiresAuth: true,
     icon: 'icon-settings',
     order: 0,
@@ -17,7 +17,7 @@ const SYSTEM: AppRouteRecordRaw = {
       name: 'Menu',
       component: () => import('@/views/system/menu/index.vue'),
       meta: {
-        locale: 'menu.system.menu',
+        title: 'menu.system.menu',
         requiresAuth: true,
         roles: ['*'],
       },

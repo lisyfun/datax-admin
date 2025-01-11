@@ -23,13 +23,14 @@
         :pagination="{
           total,
           current: page,
-          pageSize: pageSize,
+          pageSize,
           showTotal: true,
           showJumper: true,
         }"
         @page-change="handlePageChange"
       >
         <template #columns>
+          <a-table-column title="ID" data-index="id" />
           <a-table-column title="用户名" data-index="username" />
           <a-table-column title="昵称" data-index="nickname" />
           <a-table-column title="邮箱" data-index="email" />
@@ -51,11 +52,11 @@
             <template #cell="{ record }">
               <a-switch
                 :model-value="record.status === 1"
-                @change="(value: boolean) => handleStatusChange(record, value)"
+                @change="(value) => handleStatusChange(record, value ? 1 : 0)"
               />
             </template>
           </a-table-column>
-          <a-table-column title="操作" align="center">
+          <a-table-column title="操作" align="center" :width="300">
             <template #cell="{ record }">
               <a-space>
                 <a-button type="text" size="small" @click="handleEdit(record)">
@@ -314,9 +315,9 @@ const handleAdd = () => {
 const handleEdit = (record: UserInfo) => {
   isEdit.value = true;
   userForm.id = record.id;
-  userForm.username = record.username || '';
-  userForm.nickname = record.nickname || '';
-  userForm.email = record.email || '';
+  userForm.username = record.username;
+  userForm.nickname = record.nickname;
+  userForm.email = record.email;
   userForm.password = ''; // 编辑时不需要密码
   showUserForm.value = true;
 };
@@ -330,23 +331,24 @@ const handleAssignRoles = async (record: UserInfo) => {
 };
 
 // 更新状态
-const handleStatusChange = async (record: UserInfo, value: boolean): Promise<void> => {
+const handleStatusChange = async (record: UserInfo, value: number): Promise<void> => {
   try {
-    const newStatus = value ? 1 : 0;
-
-    // 立即更新 UI 状态
+    // 先更新UI状态
     const targetUser = users.value.find(u => u.id === record.id);
     if (targetUser) {
-      targetUser.status = newStatus;
+      targetUser.status = value;
     }
 
     // 发送请求
-    await userApi.updateUserStatus(record.id, newStatus);
-    Message.success('状态更新成功');
+    await userApi.updateUserStatus(record.id, value);
+    Message.success(value === 1 ? '已启用' : '已禁用');
   } catch (error: any) {
-    Message.error(error.response?.data?.error || '状态更新失败');
     // 发生错误时恢复原状态
-    await fetchUsers();
+    const targetUser = users.value.find(u => u.id === record.id);
+    if (targetUser) {
+      targetUser.status = record.status;
+    }
+    Message.error(error.response?.data?.error || '状态更新失败');
   }
 };
 
@@ -476,7 +478,7 @@ const handleResetPasswordFormSubmit = async () => {
     await resetPasswordFormRef.value.validate();
 
     await userApi.resetPassword(resetPasswordForm.id, {
-      password: encryptPassword(resetPasswordForm.password)
+      password: (resetPasswordForm.password)
     });
     Message.success('密码重置成功');
     showResetPasswordForm.value = false;
