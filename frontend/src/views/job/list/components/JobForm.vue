@@ -140,8 +140,8 @@
         <a-modal
           v-model:visible="showReaderModal"
           title="Reader配置"
-          @ok="showReaderModal = false"
-          @cancel="showReaderModal = false"
+          @ok="handleReaderModalOk"
+          @cancel="handleReaderModalCancel"
           :width="600"
         >
           <ReaderForm
@@ -155,8 +155,8 @@
         <a-modal
           v-model:visible="showWriterModal"
           title="Writer配置"
-          @ok="showWriterModal = false"
-          @cancel="showWriterModal = false"
+          @ok="handleWriterModalOk"
+          @cancel="handleWriterModalCancel"
           :width="600"
         >
           <WriterForm
@@ -722,40 +722,16 @@ const handleConfigWriter = () => {
 
 // 处理Reader配置更新
 const handleReaderUpdate = (val: any) => {
-  try {
-    const content = JSON.parse(form.datax_params.job_content || '{}');
-    if (!content.job) {
-      content.job = {
-        content: [{}],
-        setting: {
-          speed: {
-            channel: 24,
-            bytes: 52428800
-          },
-          errorLimit: {
-            record: 0,
-            percentage: 0.02
-          }
-        }
-      };
-    }
-    if (!content.job.content) {
-      content.job.content = [{}];
-    }
-    if (!content.job.content[0]) {
-      content.job.content[0] = {};
-    }
-    content.job.content[0].reader = val;
-    form.datax_params.job_content = JSON.stringify(content, null, 2);
-    console.log('Reader配置更新后:', content);
-  } catch (err) {
-    console.error('Reader配置更新失败:', err);
-    Message.error('JSON格式错误');
-  }
+  currentReader.value = val;
 };
 
 // 处理Writer配置更新
 const handleWriterUpdate = (val: any) => {
+  currentWriter.value = val;
+};
+
+// 处理Reader配置对话框确认
+const handleReaderModalOk = () => {
   try {
     const content = JSON.parse(form.datax_params.job_content || '{}');
     if (!content.job) {
@@ -779,13 +755,59 @@ const handleWriterUpdate = (val: any) => {
     if (!content.job.content[0]) {
       content.job.content[0] = {};
     }
-    content.job.content[0].writer = val;
+    content.job.content[0].reader = currentReader.value;
     form.datax_params.job_content = JSON.stringify(content, null, 2);
-    console.log('Writer配置更新后:', content);
+    console.log('Reader配置保存后:', content);
+    showReaderModal.value = false;
   } catch (err) {
-    console.error('Writer配置更新失败:', err);
-    Message.error('JSON格式错误');
+    console.error('Reader配置保存失败:', err);
+    Message.error('保存Reader配置失败');
   }
+};
+
+// 处理Writer配置对话框确认
+const handleWriterModalOk = () => {
+  try {
+    const content = JSON.parse(form.datax_params.job_content || '{}');
+    if (!content.job) {
+      content.job = {
+        content: [{}],
+        setting: {
+          speed: {
+            channel: 24,
+            bytes: 52428800
+          },
+          errorLimit: {
+            record: 0,
+            percentage: 0.02
+          }
+        }
+      };
+    }
+    if (!content.job.content) {
+      content.job.content = [{}];
+    }
+    if (!content.job.content[0]) {
+      content.job.content[0] = {};
+    }
+    content.job.content[0].writer = currentWriter.value;
+    form.datax_params.job_content = JSON.stringify(content, null, 2);
+    console.log('Writer配置保存后:', content);
+    showWriterModal.value = false;
+  } catch (err) {
+    console.error('Writer配置保存失败:', err);
+    Message.error('保存Writer配置失败');
+  }
+};
+
+// 处理Reader配置对话框取消
+const handleReaderModalCancel = () => {
+  showReaderModal.value = false;
+};
+
+// 处理Writer配置对话框取消
+const handleWriterModalCancel = () => {
+  showWriterModal.value = false;
 };
 </script>
 
