@@ -25,6 +25,7 @@ func SetupRoutes(r *gin.Engine) {
 	userController := controllers.NewUserController()
 	roleController := controllers.NewRoleController()
 	permissionController := controllers.NewPermissionController()
+	dashboardController := controllers.NewDashboardController()
 
 	// API v1 路由组
 	v1 := r.Group(config.GlobalConfig.Server.BasePath + "/api/v1")
@@ -47,6 +48,9 @@ func SetupRoutes(r *gin.Engine) {
 		authenticated := v1.Group("")
 		authenticated.Use(middleware.JWTAuth())
 		{
+			// 仪表盘相关
+			authenticated.GET("/dashboard", dashboardController.GetDashboardData)
+
 			// 用户个人相关
 			authenticated.GET("/user/info", userController.GetUserInfo)
 			authenticated.PUT("/user/password", userController.UpdatePassword)

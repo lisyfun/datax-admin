@@ -3,7 +3,7 @@
     <a-card>
       <template #title>仪表盘</template>
       <a-row :gutter="16">
-        <a-col :span="6">
+        <a-col :span="4">
           <a-card class="stat-card" :bordered="false">
             <div class="stat-header">
               <div class="stat-title">用户总数</div>
@@ -15,7 +15,7 @@
             </div>
           </a-card>
         </a-col>
-        <a-col :span="6">
+        <a-col :span="4">
           <a-card class="stat-card" :bordered="false">
             <div class="stat-header">
               <div class="stat-title">角色总数</div>
@@ -27,7 +27,7 @@
             </div>
           </a-card>
         </a-col>
-        <a-col :span="6">
+        <a-col :span="4">
           <a-card class="stat-card" :bordered="false">
             <div class="stat-header">
               <div class="stat-title">权限总数</div>
@@ -39,7 +39,7 @@
             </div>
           </a-card>
         </a-col>
-        <a-col :span="6">
+        <a-col :span="4">
           <a-card class="stat-card" :bordered="false">
             <div class="stat-header">
               <div class="stat-title">在线用户</div>
@@ -51,9 +51,44 @@
             </div>
           </a-card>
         </a-col>
+        <a-col :span="4">
+          <a-card class="stat-card" :bordered="false">
+            <div class="stat-header">
+              <div class="stat-title">成功任务</div>
+              <icon-check-circle class="stat-icon success" />
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stats.successCount }}</div>
+              <div class="stat-label">成功执行任务</div>
+            </div>
+          </a-card>
+        </a-col>
+        <a-col :span="4">
+          <a-card class="stat-card" :bordered="false">
+            <div class="stat-header">
+              <div class="stat-title">失败任务</div>
+              <icon-close-circle class="stat-icon error" />
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stats.failedCount }}</div>
+              <div class="stat-label">失败执行任务</div>
+            </div>
+          </a-card>
+        </a-col>
       </a-row>
 
       <a-row :gutter="16" style="margin-top: 16px">
+        <a-col :span="12">
+          <a-card class="chart-card" :bordered="false">
+            <template #title>
+              <div class="card-title">
+                <icon-bar-chart class="card-title-icon" />
+                任务执行趋势
+              </div>
+            </template>
+            <div ref="chartRef" class="chart-container"></div>
+          </a-card>
+        </a-col>
         <a-col :span="12">
           <a-card class="list-card" :bordered="false">
             <template #title>
@@ -92,7 +127,10 @@
             </a-table>
           </a-card>
         </a-col>
-        <a-col :span="12">
+      </a-row>
+
+      <a-row :gutter="16" style="margin-top: 16px">
+        <a-col :span="24">
           <a-card class="info-card" :bordered="false">
             <template #title>
               <div class="card-title">
@@ -109,7 +147,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import {
   IconUser,
   IconUserGroup,
@@ -119,13 +157,20 @@ import {
   IconCalendar,
   IconWifi,
   IconComputer,
+  IconCheckCircle,
+  IconCloseCircle,
+  IconBarChart,
 } from '@arco-design/web-vue/es/icon';
+import axios from 'axios';
+import * as echarts from 'echarts';
 
 interface Stats {
   userCount: number;
   roleCount: number;
   permissionCount: number;
   onlineCount: number;
+  successCount: number;
+  failedCount: number;
 }
 
 interface RecentLogin {
@@ -134,16 +179,25 @@ interface RecentLogin {
   ip: string;
 }
 
+interface JobExecutionTrend {
+  date: string;
+  successCount: number;
+  failedCount: number;
+}
+
 const stats = ref<Stats>({
   userCount: 0,
   roleCount: 0,
   permissionCount: 0,
   onlineCount: 0,
+  successCount: 0,
+  failedCount: 0,
 });
 
 const recentLogins = ref<RecentLogin[]>([]);
+const trendData = ref<JobExecutionTrend[]>([]);
 
-const systemInfo = [
+const systemInfo = ref([
   {
     label: '系统名称',
     value: 'DATAX ADMIN',
@@ -164,46 +218,119 @@ const systemInfo = [
     label: '数据库版本',
     value: 'MySQL 8.0',
   },
-];
+]);
 
-// TODO: 从后端获取统计数据
-const fetchStats = async () => {
-  // 模拟数据
-  stats.value = {
-    userCount: 100,
-    roleCount: 10,
-    permissionCount: 50,
-    onlineCount: 5,
-  };
+const chartRef = ref<HTMLElement>();
+let chart: echarts.ECharts | null = null;
+
+const initChart = () => {
+  if (chartRef.value) {
+    chart = echarts.init(chartRef.value);
+    updateChart();
+  }
 };
 
-// TODO: 从后端获取最近登录记录
-const fetchRecentLogins = async () => {
-  // 模拟数据
-  recentLogins.value = [
-    {
-      username: 'admin',
-      loginTime: '2024-01-05 23:30:00',
-      ip: '127.0.0.1',
+const updateChart = () => {
+  if (!chart) return;
+
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow',
+      },
     },
-    {
-      username: 'user1',
-      loginTime: '2024-01-05 23:15:00',
-      ip: '192.168.1.100',
+    legend: {
+      data: ['成功', '失败'],
     },
-  ];
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      data: trendData.value.map(item => item.date),
+    },
+    yAxis: {
+      type: 'value',
+    },
+    series: [
+      {
+        name: '成功',
+        type: 'bar',
+        stack: 'total',
+        data: trendData.value.map(item => item.successCount),
+        itemStyle: {
+          color: 'rgb(var(--success-6))',
+        },
+      },
+      {
+        name: '失败',
+        type: 'bar',
+        stack: 'total',
+        data: trendData.value.map(item => item.failedCount),
+        itemStyle: {
+          color: 'rgb(var(--danger-6))',
+        },
+      },
+    ],
+  };
+
+  chart.setOption(option);
+};
+
+const fetchStats = async () => {
+  try {
+    const { data } = await axios.get('/api/v1/dashboard');
+    stats.value = data.stats;
+    recentLogins.value = data.recentLogins;
+    trendData.value = data.trendData;
+    // 更新系统信息
+    systemInfo.value = [
+      {
+        label: '系统名称',
+        value: data.systemInfo.systemName,
+      },
+      {
+        label: '系统版本',
+        value: data.systemInfo.version,
+      },
+      {
+        label: '服务器操作系统',
+        value: data.systemInfo.os,
+      },
+      {
+        label: 'Go 版本',
+        value: data.systemInfo.goVersion,
+      },
+      {
+        label: '数据库版本',
+        value: data.systemInfo.dbVersion,
+      },
+    ];
+    updateChart();
+  } catch (error) {
+    console.error('获取仪表盘数据失败:', error);
+  }
 };
 
 onMounted(() => {
   fetchStats();
-  fetchRecentLogins();
+  initChart();
+  window.addEventListener('resize', () => chart?.resize());
+});
+
+onUnmounted(() => {
+  chart?.dispose();
+  window.removeEventListener('resize', () => chart?.resize());
 });
 </script>
 
 <style scoped>
 .dashboard {
   padding: 16px;
-  /* background-color: var(--color-fill-2); */
   min-height: 100%;
 }
 
@@ -256,6 +383,16 @@ onMounted(() => {
   border-radius: 8px;
 }
 
+.stat-icon.success {
+  color: rgb(var(--success-6));
+  background-color: rgba(var(--success-6), 0.1);
+}
+
+.stat-icon.error {
+  color: rgb(var(--danger-6));
+  background-color: rgba(var(--danger-6), 0.1);
+}
+
 .stat-content {
   display: flex;
   flex-direction: column;
@@ -276,10 +413,17 @@ onMounted(() => {
   color: var(--color-text-3);
 }
 
-.list-card, .info-card {
+.list-card,
+.info-card,
+.chart-card {
   height: 100%;
   background-color: var(--color-bg-1);
   border-radius: 8px;
+}
+
+.chart-container {
+  height: 300px;
+  width: 100%;
 }
 
 .card-title {

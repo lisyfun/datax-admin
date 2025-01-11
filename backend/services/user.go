@@ -5,6 +5,8 @@ import (
 	"datax-admin/models"
 	"datax-admin/types"
 	"errors"
+	"log"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -35,34 +37,51 @@ func (s *UserService) Register(req *types.RegisterRequest) error {
 }
 
 // Login 用户登录
-func (s *UserService) Login(req *types.LoginRequest) (*types.TokenResponse, error) {
+func (s *UserService) Login(req *types.LoginRequest) (*types.LoginResponse, error) {
 	var user models.User
 	if err := models.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("用户名或密码错误")
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New("用户不存在")
 		}
 		return nil, err
 	}
 
-	// 检查密码格式
-	if len(user.Password) < 60 {
-		return nil, errors.New("密码格式错误")
-	}
-
 	if !user.CheckPassword(req.Password) {
-		return nil, errors.New("用户名或密码错误")
+		return nil, errors.New("密码错误")
 	}
 
-	if user.Status == 0 {
-		return nil, errors.New("账号已被禁用")
+	if user.Status != 1 {
+		return nil, errors.New("用户已被禁用")
 	}
 
+	// 生成 JWT token
 	token, err := middleware.GenerateToken(user.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &types.TokenResponse{Token: token}, nil
+	// 记录登录日志
+	loginLog := models.LoginLog{
+		Username:  user.Username,
+		IP:        req.IP,
+		LoginTime: time.Now(),
+	}
+	if err := models.DB.Create(&loginLog).Error; err != nil {
+		// 记录日志失败不影响登录
+		log.Printf("记录登录日志失败: %v", err)
+	}
+
+	return &types.LoginResponse{
+		Token: token,
+		User: types.UserInfo{
+			ID:       user.ID,
+			Username: user.Username,
+			Nickname: user.Nickname,
+			Avatar:   user.Avatar,
+			Email:    user.Email,
+			Status:   user.Status,
+		},
+	}, nil
 }
 
 // GetUserInfo 获取用户信息
@@ -128,15 +147,12 @@ func (s *UserService) UpdateUserStatus(userID uint, req *types.UpdateUserStatusR
 	}
 
 	// 检查状态值是否有效
-	if req.Status == nil {
-		return errors.New("状态值不能为空")
-	}
-	if *req.Status != 0 && *req.Status != 1 {
+	if req.Status != 0 && req.Status != 1 {
 		return errors.New("无效的状态值")
 	}
 
 	// 更新状态
-	return models.DB.Model(&user).Update("status", *req.Status).Error
+	return models.DB.Model(&user).Update("status", req.Status).Error
 }
 
 // GetUserList 获取用户列表
@@ -145,9 +161,11 @@ func (s *UserService) GetUserList(req *types.UserListRequest) (*types.UserListRe
 	var users []models.User
 
 	query := models.DB.Model(&models.User{})
-	if req.Keyword != "" {
-		query = query.Where("username LIKE ? OR nickname LIKE ? OR email LIKE ?",
-			"%"+req.Keyword+"%", "%"+req.Keyword+"%", "%"+req.Keyword+"%")
+	if req.Username != "" {
+		query = query.Where("username LIKE ?", "%"+req.Username+"%")
+	}
+	if req.Status != nil {
+		query = query.Where("status = ?", *req.Status)
 	}
 
 	// 获取总数
@@ -161,43 +179,21 @@ func (s *UserService) GetUserList(req *types.UserListRequest) (*types.UserListRe
 	}
 
 	// 转换为响应格式
-	items := make([]types.UserResponse, len(users))
+	list := make([]types.UserInfo, len(users))
 	for i, user := range users {
-		// 查询用户角色
-		var roles []models.Role
-		if err := models.DB.Model(&models.Role{}).
-			Joins("JOIN user_roles ON user_roles.role_id = roles.id").
-			Where("user_roles.user_id = ? AND user_roles.deleted_at IS NULL", user.ID).
-			Find(&roles).Error; err != nil {
-			return nil, err
-		}
-
-		// 转换角色信息
-		roleResponses := make([]types.RoleResponse, len(roles))
-		for j, role := range roles {
-			roleResponses[j] = types.RoleResponse{
-				ID:          role.ID,
-				Name:        role.Name,
-				Code:        role.Code,
-				Description: role.Description,
-				Status:      role.Status,
-			}
-		}
-
-		items[i] = types.UserResponse{
+		list[i] = types.UserInfo{
 			ID:       user.ID,
 			Username: user.Username,
 			Nickname: user.Nickname,
 			Email:    user.Email,
 			Avatar:   user.Avatar,
 			Status:   user.Status,
-			Roles:    roleResponses,
 		}
 	}
 
 	return &types.UserListResponse{
 		Total: total,
-		Items: items,
+		List:  list,
 	}, nil
 }
 

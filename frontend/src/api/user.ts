@@ -30,9 +30,14 @@ export function updateProfile(data: UpdateProfileParams) {
   return request.put('/user/profile', data);
 }
 
-export function getUserList(params: UserListParams) {
+export const getUserList = (params: {
+  page: number;
+  pageSize: number;
+  username?: string;
+  status?: number;
+}) => {
   return request.get<UserListResult>('/users', { params });
-}
+};
 
 interface UpdateStatusRequest {
   status: 0 | 1;

@@ -47,6 +47,10 @@ func InitDB() {
 		&UserRole{},
 		&Permission{},
 		&RolePermission{},
+		&Menu{},
+		&Job{},
+		&JobHistory{},
+		&LoginLog{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to auto migrate database: %v", err)

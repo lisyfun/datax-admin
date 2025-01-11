@@ -45,6 +45,9 @@ func (c *UserController) Login(ctx *gin.Context) {
 		return
 	}
 
+	// 获取客户端 IP
+	req.IP = ctx.ClientIP()
+
 	resp, err := c.userService.Login(&req)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

@@ -26,8 +26,10 @@
           pageSize,
           showTotal: true,
           showJumper: true,
+          showPageSize: true,
         }"
         @page-change="handlePageChange"
+        @page-size-change="handlePageSizeChange"
       >
         <template #columns>
           <a-table-column title="ID" data-index="id" />
@@ -250,15 +252,16 @@ const roleForm = reactive({
 const fetchUsers = async () => {
   try {
     loading.value = true;
-    const res = await userApi.getUserList({
+    const { data } = await userApi.getUserList({
       page: page.value,
-      page_size: pageSize.value,
-      keyword: searchKeyword.value,
+      pageSize: pageSize.value,
+      username: searchKeyword.value || undefined,
     });
-    users.value = res.data.items;
-    total.value = res.data.total;
-  } catch (error: any) {
-    Message.error(error.response?.data?.error || '获取用户列表失败');
+    users.value = data.list;
+    total.value = data.total;
+  } catch (error) {
+    console.error('获取用户列表失败:', error);
+    Message.error('获取用户列表失败');
   } finally {
     loading.value = false;
   }
@@ -297,6 +300,12 @@ const handleSearch = () => {
 // 分页
 const handlePageChange = (current: number) => {
   page.value = current;
+  fetchUsers();
+};
+
+// 处理每页条数变化
+const handlePageSizeChange = (size: number) => {
+  pageSize.value = size;
   fetchUsers();
 };
 

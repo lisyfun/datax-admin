@@ -12,6 +12,7 @@ type RegisterRequest struct {
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
+	IP       string `json:"ip"`
 }
 
 // TokenResponse 登录响应

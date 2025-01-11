@@ -1,3 +1,5 @@
+import type { RoleInfo } from './role';
+
 export interface LoginParams {
   username: string;
   password: string;
@@ -28,11 +30,7 @@ export interface UserInfo {
   email: string;
   avatar: string;
   status: number;
-  roles?: {
-    id: number;
-    name: string;
-    code: string;
-  }[];
+  roles?: RoleInfo[];
 }
 
 export interface UserListParams {
@@ -43,9 +41,26 @@ export interface UserListParams {
 
 export interface UserListResult {
   total: number;
-  items: UserInfo[];
+  list: UserInfo[];
 }
 
 export interface ResetPasswordParams {
+  password: string;
+}
+
+export interface UserForm {
+  id?: number;
+  username: string;
+  password?: string;
+  nickname?: string;
+  email?: string;
+}
+
+export interface PasswordForm {
+  oldPassword: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordForm {
   password: string;
 }
