@@ -5,6 +5,7 @@ import (
 	"context"
 	"datax-admin/config"
 	"datax-admin/models"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -134,6 +135,14 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 		return
 	}
 
+	// 格式化配置内容
+	var prettyJSON bytes.Buffer
+	if err := json.Indent(&prettyJSON, []byte(dataxParams.JobConfig), "", "    "); err != nil {
+		history.Status = 0
+		history.Error = fmt.Sprintf("格式化配置内容失败: %v", err)
+		return
+	}
+
 	// 获取当前工作目录
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -194,7 +203,7 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 		config.GlobalConfig.DataX.Bin,
 		tmpFileName,
 		cmd.Dir,
-		dataxParams.JobConfig)
+		prettyJSON.String())
 
 	// 捕获输出
 	var stdout, stderr bytes.Buffer
