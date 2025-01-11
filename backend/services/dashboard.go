@@ -145,7 +145,7 @@ func (s *DashboardService) GetDashboardData() (*types.DashboardResponse, error) 
 	if err := models.DB.Model(&models.JobHistory{}).Where("status = ?", 1).Count(&successCount).Error; err != nil {
 		return nil, err
 	}
-	if err := models.DB.Model(&models.JobHistory{}).Where("status = ?", 2).Count(&failedCount).Error; err != nil {
+	if err := models.DB.Model(&models.JobHistory{}).Where("status = ?", 0).Count(&failedCount).Error; err != nil {
 		return nil, err
 	}
 	stats.SuccessCount = successCount
@@ -203,7 +203,7 @@ func (s *DashboardService) getJobExecutionTrend() ([]types.JobExecutionTrend, er
 		// 获取失败任务数
 		var failedCount int64
 		if err := models.DB.Model(&models.JobHistory{}).
-			Where("status = ? AND created_at BETWEEN ? AND ?", 2, startTime, endTime).
+			Where("status = ? AND created_at BETWEEN ? AND ?", 0, startTime, endTime).
 			Count(&failedCount).Error; err != nil {
 			return nil, err
 		}
