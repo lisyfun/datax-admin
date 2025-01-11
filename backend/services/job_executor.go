@@ -134,14 +134,29 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 		return
 	}
 
-	// 创建临时JSON文件
-	tmpFile, err := os.CreateTemp("", "datax-*.json")
+	// 获取当前工作目录
+	currentDir, err := os.Getwd()
+	if err != nil {
+		history.Status = 0
+		history.Error = fmt.Sprintf("获取当前工作目录失败: %v", err)
+		return
+	}
+
+	// 在当前目录下创建临时文件
+	tmpFile, err := os.CreateTemp(currentDir, "datax-*.json")
 	if err != nil {
 		history.Status = 0
 		history.Error = fmt.Sprintf("创建临时文件失败: %v", err)
 		return
 	}
-	defer os.Remove(tmpFile.Name())
+	tmpFileName := tmpFile.Name()
+
+	// 延迟删除临时文件，但要等到命令执行完成后
+	defer func() {
+		if err := os.Remove(tmpFileName); err != nil {
+			fmt.Printf("删除临时文件失败: %v\n", err)
+		}
+	}()
 
 	// 写入JSON配置
 	if _, err := tmpFile.WriteString(dataxParams.JobConfig); err != nil {
@@ -160,12 +175,6 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	}
 	tmpFile.Close()
 
-	// 构建命令参数
-	args := []string{
-		"-job",
-		tmpFile.Name(),
-	}
-
 	// 创建上下文，处理超时
 	ctx := context.Background()
 	if job.Timeout > 0 {
@@ -175,10 +184,17 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	}
 
 	// 准备命令
-	cmd := exec.CommandContext(ctx, config.GlobalConfig.DataX.Bin, args...)
+	cmd := exec.CommandContext(ctx, config.GlobalConfig.DataX.Bin, "-job", tmpFileName)
 
-	// 设置工作目录为 DataX bin 目录的父目录
+	// 设置工作目录为 DataX home 目录
 	cmd.Dir = config.GlobalConfig.DataX.Home
+
+	// 记录命令信息
+	cmdInfo := fmt.Sprintf("执行命令: %s -job %s\n工作目录: %s\n配置内容:\n%s",
+		config.GlobalConfig.DataX.Bin,
+		tmpFileName,
+		cmd.Dir,
+		dataxParams.JobConfig)
 
 	// 捕获输出
 	var stdout, stderr bytes.Buffer
@@ -195,11 +211,13 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	// 合并输出内容
 	var combinedOutput string
 	if outMsg != "" && errMsg != "" {
-		combinedOutput = fmt.Sprintf("标准输出:\n%s\n\n标准错误输出:\n%s", outMsg, errMsg)
+		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n标准输出:\n%s\n\n标准错误输出:\n%s", cmdInfo, outMsg, errMsg)
 	} else if outMsg != "" {
-		combinedOutput = outMsg
+		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n标准输出:\n%s", cmdInfo, outMsg)
 	} else if errMsg != "" {
-		combinedOutput = errMsg
+		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n标准错误输出:\n%s", cmdInfo, errMsg)
+	} else {
+		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n无输出", cmdInfo)
 	}
 
 	if err != nil {
@@ -210,7 +228,8 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 
 		if isRealError {
 			history.Status = 0
-			history.Error = fmt.Sprintf("执行DataX任务失败: %v\n%s", err, combinedOutput)
+			history.Error = fmt.Sprintf("执行DataX任务失败: %v", err)
+			history.Output = combinedOutput
 		} else {
 			// 如果标准错误输出中没有明显的错误信息，认为是正常的日志输出
 			history.Status = 1

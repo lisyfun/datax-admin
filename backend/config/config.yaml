@@ -17,9 +17,7 @@ jwt:
   secret: your-secret-key
   expire: 86400  # 24 hours
 
-log:
-  level: debug
-  filename: logs/datax-admin.log
-  max_size: 100
-  max_age: 30
-  max_backups: 10
+datax:
+  home: "/Users/lisongyu/workspace/go/src/datax-admin/"  # DataX 安装目录
+  bin: "/Users/lisongyu/workspace/go/src/datax-admin/bin/datax"  # DataX 可执行文件路径
+
