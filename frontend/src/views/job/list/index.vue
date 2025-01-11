@@ -276,9 +276,21 @@ const handleCreate = () => {
 
 // 编辑任务
 const handleEdit = (record: Job) => {
-  isEdit.value = true;
-  currentJob.value = record;
-  showForm.value = true;
+  try {
+    console.log('开始编辑任务:', record);
+    // 确保数据存在
+    if (!record || !record.id) {
+      Message.error('任务数据无效');
+      return;
+    }
+
+    isEdit.value = true;
+    currentJob.value = { ...record }; // 创建数据副本
+    showForm.value = true;
+  } catch (err) {
+    console.error('编辑任务失败:', err);
+    Message.error('编辑任务失败');
+  }
 };
 
 // 执行一次任务

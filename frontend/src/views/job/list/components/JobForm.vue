@@ -455,6 +455,7 @@ watch(() => props.visible, (newVal) => {
 // 监听jobData变化，更新表单数据
 watch(() => props.jobData, (newVal: Job | undefined) => {
   if (newVal && props.visible) {
+    console.log('编辑任务数据:', newVal);
     // 先重置表单，再设置新数据
     resetForm();
 
@@ -468,30 +469,39 @@ watch(() => props.jobData, (newVal: Job | undefined) => {
     form.retry_delay = newVal.retry_delay || 0;
 
     try {
-      const params = typeof newVal.params === 'string' ? JSON.parse(newVal.params) : newVal.params;
+      let params: any;
+      if (typeof newVal.params === 'string') {
+        params = JSON.parse(newVal.params);
+        console.log('解析后的参数:', params);
+      } else {
+        params = newVal.params;
+      }
+
       if (newVal.type === 'shell') {
         form.command = params.command || '';
         form.working_dir = params.work_dir || '';
       } else if (newVal.type === 'http') {
         form.url = params.url || '';
         form.method = params.method || 'GET';
-        form.headers = JSON.stringify(params.headers || {}, null, 2);
+        form.headers = typeof params.headers === 'string' ? params.headers : JSON.stringify(params.headers || {}, null, 2);
         form.body = params.body || '';
-        form.success_codes = (params.success_code || [200]).join(',');
+        form.success_codes = Array.isArray(params.success_code) ? params.success_code.join(',') : '200';
       } else if (newVal.type === 'datax') {
         // 处理DataX参数
-        form.datax_params.parameters = Object.entries(params.parameters || {}).map(([key, value]) => ({
+        const parameters = params.parameters || {};
+        form.datax_params.parameters = Object.entries(parameters).map(([key, value]) => ({
           key,
           value: String(value)
         }));
 
         // 移除DataX特定参数，剩下的作为job内容
-        const { parameters, ...jobContent } = params;
+        const { parameters: _, ...jobContent } = params;
         form.datax_params.job_content = JSON.stringify(jobContent, null, 2);
+        console.log('DataX任务内容:', form.datax_params);
       }
     } catch (e) {
-      console.error('解析参数失败:', e);
-      Message.error('解析任务参数失败');
+      console.error('解析任务参数失败:', e);
+      Message.error(`解析任务参数失败: ${(e as Error).message}`);
     }
   }
 }, { immediate: true });
