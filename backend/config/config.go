@@ -14,8 +14,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port string `mapstructure:"port"`
-	Mode string `mapstructure:"mode"`
+	Port     string `mapstructure:"port"`
+	Mode     string `mapstructure:"mode"`
+	BasePath string `mapstructure:"base_path"`
 }
 
 type DatabaseConfig struct {

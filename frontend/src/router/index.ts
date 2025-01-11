@@ -134,7 +134,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory('/datax/'),
   routes: appRoutes as RouteRecordRaw[],
 });
 

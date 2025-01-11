@@ -13,7 +13,7 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': {
+      '/datax/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         // rewrite: (path) => path.replace(/^\/api/, ''),
@@ -34,4 +34,5 @@ export default defineConfig({
       },
     },
   },
+  base: '/datax/',
 })

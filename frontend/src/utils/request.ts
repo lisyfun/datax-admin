@@ -5,7 +5,7 @@ import router from '@/router';
 
 // 创建 axios 实例
 const request = axios.create({
-  baseURL: '/api/v1',
+  baseURL: '/datax/api/v1',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

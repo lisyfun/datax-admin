@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"datax-admin/config"
 	"datax-admin/controllers"
 	"datax-admin/middleware"
 	"net/http"
@@ -26,7 +27,7 @@ func SetupRoutes(r *gin.Engine) {
 	permissionController := controllers.NewPermissionController()
 
 	// API v1 路由组
-	v1 := r.Group("/api/v1")
+	v1 := r.Group(config.GlobalConfig.Server.BasePath + "/api/v1")
 	{
 		// 公开路由
 		public := v1.Group("")
