@@ -282,9 +282,12 @@ const form = reactive<FormState>(initFormState());
 
 // 重置表单
 const resetForm = () => {
-  Object.assign(form, initFormState());
-  if (formRef.value) {
-    formRef.value.resetFields();
+  // 只在新建时重置表单
+  if (!props.isEdit) {
+    Object.assign(form, initFormState());
+    if (formRef.value) {
+      formRef.value.resetFields();
+    }
   }
 };
 
@@ -376,17 +379,18 @@ const handleSubmit = async () => {
 
   try {
     await formRef.value.validate();
+    console.log('提交表单时的表单数据:', form);
 
     let params: JobShellParams | JobHTTPParams | JobDataXParams;
     if (form.type === 'shell') {
       params = {
-        command: form.command,
-        work_dir: form.working_dir,
+        command: form.command.trim(),
+        work_dir: form.working_dir.trim(),
         environment: {}
       } as JobShellParams;
     } else if (form.type === 'http') {
       params = {
-        url: form.url,
+        url: form.url.trim(),
         method: form.method,
         headers: JSON.parse(form.headers),
         body: form.body,
@@ -401,27 +405,67 @@ const handleSubmit = async () => {
         }
       });
 
-      params = {
-        parameters,
-        ...JSON.parse(form.datax_params.job_content)
-      } as JobDataXParams;
+      try {
+        // 解析当前的 job_content
+        const currentContent = JSON.parse(form.datax_params.job_content || '{}');
+
+        // 构造完整的 DataX 参数
+        const jobConfig = {
+          job: {
+            content: [{
+              reader: currentContent.job?.content?.[0]?.reader || {},
+              writer: currentContent.job?.content?.[0]?.writer || {}
+            }],
+            setting: {
+              speed: {
+                channel: 24,
+                bytes: 52428800
+              },
+              errorLimit: {
+                record: 0,
+                percentage: 0.02
+              }
+            }
+          }
+        };
+
+        params = {
+          job_config: JSON.stringify(jobConfig),
+          parameters
+        } as unknown as JobDataXParams;
+      } catch (err) {
+        console.error('构造DataX参数失败:', err);
+        Message.error('构造DataX参数失败');
+        return;
+      }
     }
 
     const data = {
-      name: form.name,
-      description: form.description,
+      name: form.name.trim(),
+      description: form.description.trim(),
       type: form.type,
-      cron_expr: form.cron_expr,
+      cron_expr: form.cron_expr.trim(),
       timeout: form.timeout,
       retry_count: form.retry_count,
       retry_delay: form.retry_delay,
       params
     };
 
+    console.log('提交的数据:', {
+      id: props.jobData?.id,
+      data
+    });
+
     if (props.isEdit) {
-      await updateJob(form.id, data);
+      if (!props.jobData?.id) {
+        Message.error('任务ID无效');
+        return;
+      }
+      console.log('正在更新任务，ID:', props.jobData.id);
+      await updateJob(props.jobData.id, data);
       Message.success('编辑任务成功');
     } else {
+      console.log('正在创建新任务');
       await createJob(data);
       Message.success('创建任务成功');
     }
@@ -429,6 +473,7 @@ const handleSubmit = async () => {
     emit('update:visible', false);
     emit('success');
   } catch (err: any) {
+    console.error('表单提交失败:', err);
     if (err.response?.data?.error) {
       Message.error(err.response.data.error);
     } else if (err.errors) {
@@ -442,13 +487,18 @@ const handleSubmit = async () => {
 // 取消表单
 const handleCancel = () => {
   emit('update:visible', false);
-  resetForm();
 };
 
 // 监听visible变化，当弹窗关闭时重置表单
 watch(() => props.visible, (newVal) => {
   if (!newVal) {
-    resetForm();
+    // 关闭弹窗时，只在非编辑模式下重置表单
+    if (!props.isEdit) {
+      Object.assign(form, initFormState());
+      if (formRef.value) {
+        formRef.value.resetFields();
+      }
+    }
   }
 });
 
@@ -456,19 +506,15 @@ watch(() => props.visible, (newVal) => {
 watch(() => props.jobData, (newVal: Job | undefined) => {
   if (newVal && props.visible) {
     console.log('编辑任务数据:', newVal);
-    // 先重置表单，再设置新数据
-    resetForm();
 
-    form.id = newVal.id;
-    form.name = newVal.name;
-    form.description = newVal.description || '';
-    form.type = newVal.type as 'shell' | 'http' | 'datax';
-    form.cron_expr = newVal.cron_expr;
-    form.timeout = newVal.timeout || 0;
-    form.retry_count = newVal.retry_count || 0;
-    form.retry_delay = newVal.retry_delay || 0;
+    if (!newVal.id) {
+      console.error('任务数据中缺少ID');
+      Message.error('任务数据无效');
+      return;
+    }
 
     try {
+      // 先解析参数
       let params: any;
       if (typeof newVal.params === 'string') {
         params = JSON.parse(newVal.params);
@@ -477,27 +523,41 @@ watch(() => props.jobData, (newVal: Job | undefined) => {
         params = newVal.params;
       }
 
+      // 根据任务类型设置表单数据
       if (newVal.type === 'shell') {
-        form.command = params.command || '';
-        form.working_dir = params.work_dir || '';
+        Object.assign(form, {
+          id: newVal.id,
+          name: newVal.name || '',
+          description: newVal.description || '',
+          type: newVal.type,
+          cron_expr: newVal.cron_expr || '',
+          timeout: newVal.timeout || 0,
+          retry_count: newVal.retry_count || 0,
+          retry_delay: newVal.retry_delay || 0,
+          command: params.command || '',
+          working_dir: params.work_dir || '',
+        });
       } else if (newVal.type === 'http') {
-        form.url = params.url || '';
-        form.method = params.method || 'GET';
-        form.headers = typeof params.headers === 'string' ? params.headers : JSON.stringify(params.headers || {}, null, 2);
-        form.body = params.body || '';
-        form.success_codes = Array.isArray(params.success_code) ? params.success_code.join(',') : '200';
+        Object.assign(form, {
+          id: newVal.id,
+          name: newVal.name || '',
+          description: newVal.description || '',
+          type: newVal.type,
+          cron_expr: newVal.cron_expr || '',
+          timeout: newVal.timeout || 0,
+          retry_count: newVal.retry_count || 0,
+          retry_delay: newVal.retry_delay || 0,
+          url: params.url || '',
+          method: params.method || 'GET',
+          headers: typeof params.headers === 'string' ? params.headers : JSON.stringify(params.headers || {}, null, 2),
+          body: params.body || '',
+          success_codes: Array.isArray(params.success_code) ? params.success_code.join(',') : '200'
+        });
       } else if (newVal.type === 'datax') {
         try {
-          // 解析整个params对象
+          // 解析DataX参数
           const dataxParams = typeof params === 'string' ? JSON.parse(params) : params;
           console.log('DataX原始参数:', dataxParams);
-
-          // 处理parameters参数
-          const parameters = dataxParams.parameters || {};
-          form.datax_params.parameters = Object.entries(parameters).map(([key, value]) => ({
-            key,
-            value: String(value)
-          }));
 
           // 处理job_config
           let jobConfig = dataxParams.job_config;
@@ -506,13 +566,30 @@ watch(() => props.jobData, (newVal: Job | undefined) => {
           }
           console.log('解析后的job_config:', jobConfig);
 
-          // 设置job_content
-          form.datax_params.job_content = JSON.stringify(jobConfig, null, 2);
+          Object.assign(form, {
+            id: newVal.id,
+            name: newVal.name || '',
+            description: newVal.description || '',
+            type: newVal.type,
+            cron_expr: newVal.cron_expr || '',
+            timeout: newVal.timeout || 0,
+            retry_count: newVal.retry_count || 0,
+            retry_delay: newVal.retry_delay || 0,
+            datax_params: {
+              parameters: Object.entries(dataxParams.parameters || {}).map(([key, value]) => ({
+                key,
+                value: String(value)
+              })),
+              job_content: JSON.stringify(jobConfig, null, 2)
+            }
+          });
         } catch (e) {
           console.error('解析DataX参数失败:', e);
           Message.error(`解析DataX参数失败: ${(e as Error).message}`);
         }
       }
+
+      console.log('更新后的表单数据:', form);
     } catch (e) {
       console.error('解析任务参数失败:', e);
       Message.error(`解析任务参数失败: ${(e as Error).message}`);

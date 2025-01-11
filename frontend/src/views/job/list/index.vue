@@ -284,8 +284,12 @@ const handleEdit = (record: Job) => {
       return;
     }
 
+    // 创建完整的数据副本
+    const jobData = JSON.parse(JSON.stringify(record));
+    console.log('编辑任务数据副本:', jobData);
+
     isEdit.value = true;
-    currentJob.value = { ...record }; // 创建数据副本
+    currentJob.value = jobData;
     showForm.value = true;
   } catch (err) {
     console.error('编辑任务失败:', err);
