@@ -102,12 +102,15 @@ const searchForm = reactive<SearchFormState>({
 
 // 初始化查询参数
 onMounted(() => {
-  const { job_id, job_name } = route.query;
+  const { job_id, job_name, status } = route.query;
   if (job_id) {
     searchForm.jobId = parseInt(job_id as string);
   }
   if (job_name) {
     searchForm.jobName = job_name as string;
+  }
+  if (status) {
+    searchForm.status = status as string;
   }
   fetchData();
 });
@@ -186,7 +189,7 @@ const fetchData = async () => {
       page: pagination.current,
       page_size: pagination.pageSize,
       keyword: searchForm.jobName || undefined,
-      status: searchForm.status ? parseInt(searchForm.status) : undefined,
+      status: searchForm.status !== '' ? Number(searchForm.status) : undefined,
       job_id: searchForm.jobId,
     });
 
@@ -227,6 +230,9 @@ const handleSearch = () => {
   }
   if (searchForm.jobName) {
     query.job_name = searchForm.jobName;
+  }
+  if (searchForm.status) {
+    query.status = searchForm.status;
   }
   router.replace({
     path: route.path,
