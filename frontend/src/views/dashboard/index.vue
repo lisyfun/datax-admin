@@ -147,7 +147,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import {
   IconUser,
   IconUserGroup,
@@ -163,6 +163,7 @@ import {
 } from '@arco-design/web-vue/es/icon';
 import * as echarts from 'echarts';
 import { getDashboard } from '@/api/dashboard';
+
 interface Stats {
   userCount: number;
   roleCount: number;
@@ -252,9 +253,33 @@ const systemInfoData = computed(() => [
 const chartRef = ref<HTMLElement>();
 let chart: echarts.ECharts | null = null;
 
+const getThemeColor = (cssVar: string) => {
+  const el = document.documentElement;
+  const varValue = getComputedStyle(el).getPropertyValue(cssVar).trim();
+  return varValue.startsWith('rgb') ? varValue : `rgb(${varValue})`;
+};
+
+const getRgbaColor = (cssVar: string, alpha: number) => {
+  const el = document.documentElement;
+  const varValue = getComputedStyle(el).getPropertyValue(cssVar).trim();
+  if (varValue.startsWith('rgb')) {
+    return varValue.replace('rgb', 'rgba').replace(')', `, ${alpha})`);
+  }
+  return `rgba(${varValue}, ${alpha})`;
+};
+
+const getCurrentTheme = () => {
+  return document.body.hasAttribute('arco-theme') ? 'dark' : 'light';
+};
+
 const initChart = () => {
   if (chartRef.value) {
-    chart = echarts.init(chartRef.value);
+    chart = echarts.init(chartRef.value, getCurrentTheme());
+    window.addEventListener('resize', () => {
+      if (chart) {
+        chart.resize();
+      }
+    });
     updateChart();
   }
 };
@@ -263,51 +288,133 @@ const updateChart = () => {
   if (!chart) return;
 
   const option = {
+    color: ['#67c23a', '#f56c6c'],
+    backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
       axisPointer: {
-        type: 'shadow',
-      },
+        type: 'line'
+      }
     },
     legend: {
       data: ['成功', '失败'],
+      top: 10
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true,
+      left: '8%',
+      right: '5%',
+      bottom: '15%',
+      top: '15%',
+      containLabel: true
     },
     xAxis: {
       type: 'category',
       data: trendData.value.map(item => item.date),
+      axisLabel: {
+        rotate: 45,
+        interval: 0,
+        fontSize: 12,
+        margin: 14
+      },
+      boundaryGap: false
     },
     yAxis: {
       type: 'value',
+      splitLine: {
+        lineStyle: {
+          type: 'dashed'
+        }
+      },
+      axisLabel: {
+        fontSize: 12
+      },
+      minInterval: 1,
+      min: 0,
+      max: function(value: { max: number }) {
+        return Math.ceil(value.max * 1.1);
+      }
     },
     series: [
       {
         name: '成功',
-        type: 'bar',
-        stack: 'total',
+        type: 'line',
         data: trendData.value.map(item => item.successCount),
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
         itemStyle: {
-          color: 'rgb(var(--success-6))',
+          color: '#67c23a'
         },
+        lineStyle: {
+          width: 2.5,
+          color: '#67c23a'
+        },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [{
+              offset: 0,
+              color: 'rgba(103, 194, 58, 0.3)'
+            }, {
+              offset: 1,
+              color: 'rgba(103, 194, 58, 0.05)'
+            }]
+          }
+        },
+        emphasis: {
+          focus: 'series',
+          lineStyle: {
+            width: 3
+          }
+        },
+        showSymbol: true
       },
       {
         name: '失败',
-        type: 'bar',
-        stack: 'total',
+        type: 'line',
         data: trendData.value.map(item => item.failedCount),
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
         itemStyle: {
-          color: 'rgb(var(--danger-6))',
+          color: '#f56c6c'
         },
-      },
-    ],
+        lineStyle: {
+          width: 2.5,
+          color: '#f56c6c'
+        },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [{
+              offset: 0,
+              color: 'rgba(245, 108, 108, 0.3)'
+            }, {
+              offset: 1,
+              color: 'rgba(245, 108, 108, 0.05)'
+            }]
+          }
+        },
+        emphasis: {
+          focus: 'series',
+          lineStyle: {
+            width: 3
+          }
+        },
+        showSymbol: true
+      }
+    ]
   };
 
-  chart.setOption(option);
+  chart.setOption(option, true);
 };
 
 const fetchStats = async () => {
@@ -317,21 +424,46 @@ const fetchStats = async () => {
     recentLogins.value = data.recentLogins;
     trendData.value = data.trendData;
     systemInfo.value = data.systemInfo;
-    updateChart();
+
+    nextTick(() => {
+      if (!chart && chartRef.value) {
+        initChart();
+      } else if (chart) {
+        updateChart();
+      }
+    });
   } catch (error) {
     console.error('获取仪表盘数据失败:', error);
   }
 };
 
+// 监听主题变化
+const observer = new MutationObserver(() => {
+  if (chart) {
+    const theme = getCurrentTheme();
+    chart.dispose();
+    chart = echarts.init(chartRef.value, theme);
+    updateChart();
+  }
+});
+
 onMounted(() => {
   fetchStats();
-  initChart();
-  window.addEventListener('resize', () => chart?.resize());
+  // 监听 body 的属性变化
+  observer.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['arco-theme']
+  });
 });
 
 onUnmounted(() => {
-  chart?.dispose();
-  window.removeEventListener('resize', () => chart?.resize());
+  if (chart) {
+    window.removeEventListener('resize', () => chart?.resize());
+    chart.dispose();
+    chart = null;
+  }
+  // 停止监听
+  observer.disconnect();
 });
 </script>
 
@@ -343,7 +475,7 @@ onUnmounted(() => {
 
 .stat-card {
   height: 140px;
-  background-color: var(--color-bg-1);
+  background-color: var(--color-bg-2);
   transition: all 0.3s;
   border-radius: 8px;
   position: relative;
@@ -357,14 +489,14 @@ onUnmounted(() => {
   right: 0;
   width: 80px;
   height: 80px;
-  background: linear-gradient(45deg, transparent, rgba(var(--primary-6), 0.1));
+  background: linear-gradient(45deg, transparent, rgba(var(--primary-6), 0.15));
   border-radius: 0 8px 0 50%;
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  background-color: var(--color-bg-1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background-color: var(--color-bg-3);
 }
 
 .stat-header {
@@ -424,13 +556,22 @@ onUnmounted(() => {
 .info-card,
 .chart-card {
   height: 100%;
-  background-color: var(--color-bg-1);
+  background-color: var(--color-bg-2);
   border-radius: 8px;
 }
 
 .chart-container {
-  height: 300px;
+  height: 360px;
   width: 100%;
+  min-height: 360px;
+  padding: 0 0 16px 0;
+}
+
+.chart-card {
+  height: 100%;
+  min-height: 420px;
+  background-color: var(--color-bg-2);
+  border-radius: 8px;
 }
 
 .card-title {
@@ -460,21 +601,21 @@ onUnmounted(() => {
 }
 
 :deep(.arco-table-th) {
-  background-color: var(--color-fill-2) !important;
+  background-color: var(--color-fill-3) !important;
   font-weight: 500;
 }
 
 :deep(.arco-table-tr:hover) {
-  background-color: var(--color-fill-2) !important;
+  background-color: var(--color-fill-3) !important;
 }
 
 :deep(.arco-descriptions) {
-  background-color: var(--color-bg-1);
+  background-color: var(--color-bg-2);
 }
 
 :deep(.arco-descriptions-bordered) {
   border-radius: 8px;
-  border: 1px solid var(--color-neutral-3);
+  border: 1px solid var(--color-neutral-4);
 }
 
 :deep(.arco-descriptions-bordered .arco-descriptions-item) {
@@ -482,11 +623,13 @@ onUnmounted(() => {
 }
 
 :deep(.arco-card) {
-  border: 1px solid var(--color-neutral-3);
+  background-color: var(--color-bg-2);
+  border: 1px solid var(--color-neutral-4);
 }
 
 :deep(.arco-table-container) {
   border-radius: 8px;
+  border: 1px solid var(--color-neutral-4);
 }
 
 :deep(.arco-table-cell) {
