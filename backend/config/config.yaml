@@ -1,18 +1,24 @@
 server:
   port: ":8080"
-  mode: "debug"  # debug or release
+  mode: debug
 
 database:
-  host: "localhost"
-  port: "13306"
-  username: "root"
-  password: "123456"
-  dbname: "datax_admin"
+  host: 127.0.0.1
+  port: 13306
+  username: root
+  password: 123456
+  dbname: datax_admin
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 3600
 
 jwt:
-  secret: "datax-admin-secret"
-  expire: 24  # hours
+  secret: your-secret-key
+  expire: 86400  # 24 hours
 
-datax:
-  bin: "/Users/lisongyu/workspace/go/src/datax-admin/bin/datax"  # DataX 可执行文件绝对路径
-  home: "/Users/lisongyu/workspace/go/src/datax-admin"
+log:
+  level: debug
+  filename: logs/datax-admin.log
+  max_size: 100
+  max_age: 30
+  max_backups: 10

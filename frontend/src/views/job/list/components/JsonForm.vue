@@ -34,8 +34,8 @@
           <div class="json-field-value">
             <JsonForm
               :value="val"
-              :path="[...currentPath, key as string]"
-              @update="({ value: newVal }) => handleObjectUpdate(key as string, newVal)"
+              :path="[...currentPath, String(key)]"
+              @update="({ value: newVal }) => handleObjectUpdate(String(key), newVal)"
             />
           </div>
         </div>
