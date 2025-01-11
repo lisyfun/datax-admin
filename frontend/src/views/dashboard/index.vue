@@ -303,7 +303,7 @@ const updateChart = () => {
     grid: {
       left: '8%',
       right: '5%',
-      bottom: '15%',
+      bottom: '8%',
       top: '15%',
       containLabel: true
     },
@@ -311,10 +311,9 @@ const updateChart = () => {
       type: 'category',
       data: trendData.value.map(item => item.date),
       axisLabel: {
-        rotate: 45,
-        interval: 0,
+        rotate: 0,
         fontSize: 12,
-        margin: 14
+        margin: 8
       },
       boundaryGap: false
     },
@@ -572,6 +571,17 @@ onUnmounted(() => {
   min-height: 420px;
   background-color: var(--color-bg-2);
   border-radius: 8px;
+}
+
+.list-card {
+  height: 100%;
+  min-height: 420px;
+  background-color: var(--color-bg-2);
+  border-radius: 8px;
+  :deep(.arco-table-container) {
+    height: 360px;
+    overflow: auto;
+  }
 }
 
 .card-title {
