@@ -6,6 +6,7 @@ import (
 	"datax-admin/utils"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -150,7 +151,7 @@ func (s *UserService) UpdateUserStatus(userID uint, req *types.UpdateUserStatusR
 	}
 
 	// 检查状态值是否有效
-	if req.Status != 0 && req.Status != 1 {
+	if req.Status != nil && (*req.Status != 0 && *req.Status != 1) {
 		return errors.New("无效的状态值")
 	}
 
@@ -161,29 +162,58 @@ func (s *UserService) UpdateUserStatus(userID uint, req *types.UpdateUserStatusR
 // GetUserList 获取用户列表
 func (s *UserService) GetUserList(req *types.UserListRequest) (*types.UserListResponse, error) {
 	var total int64
-	var users []models.User
+	var users []struct {
+		models.User
+		RoleNames string `gorm:"column:role_names"`
+	}
 
-	query := models.DB.Model(&models.User{})
+	// 基础查询
+	query := models.DB.Model(&models.User{}).
+		Select("users.*, GROUP_CONCAT(DISTINCT roles.name SEPARATOR ',') as role_names").
+		Joins("LEFT JOIN user_roles ON users.id = user_roles.user_id AND user_roles.deleted_at IS NULL").
+		Joins("LEFT JOIN roles ON user_roles.role_id = roles.id AND roles.deleted_at IS NULL AND roles.status = 1").
+		Group("users.id, users.username, users.password, users.nickname, users.email, users.avatar, users.status, users.created_at, users.updated_at, users.deleted_at")
+
 	if req.Username != "" {
-		query = query.Where("username LIKE ?", "%"+req.Username+"%")
+		query = query.Where("users.username LIKE ?", "%"+req.Username+"%")
 	}
 	if req.Status != nil {
-		query = query.Where("status = ?", *req.Status)
+		query = query.Where("users.status = ?", *req.Status)
 	}
 
-	// 获取总数
-	if err := query.Count(&total).Error; err != nil {
+	// 获取总数（需要去掉 GROUP BY 和 SELECT）
+	countQuery := models.DB.Model(&models.User{})
+	if req.Username != "" {
+		countQuery = countQuery.Where("username LIKE ?", "%"+req.Username+"%")
+	}
+	if req.Status != nil {
+		countQuery = countQuery.Where("status = ?", *req.Status)
+	}
+	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, err
 	}
 
 	// 获取分页数据
-	if err := query.Limit(req.PageSize).Offset((req.Page - 1) * req.PageSize).Find(&users).Error; err != nil {
+	if err := query.Limit(req.PageSize).
+		Offset((req.Page - 1) * req.PageSize).
+		Find(&users).Error; err != nil {
 		return nil, err
 	}
 
 	// 转换为响应格式
 	list := make([]types.UserInfo, len(users))
 	for i, user := range users {
+		var roleList []types.RoleInfo
+		if user.RoleNames != "" {
+			roleNames := strings.Split(user.RoleNames, ",")
+			roleList = make([]types.RoleInfo, len(roleNames))
+			for j, name := range roleNames {
+				roleList[j] = types.RoleInfo{
+					Name: name,
+				}
+			}
+		}
+
 		list[i] = types.UserInfo{
 			ID:       user.ID,
 			Username: user.Username,
@@ -191,6 +221,7 @@ func (s *UserService) GetUserList(req *types.UserListRequest) (*types.UserListRe
 			Email:    user.Email,
 			Avatar:   user.Avatar,
 			Status:   user.Status,
+			Roles:    roleList,
 		}
 	}
 

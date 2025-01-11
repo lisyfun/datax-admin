@@ -2,12 +2,20 @@ package types
 
 // UserInfo 用户信息
 type UserInfo struct {
-	ID       uint   `json:"id"`
-	Username string `json:"username"`
-	Nickname string `json:"nickname"`
-	Avatar   string `json:"avatar"`
-	Email    string `json:"email"`
-	Status   int    `json:"status"`
+	ID       uint       `json:"id"`
+	Username string     `json:"username"`
+	Nickname string     `json:"nickname"`
+	Avatar   string     `json:"avatar"`
+	Email    string     `json:"email"`
+	Status   int        `json:"status"`
+	Roles    []RoleInfo `json:"roles"`
+}
+
+// RoleInfo 角色信息
+type RoleInfo struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+	Code string `json:"code"`
 }
 
 // LoginResponse 登录响应
@@ -31,7 +39,7 @@ type UpdateProfileRequest struct {
 
 // UpdateUserStatusRequest 更新用户状态请求
 type UpdateUserStatusRequest struct {
-	Status int `json:"status" binding:"required,oneof=0 1"`
+	Status *int `json:"status" binding:"required,oneof=0 1"`
 }
 
 // UserListRequest 用户列表请求
