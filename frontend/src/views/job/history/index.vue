@@ -79,6 +79,7 @@ import { getJobHistoryList } from '@/api/job';
 import type { JobHistory } from '@/api/types';
 import { formatDateTime } from '@/utils/date';
 import { useRoute, useRouter } from 'vue-router';
+import { usePageRefresh } from '@/composables/usePageRefresh';
 
 const route = useRoute();
 const router = useRouter();
@@ -98,6 +99,11 @@ const searchForm = reactive<SearchFormState>({
   jobName: '',
   status: '',
   jobId: undefined,
+});
+
+// 使用页面刷新功能
+usePageRefresh(() => {
+  fetchData();
 });
 
 // 初始化查询参数

@@ -193,6 +193,7 @@ import type { RoleInfo } from '@/types/role';
 import * as userApi from '@/api/user';
 import * as roleApi from '@/api/role';
 import { encryptPassword } from '@/utils/crypto';
+import { usePageRefresh } from '@/composables/usePageRefresh';
 import {
   IconPlus,
   IconEdit,
@@ -250,22 +251,26 @@ const roleForm = reactive({
 
 // 获取用户列表
 const fetchUsers = async () => {
+  loading.value = true;
   try {
-    loading.value = true;
-    const { data } = await userApi.getUserList({
+    const res = await userApi.getUserList({
       page: page.value,
       pageSize: pageSize.value,
       username: searchKeyword.value || undefined,
     });
-    users.value = data.list;
-    total.value = data.total;
+    users.value = res.data.list;
+    total.value = res.data.total;
   } catch (error) {
     console.error('获取用户列表失败:', error);
-    Message.error('获取用户列表失败');
   } finally {
     loading.value = false;
   }
 };
+
+// 使用页面刷新功能
+usePageRefresh(() => {
+  fetchUsers();
+});
 
 // 获取角色列表
 const fetchRoles = async () => {

@@ -119,6 +119,7 @@ import type { PermissionInfo } from '@/types/permission';
 import { convertToTreeData } from '@/types/permission';
 import * as roleApi from '@/api/role';
 import * as permissionApi from '@/api/permission';
+import { usePageRefresh } from '@/composables/usePageRefresh';
 import {
   IconPlus,
   IconEdit,
@@ -317,6 +318,11 @@ const handlePermissionFormSubmit = async () => {
 const handlePermissionFormCancel = () => {
   showPermissionForm.value = false;
 };
+
+// 使用页面刷新功能
+usePageRefresh(() => {
+  fetchRoles();
+});
 
 onMounted(() => {
   fetchRoles();

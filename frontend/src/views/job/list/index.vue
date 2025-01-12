@@ -133,6 +133,7 @@
 import { ref, reactive } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import { useRouter } from 'vue-router';
+import { usePageRefresh } from '@/composables/usePageRefresh';
 import {
   IconPlus,
   IconPlayCircle,
@@ -412,6 +413,11 @@ const handleHistory = (record: Job) => {
     }
   });
 };
+
+// 使用页面刷新功能
+usePageRefresh(() => {
+  fetchData();
+});
 
 // 初始化加载数据
 fetchData();

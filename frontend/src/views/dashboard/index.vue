@@ -149,7 +149,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick, inject } from 'vue';
 import {
   IconUser,
   IconUserGroup,
@@ -419,24 +419,24 @@ const updateChart = () => {
   chart.setOption(option, true);
 };
 
-const fetchStats = async () => {
+// 获取仪表盘数据
+const fetchDashboardData = async () => {
   try {
-    const { data } = await getDashboard();
-    stats.value = data.stats;
-    recentLogins.value = data.recentLogins;
-    trendData.value = data.trendData;
-    systemInfo.value = data.systemInfo;
-
-    nextTick(() => {
-      if (!chart && chartRef.value) {
-        initChart();
-      } else if (chart) {
-        updateChart();
-      }
-    });
+    const res = await getDashboard();
+    stats.value = res.data.stats;
+    recentLogins.value = res.data.recentLogins;
+    trendData.value = res.data.trendData;
+    systemInfo.value = res.data.systemInfo;
+    await nextTick();
+    initChart();
   } catch (error) {
     console.error('获取仪表盘数据失败:', error);
   }
+};
+
+// 监听刷新事件
+const handlePageRefresh = () => {
+  fetchDashboardData();
 };
 
 // 监听主题变化
@@ -450,7 +450,9 @@ const observer = new MutationObserver(() => {
 });
 
 onMounted(() => {
-  fetchStats();
+  fetchDashboardData();
+  // 添加刷新事件监听
+  window.addEventListener('page-refresh', handlePageRefresh);
   // 监听 body 的属性变化
   observer.observe(document.body, {
     attributes: true,
@@ -466,6 +468,8 @@ onUnmounted(() => {
   }
   // 停止监听
   observer.disconnect();
+  // 移除刷新事件监听
+  window.removeEventListener('page-refresh', handlePageRefresh);
 });
 </script>
 

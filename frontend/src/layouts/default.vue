@@ -26,8 +26,8 @@
               <icon-sun-fill v-else />
             </template>
           </a-button>
-          <a-button class="action-btn" type="text">
-            <template #icon><icon-notification /></template>
+          <a-button class="action-btn" type="text" @click="handleRefresh">
+            <template #icon><icon-refresh /></template>
           </a-button>
           <a-button class="action-btn" type="text" @click="toggleFullscreen">
             <template #icon>
@@ -108,7 +108,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted, provide } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { Message, Modal } from '@arco-design/web-vue';
 import {
@@ -127,7 +127,7 @@ import {
   IconCode,
   IconRobot,
   IconDown,
-  IconNotification,
+  IconRefresh,
   IconFullscreen,
   IconFullscreenExit,
   IconMenuFold,
@@ -145,6 +145,7 @@ const route = useRoute();
 const collapsed = ref(false);
 const isDarkMode = ref(false);
 const isFullscreen = ref(false);
+const isRefreshing = ref(false);
 
 interface MenuItem {
   key: string;
@@ -285,6 +286,26 @@ const openKeys = computed(() => {
 const handleMenuClick = (key: string) => {
   router.push(key);
 };
+
+// 处理页面刷新
+const handleRefresh = async () => {
+  if (isRefreshing.value) return;
+  isRefreshing.value = true;
+
+  try {
+    // 触发当前页面的刷新方法
+    const refreshEvent = new CustomEvent('page-refresh');
+    window.dispatchEvent(refreshEvent);
+    Message.success('刷新成功');
+  } catch (error) {
+    Message.error('刷新失败');
+  } finally {
+    isRefreshing.value = false;
+  }
+};
+
+// 提供刷新方法给所有子组件
+provide('triggerRefresh', handleRefresh);
 
 onMounted(() => {
   fetchUserInfo();
