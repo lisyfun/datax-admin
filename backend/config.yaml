@@ -1,0 +1,23 @@
+server:
+  port: ":8080"
+  mode: debug
+  base_path: "/"
+
+database:
+  host: 192.168.228.1
+  port: 13306
+  username: root
+  password: 123456
+  dbname: datax_admin
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 3600
+
+jwt:
+  secret: your-secret-key
+  expire: 86400  # 24 hours
+
+datax:
+  home: "/app"  # DataX 安装目录
+  bin: "/app/bin/datax"  # DataX 可执行文件路径
+
