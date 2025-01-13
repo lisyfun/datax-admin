@@ -2,7 +2,7 @@
   <div class="dashboard">
     <a-card>
       <template #title>仪表盘</template>
-      <a-row :gutter="16">
+      <a-row type="flex" :gutter="16">
         <a-col :span="4">
           <a-card class="stat-card" :bordered="false">
             <div class="stat-header">
@@ -39,19 +39,7 @@
             </div>
           </a-card>
         </a-col>
-        <a-col :span="4">
-          <a-card class="stat-card" :bordered="false">
-            <div class="stat-header">
-              <div class="stat-title">在线用户</div>
-              <icon-user-add class="stat-icon" />
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">{{ stats.onlineCount }}</div>
-              <div class="stat-label">当前在线用户</div>
-            </div>
-          </a-card>
-        </a-col>
-        <a-col :span="4">
+        <a-col :span="6">
           <a-card class="stat-card" :bordered="false">
             <div class="stat-header">
               <div class="stat-title">成功任务</div>
@@ -63,7 +51,7 @@
             </div>
           </a-card>
         </a-col>
-        <a-col :span="4">
+        <a-col :span="6">
           <a-card class="stat-card" :bordered="false">
             <div class="stat-header">
               <div class="stat-title">失败任务</div>
@@ -171,7 +159,6 @@ interface Stats {
   userCount: number;
   roleCount: number;
   permissionCount: number;
-  onlineCount: number;
   successCount: number;
   failedCount: number;
 }
@@ -210,7 +197,6 @@ const stats = ref<Stats>({
   userCount: 0,
   roleCount: 0,
   permissionCount: 0,
-  onlineCount: 0,
   successCount: 0,
   failedCount: 0,
 });
