@@ -2,7 +2,7 @@
   <div class="dashboard">
     <a-card>
       <template #title>仪表盘</template>
-      <a-row type="flex" :gutter="16">
+      <a-row type="flex" :gutter="20">
         <a-col :span="4">
           <a-card class="stat-card" :bordered="false">
             <div class="stat-header">
@@ -39,7 +39,7 @@
             </div>
           </a-card>
         </a-col>
-        <a-col :span="6">
+        <a-col :span="5">
           <a-card class="stat-card" :bordered="false">
             <div class="stat-header">
               <div class="stat-title">成功任务</div>
@@ -51,7 +51,7 @@
             </div>
           </a-card>
         </a-col>
-        <a-col :span="6">
+        <a-col :span="5">
           <a-card class="stat-card" :bordered="false">
             <div class="stat-header">
               <div class="stat-title">失败任务</div>
