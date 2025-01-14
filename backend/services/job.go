@@ -374,3 +374,12 @@ func (s *JobService) ExecuteJob(jobID uint) error {
 
 	return nil
 }
+
+// CleanJobHistory 清理任务历史
+func (s *JobService) CleanJobHistory(beforeTime time.Time) error {
+	if beforeTime.IsZero() {
+		// 清理全部历史记录
+		return models.DB.Where("1 = 1").Delete(&models.JobHistory{}).Error
+	}
+	return models.DB.Where("created_at < ?", beforeTime).Delete(&models.JobHistory{}).Error
+}

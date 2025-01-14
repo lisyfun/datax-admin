@@ -77,3 +77,9 @@ export function executeJobs(ids: number[]): Promise<AxiosResponse<void>> {
 export function getJobHistoryList(params: JobHistoryListRequest): Promise<AxiosResponse<JobHistoryListResponse>> {
   return request.get('/jobs/history', { params });
 }
+
+// 清理任务历史
+export function cleanJobHistory(days: number): Promise<AxiosResponse<void>> {
+  return request.post('/jobs/history/clean', { days });
+}
+

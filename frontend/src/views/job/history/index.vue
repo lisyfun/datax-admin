@@ -27,6 +27,20 @@
             <template #icon><icon-refresh /></template>
             刷新
           </a-button>
+          <a-dropdown>
+            <a-button>
+              <template #icon><icon-delete /></template>
+              清理日志
+            </a-button>
+            <template #content>
+              <a-doption @click="handleClean(15)">清理半个月前</a-doption>
+              <a-doption @click="handleClean(30)">清理一个月前</a-doption>
+              <a-doption @click="handleClean(90)">清理三个月前</a-doption>
+              <a-doption @click="handleClean(180)">清理半年前</a-doption>
+              <a-doption @click="handleClean(365)">清理一年前</a-doption>
+              <a-doption @click="handleClean(-1)">清理全部</a-doption>
+            </template>
+          </a-dropdown>
         </a-space>
       </template>
 
@@ -74,8 +88,8 @@
 import { ref, reactive, onBeforeUnmount, onMounted } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
-import { IconRefresh, IconEye, IconClose } from '@arco-design/web-vue/es/icon';
-import { getJobHistoryList } from '@/api/job';
+import { IconRefresh, IconEye, IconClose, IconDelete } from '@arco-design/web-vue/es/icon';
+import { getJobHistoryList, cleanJobHistory } from '@/api/job';
 import type { JobHistory } from '@/api/types';
 import { formatDateTime } from '@/utils/date';
 import { useRoute, useRouter } from 'vue-router';
@@ -275,6 +289,17 @@ const handleLogModalClose = () => {
   if (isUnmounted) return;
   showLogModal.value = false;
   currentLog.value = '';
+};
+
+// 清理日志
+const handleClean = async (days: number) => {
+  try {
+    await cleanJobHistory(days);
+    Message.success('清理成功');
+    fetchData();
+  } catch (err) {
+    Message.error('清理失败');
+  }
 };
 
 onBeforeUnmount(() => {

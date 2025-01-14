@@ -5,6 +5,7 @@ import (
 	"datax-admin/types"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -157,4 +158,30 @@ func (c *JobController) ExecuteJob(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "任务执行成功"})
+}
+
+// CleanJobHistory 清理任务历史
+func (c *JobController) CleanJobHistory(ctx *gin.Context) {
+	var req struct {
+		Days int `json:"days" binding:"required,min=-1"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var beforeTime time.Time
+	if req.Days == -1 {
+		// 清理全部历史
+		beforeTime = time.Time{}
+	} else {
+		beforeTime = time.Now().AddDate(0, 0, -req.Days)
+	}
+
+	if err := c.jobService.CleanJobHistory(beforeTime); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "清理任务历史成功"})
 }
