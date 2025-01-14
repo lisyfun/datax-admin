@@ -43,6 +43,7 @@
         :pagination="pagination"
         :columns="columns"
         :data="renderData"
+        v-model:selectedKeys="selectedKeys"
         :row-selection="rowSelection"
         @page-change="onPageChange"
         @page-size-change="onPageSizeChange"
@@ -130,7 +131,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import { useRouter } from 'vue-router';
 import { usePageRefresh } from '@/composables/usePageRefresh';
@@ -220,10 +221,6 @@ const columns = [
 const rowSelection = {
   type: 'checkbox' as const,
   showCheckedAll: true,
-  onlyCurrent: false,
-  onChange: (selectedRowKeys: (string | number)[]) => {
-    selectedKeys.value = selectedRowKeys as number[];
-  },
 };
 
 const pagination = reactive({

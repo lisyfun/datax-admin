@@ -185,3 +185,23 @@ func (c *JobController) CleanJobHistory(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "清理任务历史成功"})
 }
+
+// ExecuteJobs 批量执行任务
+func (c *JobController) ExecuteJobs(ctx *gin.Context) {
+	var req struct {
+		IDs []uint `json:"ids" binding:"required,min=1"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	for _, jobID := range req.IDs {
+		if err := c.jobService.ExecuteJob(jobID); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "批量执行任务成功"})
+}
