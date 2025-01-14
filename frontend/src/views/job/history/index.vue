@@ -37,7 +37,6 @@
               <a-doption @click="handleClean(30)">清理一个月前</a-doption>
               <a-doption @click="handleClean(90)">清理三个月前</a-doption>
               <a-doption @click="handleClean(180)">清理半年前</a-doption>
-              <a-doption @click="handleClean(365)">清理一年前</a-doption>
               <a-doption @click="handleClean(-1)">清理全部</a-doption>
             </template>
           </a-dropdown>
