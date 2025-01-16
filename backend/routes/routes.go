@@ -26,6 +26,9 @@ func SetupRoutes(r *gin.Engine) {
 	roleController := controllers.NewRoleController()
 	permissionController := controllers.NewPermissionController()
 	dashboardController := controllers.NewDashboardController()
+	menuController := controllers.NewMenuController()
+	jobController := controllers.NewJobController()
+	terminalController := controllers.NewTerminalController()
 
 	// API v1 路由组
 	v1 := r.Group(config.GlobalConfig.Server.BasePath + "/api/v1")
@@ -61,7 +64,7 @@ func SetupRoutes(r *gin.Engine) {
 			authenticated.GET("/users", userController.GetUserList)
 			authenticated.PUT("/users/:id/status", userController.UpdateUserStatus)
 			authenticated.PUT("/users/:id/password/reset", userController.ResetPassword)
-			authenticated.DELETE("/users/:id", userController.DeleteUser) // 删除用户
+			authenticated.DELETE("/users/:id", userController.DeleteUser)
 
 			// 角色管理相关
 			authenticated.POST("/roles", roleController.CreateRole)
@@ -83,24 +86,30 @@ func SetupRoutes(r *gin.Engine) {
 			authenticated.GET("/user/permissions", permissionController.GetUserPermissions)
 
 			// 菜单管理相关
-			menuController := controllers.NewMenuController()
 			authenticated.POST("/menus", menuController.CreateMenu)
 			authenticated.PUT("/menus/:id", menuController.UpdateMenu)
 			authenticated.DELETE("/menus/:id", menuController.DeleteMenu)
 			authenticated.GET("/menus", menuController.GetMenuList)
 
 			// 任务管理相关
-			jobController := controllers.NewJobController()
-			authenticated.POST("/jobs", jobController.CreateJob)                     // 创建任务
-			authenticated.PUT("/jobs/:id", jobController.UpdateJob)                  // 更新任务
-			authenticated.DELETE("/jobs/:id", jobController.DeleteJob)               // 删除任务
-			authenticated.POST("/jobs/:id/start", jobController.StartJob)            // 启动任务
-			authenticated.POST("/jobs/:id/stop", jobController.StopJob)              // 停止任务
-			authenticated.POST("/jobs/:id/execute", jobController.ExecuteJob)        // 执行任务
-			authenticated.POST("/jobs/execute", jobController.ExecuteJobs)           // 批量执行任务
-			authenticated.GET("/jobs", jobController.GetJobList)                     // 获取任务列表
-			authenticated.GET("/jobs/history", jobController.GetJobHistoryList)      // 获取任务历史列表
-			authenticated.POST("/jobs/history/clean", jobController.CleanJobHistory) // 清理任务历史
+			authenticated.POST("/jobs", jobController.CreateJob)
+			authenticated.PUT("/jobs/:id", jobController.UpdateJob)
+			authenticated.DELETE("/jobs/:id", jobController.DeleteJob)
+			authenticated.POST("/jobs/:id/start", jobController.StartJob)
+			authenticated.POST("/jobs/:id/stop", jobController.StopJob)
+			authenticated.POST("/jobs/:id/execute", jobController.ExecuteJob)
+			authenticated.POST("/jobs/execute", jobController.ExecuteJobs)
+			authenticated.GET("/jobs", jobController.GetJobList)
+			authenticated.GET("/jobs/history", jobController.GetJobHistoryList)
+			authenticated.POST("/jobs/history/clean", jobController.CleanJobHistory)
+
+			// 终端管理相关
+			authenticated.POST("/terminals", terminalController.CreateTerminal)
+			authenticated.PUT("/terminals/:id", terminalController.UpdateTerminal)
+			authenticated.DELETE("/terminals/:id", terminalController.DeleteTerminal)
+			authenticated.GET("/terminals", terminalController.GetTerminalList)
+			authenticated.GET("/terminals/:id", terminalController.GetTerminalByID)
+			authenticated.PUT("/terminals/:id/status", terminalController.UpdateTerminalStatus)
 		}
 	}
 }
