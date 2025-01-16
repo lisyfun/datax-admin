@@ -429,11 +429,10 @@ const handleConnect = (record: TerminalInfo) => {
 
 // 提交表单
 const handleSubmit = async () => {
-  const { error } = await formRef.value.validate();
-  if (error) return;
-
-  submitLoading.value = true;
   try {
+    await formRef.value.validate();
+    submitLoading.value = true;
+
     if (formData.id) {
       await terminalApi.updateTerminal(formData.id, {
         name: formData.name,
@@ -455,7 +454,11 @@ const handleSubmit = async () => {
     }
     visible.value = false;
     fetchData(pagination.current);
-  } catch (error) {
+  } catch (error: unknown) {
+    // 表单验证错误
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'FormValidateError') {
+      return;
+    }
     Message.error(formData.id ? '更新失败' : '创建失败');
   } finally {
     submitLoading.value = false;
