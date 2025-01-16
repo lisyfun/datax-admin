@@ -16,7 +16,12 @@ export default defineConfig({
       '/datax/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/datax/, ''),
+        // rewrite: (path) => path.replace(/^\/datax/, ''),
+      },
+      '/ws': {
+        target: 'ws://localhost:8080',
+        ws: true,
+        changeOrigin: true,
       },
     },
   },

@@ -36,6 +36,7 @@ type TerminalInfo struct {
 	Host      string    `json:"host"`
 	Port      int       `json:"port"`
 	Username  string    `json:"username"`
+	Password  string    `json:"password,omitempty"`
 	Status    string    `json:"status"`
 	LastSeen  time.Time `json:"lastSeen"`
 	CreatedAt time.Time `json:"createdAt"`

@@ -152,6 +152,17 @@ export const appRoutes: AppRouteRecordRaw[] = [
               roles: ['*'],
             },
           },
+          {
+            path: 'connect/:id',
+            name: 'TerminalConnect',
+            component: () => import('@/views/terminal/connect/index.vue'),
+            meta: {
+              title: '终端连接',
+              requiresAuth: true,
+              hideInMenu: true,
+              roles: ['*'],
+            },
+          },
         ],
       },
     ],

@@ -1,9 +1,9 @@
 package routes
 
 import (
-	"datax-admin/config"
 	"datax-admin/controllers"
 	"datax-admin/middleware"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -14,10 +14,10 @@ import (
 func SetupRoutes(r *gin.Engine) {
 	// CORS 中间件配置
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     []string{"http://localhost:3000", "http://127.0.0.1:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "Connection", "Upgrade", "Sec-WebSocket-Key", "Sec-WebSocket-Version", "Sec-WebSocket-Extensions", "Sec-WebSocket-Protocol"},
+		ExposeHeaders:    []string{"Content-Length", "Upgrade", "Connection"},
 		AllowCredentials: true,
 	}))
 
@@ -30,86 +30,99 @@ func SetupRoutes(r *gin.Engine) {
 	jobController := controllers.NewJobController()
 	terminalController := controllers.NewTerminalController()
 
-	// API v1 路由组
-	v1 := r.Group(config.GlobalConfig.Server.BasePath + "/api/v1")
+	// WebSocket 路由 - 不需要认证
+	wsGroup := r.Group("/ws")
 	{
-		// 公开路由
-		public := v1.Group("")
+		wsGroup.GET("/terminals/:id", func(c *gin.Context) {
+			fmt.Printf("收到WebSocket请求: %s\n", c.Request.URL.Path)
+			terminalController.ConnectTerminal(c)
+		})
+	}
+
+	// API 路由组
+	api := r.Group("/api")
+	{
+		// API v1 路由组
+		v1 := api.Group("/v1")
 		{
-			public.GET("/ping", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"message": "pong",
+			// 公开路由
+			public := v1.Group("")
+			{
+				public.GET("/ping", func(c *gin.Context) {
+					c.JSON(http.StatusOK, gin.H{
+						"message": "pong",
+					})
 				})
-			})
 
-			// 用户认证相关
-			public.POST("/register", userController.Register)
-			public.POST("/login", userController.Login)
-		}
+				// 用户认证相关
+				public.POST("/register", userController.Register)
+				public.POST("/login", userController.Login)
+			}
 
-		// 需要认证的路由
-		authenticated := v1.Group("")
-		authenticated.Use(middleware.JWTAuth())
-		{
-			// 仪表盘相关
-			authenticated.GET("/dashboard", dashboardController.GetDashboardData)
+			// 需要认证的路由
+			authenticated := v1.Group("")
+			authenticated.Use(middleware.JWTAuth())
+			{
+				// 仪表盘相关
+				authenticated.GET("/dashboard", dashboardController.GetDashboardData)
 
-			// 用户个人相关
-			authenticated.GET("/user/info", userController.GetUserInfo)
-			authenticated.PUT("/user/password", userController.UpdatePassword)
-			authenticated.PUT("/user/profile", userController.UpdateProfile)
-			authenticated.POST("/user/logout", userController.Logout)
+				// 用户个人相关
+				authenticated.GET("/user/info", userController.GetUserInfo)
+				authenticated.PUT("/user/password", userController.UpdatePassword)
+				authenticated.PUT("/user/profile", userController.UpdateProfile)
+				authenticated.POST("/user/logout", userController.Logout)
 
-			// 用户管理相关
-			authenticated.GET("/users", userController.GetUserList)
-			authenticated.PUT("/users/:id/status", userController.UpdateUserStatus)
-			authenticated.PUT("/users/:id/password/reset", userController.ResetPassword)
-			authenticated.DELETE("/users/:id", userController.DeleteUser)
+				// 用户管理相关
+				authenticated.GET("/users", userController.GetUserList)
+				authenticated.PUT("/users/:id/status", userController.UpdateUserStatus)
+				authenticated.PUT("/users/:id/password/reset", userController.ResetPassword)
+				authenticated.DELETE("/users/:id", userController.DeleteUser)
 
-			// 角色管理相关
-			authenticated.POST("/roles", roleController.CreateRole)
-			authenticated.PUT("/roles/:id", roleController.UpdateRole)
-			authenticated.DELETE("/roles/:id", roleController.DeleteRole)
-			authenticated.GET("/roles", roleController.GetRoleList)
-			authenticated.GET("/roles/:id/permissions", roleController.GetRolePermissions)
-			authenticated.PUT("/roles/:id/permissions", roleController.UpdateRolePermissions)
+				// 角色管理相关
+				authenticated.POST("/roles", roleController.CreateRole)
+				authenticated.PUT("/roles/:id", roleController.UpdateRole)
+				authenticated.DELETE("/roles/:id", roleController.DeleteRole)
+				authenticated.GET("/roles", roleController.GetRoleList)
+				authenticated.GET("/roles/:id/permissions", roleController.GetRolePermissions)
+				authenticated.PUT("/roles/:id/permissions", roleController.UpdateRolePermissions)
 
-			// 用户角色管理
-			authenticated.GET("/users/:id/roles", roleController.GetUserRoles)
-			authenticated.PUT("/users/:id/roles", roleController.UpdateUserRoles)
+				// 用户角色管理
+				authenticated.GET("/users/:id/roles", roleController.GetUserRoles)
+				authenticated.PUT("/users/:id/roles", roleController.UpdateUserRoles)
 
-			// 权限管理相关
-			authenticated.POST("/permissions", permissionController.CreatePermission)
-			authenticated.PUT("/permissions/:id", permissionController.UpdatePermission)
-			authenticated.DELETE("/permissions/:id", permissionController.DeletePermission)
-			authenticated.GET("/permissions", permissionController.GetPermissionTree)
-			authenticated.GET("/user/permissions", permissionController.GetUserPermissions)
+				// 权限管理相关
+				authenticated.POST("/permissions", permissionController.CreatePermission)
+				authenticated.PUT("/permissions/:id", permissionController.UpdatePermission)
+				authenticated.DELETE("/permissions/:id", permissionController.DeletePermission)
+				authenticated.GET("/permissions", permissionController.GetPermissionTree)
+				authenticated.GET("/user/permissions", permissionController.GetUserPermissions)
 
-			// 菜单管理相关
-			authenticated.POST("/menus", menuController.CreateMenu)
-			authenticated.PUT("/menus/:id", menuController.UpdateMenu)
-			authenticated.DELETE("/menus/:id", menuController.DeleteMenu)
-			authenticated.GET("/menus", menuController.GetMenuList)
+				// 菜单管理相关
+				authenticated.POST("/menus", menuController.CreateMenu)
+				authenticated.PUT("/menus/:id", menuController.UpdateMenu)
+				authenticated.DELETE("/menus/:id", menuController.DeleteMenu)
+				authenticated.GET("/menus", menuController.GetMenuList)
 
-			// 任务管理相关
-			authenticated.POST("/jobs", jobController.CreateJob)
-			authenticated.PUT("/jobs/:id", jobController.UpdateJob)
-			authenticated.DELETE("/jobs/:id", jobController.DeleteJob)
-			authenticated.POST("/jobs/:id/start", jobController.StartJob)
-			authenticated.POST("/jobs/:id/stop", jobController.StopJob)
-			authenticated.POST("/jobs/:id/execute", jobController.ExecuteJob)
-			authenticated.POST("/jobs/execute", jobController.ExecuteJobs)
-			authenticated.GET("/jobs", jobController.GetJobList)
-			authenticated.GET("/jobs/history", jobController.GetJobHistoryList)
-			authenticated.POST("/jobs/history/clean", jobController.CleanJobHistory)
+				// 任务管理相关
+				authenticated.POST("/jobs", jobController.CreateJob)
+				authenticated.PUT("/jobs/:id", jobController.UpdateJob)
+				authenticated.DELETE("/jobs/:id", jobController.DeleteJob)
+				authenticated.POST("/jobs/:id/start", jobController.StartJob)
+				authenticated.POST("/jobs/:id/stop", jobController.StopJob)
+				authenticated.POST("/jobs/:id/execute", jobController.ExecuteJob)
+				authenticated.POST("/jobs/execute", jobController.ExecuteJobs)
+				authenticated.GET("/jobs", jobController.GetJobList)
+				authenticated.GET("/jobs/history", jobController.GetJobHistoryList)
+				authenticated.POST("/jobs/history/clean", jobController.CleanJobHistory)
 
-			// 终端管理相关
-			authenticated.POST("/terminals", terminalController.CreateTerminal)
-			authenticated.PUT("/terminals/:id", terminalController.UpdateTerminal)
-			authenticated.DELETE("/terminals/:id", terminalController.DeleteTerminal)
-			authenticated.GET("/terminals", terminalController.GetTerminalList)
-			authenticated.GET("/terminals/:id", terminalController.GetTerminalByID)
-			authenticated.PUT("/terminals/:id/status", terminalController.UpdateTerminalStatus)
+				// 终端管理相关
+				authenticated.POST("/terminals", terminalController.CreateTerminal)
+				authenticated.PUT("/terminals/:id/status", terminalController.UpdateTerminalStatus)
+				authenticated.PUT("/terminals/:id", terminalController.UpdateTerminal)
+				authenticated.DELETE("/terminals/:id", terminalController.DeleteTerminal)
+				authenticated.GET("/terminals/:id", terminalController.GetTerminalByID)
+				authenticated.GET("/terminals", terminalController.GetTerminalList)
+			}
 		}
 	}
 }

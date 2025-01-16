@@ -140,6 +140,7 @@ func (s *TerminalService) GetTerminalByID(id uint) (*types.TerminalInfo, error) 
 		Host:      terminal.Host,
 		Port:      terminal.Port,
 		Username:  terminal.Username,
+		Password:  terminal.Password,
 		Status:    terminal.Status,
 		LastSeen:  terminal.LastSeen,
 		CreatedAt: terminal.CreatedAt,

@@ -292,10 +292,12 @@ import {
 } from '@arco-design/web-vue/es/icon';
 import type { TerminalInfo } from '@/types/terminal';
 import terminalApi from '@/api/terminal';
+import { useRouter } from 'vue-router';
 
 const loading = ref(false);
 const submitLoading = ref(false);
 const tableData = ref<TerminalInfo[]>([]);
+const router = useRouter();
 const pagination = reactive({
   total: 0,
   current: 1,
@@ -423,8 +425,7 @@ const handleDelete = async (record: TerminalInfo) => {
 
 // 连接终端
 const handleConnect = (record: TerminalInfo) => {
-  // TODO: 实现终端连接功能
-  Message.info('终端连接功能开发中...');
+  router.push(`/terminal/connect/${record.id}`);
 };
 
 // 提交表单
