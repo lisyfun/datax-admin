@@ -3,7 +3,7 @@ server:
   mode: debug
   base_path: "/"
 
-database:
+db:
   host: 192.168.228.1
   port: 13306
   username: root
