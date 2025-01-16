@@ -129,6 +129,31 @@ export const appRoutes: AppRouteRecordRaw[] = [
           },
         ],
       },
+      {
+        path: 'terminal',
+        name: 'Terminal',
+        component: () => import('@/views/terminal/index.vue'),
+        redirect: '/terminal/list',
+        meta: {
+          title: '终端管理',
+          requiresAuth: true,
+          icon: 'icon-code',
+          order: 3,
+        },
+        children: [
+          {
+            path: 'list',
+            name: 'TerminalList',
+            component: () => import('@/views/terminal/list/index.vue'),
+            meta: {
+              title: '终端列表',
+              requiresAuth: true,
+              icon: 'icon-desktop',
+              roles: ['*'],
+            },
+          },
+        ],
+      },
     ],
   },
 ];
