@@ -11,10 +11,15 @@
   "dependencies": {
     "@arco-design/web-vue": "^2.56.3",
     "@types/crypto-js": "^4.2.2",
+    "@types/nprogress": "^0.2.3",
     "@vueuse/core": "^12.3.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/xterm": "^5.5.0",
     "axios": "^1.7.9",
     "crypto-js": "^4.2.0",
     "echarts": "^5.6.0",
+    "nprogress": "^0.2.0",
     "pinia": "^2.3.0",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"

@@ -31,17 +31,8 @@
       <a-form-item field="username" label="用户名" :rules="[{ required: true, message: '请输入用户名' }]">
         <a-input v-model="formData.username" placeholder="请输入用户名" allow-clear />
       </a-form-item>
-      <a-form-item field="password" label="密码" :rules="[{ required: true, message: '请输入密码' }]">
+      <a-form-item field="password" label="密码" :rules="[{ required: !props.isEdit, message: '请输入密码' }]">
         <a-input-password v-model="formData.password" placeholder="请输入密码" allow-clear />
-      </a-form-item>
-      <a-form-item field="description" label="描述">
-        <a-textarea
-          v-model="formData.description"
-          placeholder="请输入终端描述"
-          :max-length="200"
-          show-word-limit
-          allow-clear
-        />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -51,119 +42,89 @@
 import { ref, reactive, defineProps, defineEmits, watch } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import type { FieldRule } from '@arco-design/web-vue/es/form/interface';
-import * as terminalApi from '@/api/terminal';
-import type { Terminal } from '@/api/terminal';
+import terminalApi from '@/api/terminal';
+import type { TerminalInfo, CreateTerminalData, UpdateTerminalData } from '@/types/terminal';
 
 const props = defineProps<{
   visible: boolean;
   isEdit: boolean;
-  data?: Terminal;
+  data?: TerminalInfo;
 }>();
 
-const emit = defineEmits<{
-  (e: 'update:visible', visible: boolean): void;
-  (e: 'success'): void;
-}>();
+const emit = defineEmits(['update:visible', 'success']);
 
 const formRef = ref();
-const formData = reactive<Omit<Terminal, 'id' | 'status' | 'created_at' | 'updated_at'>>({
+const formData = reactive<CreateTerminalData>({
   name: '',
   host: '',
   port: 22,
   username: '',
   password: '',
-  description: '',
 });
 
-// 表单校验规则
-const rules = {
+// 表单验证规则
+const rules: Record<string, FieldRule[]> = {
   name: [
     { required: true, message: '请输入终端名称' },
-    { maxLength: 50, message: '终端名称不能超过50个字符' },
   ],
   host: [
     { required: true, message: '请输入主机地址' },
-    {
-      match: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/,
-      message: '请输入正确的IP地址或域名'
-    },
   ],
   port: [
     { required: true, message: '请输入SSH端口' },
-    { validator: (value: number) => value >= 1 && value <= 65535, message: '端口范围为1-65535' },
+    { type: 'number', min: 1, max: 65535, message: '端口范围为1-65535' } as FieldRule,
   ],
   username: [
     { required: true, message: '请输入用户名' },
-    { maxLength: 32, message: '用户名不能超过32个字符' },
   ],
   password: [
-    { required: true, message: '请输入密码' },
-    { minLength: 6, message: '密码不能少于6个字符' },
-    { maxLength: 32, message: '密码不能超过32个字符' },
+    { required: !props.isEdit, message: '请输入密码' },
   ],
-} as Record<string, FieldRule[]>;
-
-// 重置表单
-const resetForm = () => {
-  formData.name = '';
-  formData.host = '';
-  formData.port = 22;
-  formData.username = '';
-  formData.password = '';
-  formData.description = '';
-  if (formRef.value) {
-    formRef.value.resetFields();
-  }
 };
 
 // 监听数据变化
-const updateFormData = () => {
-  if (props.data) {
-    const { name, host, port, username, description } = props.data;
-    Object.assign(formData, { name, host, port, username, description });
-  } else {
-    resetForm();
-  }
-};
+watch(
+  () => props.data,
+  (newVal) => {
+    if (newVal) {
+      const { name, host, port, username } = newVal;
+      Object.assign(formData, { name, host, port, username });
+    }
+  },
+  { immediate: true },
+);
 
-// 监听visible变化
-const visible = ref(props.visible);
-watch(() => props.visible, (val) => {
-  visible.value = val;
-  if (val) {
-    updateFormData();
-  }
-});
-
-watch(visible, (val) => {
-  emit('update:visible', val);
-  if (!val) {
-    resetForm();
-  }
-});
-
+// 提交表单
 const handleSubmit = async () => {
-  if (!formRef.value) return;
-
   try {
     await formRef.value.validate();
-    if (props.isEdit && props.data?.id) {
-      await terminalApi.updateTerminal(props.data.id, formData);
+    if (props.isEdit && props.data) {
+      const updateData: UpdateTerminalData = {
+        name: formData.name,
+        host: formData.host,
+        port: formData.port,
+        username: formData.username,
+      };
+      if (formData.password) {
+        updateData.password = formData.password;
+      }
+      await terminalApi.updateTerminal(props.data.id, updateData);
+      Message.success('更新成功');
     } else {
       await terminalApi.createTerminal(formData);
+      Message.success('创建成功');
     }
-    Message.success(`${props.isEdit ? '更新' : '创建'}成功`);
-    visible.value = false;
     emit('success');
+    handleCancel();
   } catch (error) {
-    if (error instanceof Error) {
-      Message.error(error.message);
-    }
+    // 表单验证失败或请求失败
   }
 };
 
+// 取消
 const handleCancel = () => {
-  visible.value = false;
+  formRef.value.resetFields();
+  emit('update:visible', false);
 };
 </script>
 

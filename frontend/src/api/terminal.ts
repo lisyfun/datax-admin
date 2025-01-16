@@ -1,34 +1,11 @@
 import request from '@/utils/request';
-import type { TerminalInfo } from '@/types/terminal';
-
-export interface CreateTerminalData {
-  name: string;
-  host: string;
-  port: number;
-  username: string;
-  password?: string;
-}
-
-export interface UpdateTerminalData {
-  name: string;
-  host: string;
-  port: number;
-  username: string;
-  password?: string;
-}
-
-export interface TerminalListParams {
-  page: number;
-  pageSize: number;
-  name?: string;
-  host?: string;
-  status?: string;
-}
-
-export interface TerminalListResponse {
-  total: number;
-  list: TerminalInfo[];
-}
+import type {
+  TerminalInfo,
+  CreateTerminalData,
+  UpdateTerminalData,
+  TerminalListParams,
+  TerminalListResponse,
+} from '@/types/terminal';
 
 export default {
   // 创建终端
@@ -43,7 +20,7 @@ export default {
 
   // 删除终端
   deleteTerminal(id: number) {
-    return request.delete<{ message: string }>(`/api/v1/terminals/${id}`);
+    return request.delete<{ message: string }>(`/terminals/${id}`);
   },
 
   // 获取终端列表
@@ -59,5 +36,15 @@ export default {
   // 更新终端状态
   updateTerminalStatus(id: number, status: 'online' | 'offline') {
     return request.put<{ message: string }>(`/terminals/${id}/status`, { status });
+  },
+
+  // 连接终端
+  connectTerminal(id: number) {
+    return request.post<{ message: string }>(`/terminals/${id}/connect`);
+  },
+
+  // 断开终端连接
+  disconnectTerminal(id: number) {
+    return request.post<{ message: string }>(`/terminals/${id}/disconnect`);
   },
 };
