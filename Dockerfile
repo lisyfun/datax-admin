@@ -22,7 +22,7 @@ COPY frontend/dist .
 # 复制后端二进制和配置
 COPY --from=backend-builder /app/backend/datax-admin /app/datax-admin
 COPY --from=backend-builder /app/backend/config.yaml /app/config.yaml
-COPY --from=backend-builder /app/backend/bin/datax_linux_arm64 /app/bin/datax
+COPY --from=backend-builder /app/backend/bin/datax_linux_amd64 /app/bin/datax
 
 # 复制 Nginx 配置
 COPY nginx.conf /etc/nginx/nginx.conf
