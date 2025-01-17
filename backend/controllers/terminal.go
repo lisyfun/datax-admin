@@ -168,19 +168,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 	// 升级HTTP连接为WebSocket
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
-			origin := r.Header.Get("Origin")
-			fmt.Printf("WebSocket请求来源: %s\n", origin)
-			// 允许本地开发环境的请求
-			allowedOrigins := []string{
-				"http://localhost:3000",
-				"http://127.0.0.1:3000",
-			}
-			for _, allowed := range allowedOrigins {
-				if origin == allowed {
-					return true
-				}
-			}
-			return false
+			return true // 在生产环境中，应该根据实际情况配置允许的域名
 		},
 		HandshakeTimeout: 10 * time.Second,
 		ReadBufferSize:   1024,

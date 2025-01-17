@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"datax-admin/config"
 	"datax-admin/controllers"
 	"datax-admin/middleware"
 	"fmt"
@@ -14,7 +15,7 @@ import (
 func SetupRoutes(r *gin.Engine) {
 	// CORS 中间件配置
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://127.0.0.1:3000"},
+		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "Connection", "Upgrade", "Sec-WebSocket-Key", "Sec-WebSocket-Version", "Sec-WebSocket-Extensions", "Sec-WebSocket-Protocol"},
 		ExposeHeaders:    []string{"Content-Length", "Upgrade", "Connection"},
@@ -31,7 +32,7 @@ func SetupRoutes(r *gin.Engine) {
 	terminalController := controllers.NewTerminalController()
 
 	// WebSocket 路由 - 不需要认证
-	wsGroup := r.Group("/ws")
+	wsGroup := r.Group(config.GlobalConfig.Server.BasePath + "/ws")
 	{
 		wsGroup.GET("/terminals/:id", func(c *gin.Context) {
 			fmt.Printf("收到WebSocket请求: %s\n", c.Request.URL.Path)
@@ -40,7 +41,7 @@ func SetupRoutes(r *gin.Engine) {
 	}
 
 	// API 路由组
-	api := r.Group("/api")
+	api := r.Group(config.GlobalConfig.Server.BasePath + "/api")
 	{
 		// API v1 路由组
 		v1 := api.Group("/v1")
