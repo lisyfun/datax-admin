@@ -1,5 +1,5 @@
 # 第一阶段：构建后端
-FROM --platform=linux/amd64 golang:1.22.2-alpine as backend-builder
+FROM golang:1.22.2-alpine as backend-builder
 WORKDIR /app/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
@@ -7,7 +7,7 @@ COPY backend .
 RUN go build -o datax-admin .
 
 # 第二阶段：最终镜像
-FROM --platform=linux/amd64 nginx:1.25-alpine
+FROM nginx:1.25-alpine
 WORKDIR /usr/share/nginx/html
 
 # 设置时区
