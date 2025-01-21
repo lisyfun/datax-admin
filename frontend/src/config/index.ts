@@ -1,15 +1,17 @@
 // 后端服务器配置
 export const backendConfig = {
-  // API 服务器地址
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080',
-  // WebSocket 服务器地址
-  wsBaseUrl: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${import.meta.env.VITE_API_HOST || '127.0.0.1:8080'}`,
+  // API 基础路径
+  apiBaseUrl: '/datax/api',
+  // WebSocket 基础路径
+  wsBaseUrl: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`,
 };
 
 // 其他配置
-export const config = {
+export const appConfig = {
   // 应用名称
-  appName: 'DataX Admin',
-  // 版本号
+  appName: 'DATAX ADMIN',
+  // 应用基础路径
+  basePath: '/datax',
+  // 应用版本
   version: '1.0.0',
 };

@@ -7,8 +7,8 @@ COPY backend .
 RUN go build -o datax-admin .
 
 # 第二阶段：最终镜像
-FROM nginx:1.25-alpine
-WORKDIR /usr/share/nginx/html
+FROM caddy:2.7-alpine
+WORKDIR /usr/share/caddy
 
 # 设置时区
 RUN apk add --no-cache tzdata && \
@@ -17,21 +17,21 @@ RUN apk add --no-cache tzdata && \
     apk del tzdata
 
 # 复制前端构建产物
-COPY frontend/dist .
+COPY frontend/dist ./dist/
 
 # 复制后端二进制和配置
 COPY --from=backend-builder /app/backend/datax-admin /app/datax-admin
 COPY --from=backend-builder /app/backend/config.yaml /app/config.yaml
 COPY --from=backend-builder /app/backend/bin/datax_linux_amd64 /app/bin/datax
 
-# 复制 Nginx 配置
-COPY nginx.conf /etc/nginx/nginx.conf
+# 复制 Caddy 配置
+COPY Caddyfile /etc/caddy/Caddyfile
 
 # 创建启动脚本
 WORKDIR /app
 RUN printf '#!/bin/sh\n\
 ./datax-admin & \n\
-nginx -g "daemon off;"\n' > start.sh && \
+caddy run --config /etc/caddy/Caddyfile\n' > start.sh && \
 chmod +x start.sh
 
 EXPOSE 80
