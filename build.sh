@@ -18,3 +18,4 @@ cd ..
 echo "=== 开始构建镜像 ==="
 docker build -f Dockerfile -t datax-admin .
 echo "=== 构建完成 ==="
+docker run -it -p 28080:80 datax-admin

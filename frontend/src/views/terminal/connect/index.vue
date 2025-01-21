@@ -244,7 +244,7 @@ const handleConnect = async () => {
     }
 
     // 创建WebSocket连接
-    const wsUrl = `${backendConfig.wsBaseUrl}/ws/terminals/${terminalId.value}`;
+    const wsUrl = `${backendConfig.wsBaseUrl}/datax/ws/terminals/${terminalId.value}`;
     console.log('WebSocket连接URL:', wsUrl);
     console.log('终端ID:', terminalId.value);
     console.log('后端服务器:', backendConfig.wsBaseUrl);
@@ -320,7 +320,7 @@ const testWebSocket = async () => {
       return;
     }
 
-    const wsUrl = `${backendConfig.wsBaseUrl}/ws/terminals/${terminalId.value}`;
+    const wsUrl = `${backendConfig.wsBaseUrl}/datax/ws/terminals/${terminalId.value}`;
 
     console.log('开始测试WebSocket连接');
     console.log('终端ID:', terminalId.value);
