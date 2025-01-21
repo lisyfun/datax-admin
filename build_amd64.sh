@@ -16,5 +16,5 @@ cd ..
 
 # 构建后端
 echo "=== 开始构建镜像 ==="
-docker build --platform=linux/amd64 -f Dockerfile -t datax-admin .
+docker build --platform=linux/amd64 -f Dockerfile_linux_amd64 -t datax-admin:amd64 .
 echo "=== 构建完成 ==="
