@@ -2,8 +2,8 @@ package models
 
 import (
 	"datax-admin/config"
+	customLogger "datax-admin/utils/logger"
 	"fmt"
-	"log"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -44,12 +44,12 @@ func InitDB() {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		customLogger.Fatal("数据库连接失败: %v", err)
 	}
 
 	sqlDB, err := DB.DB()
 	if err != nil {
-		log.Fatalf("Failed to get database instance: %v", err)
+		customLogger.Fatal("获取数据库实例失败: %v", err)
 	}
 
 	// 设置连接池
@@ -70,13 +70,13 @@ func InitDB() {
 		&LoginLog{},
 	)
 	if err != nil {
-		log.Fatalf("Failed to auto migrate database: %v", err)
+		customLogger.Fatal("数据库自动迁移失败: %v", err)
 	}
 
 	// 初始化基础数据
 	initBaseData()
 
-	log.Println("Database connected successfully")
+	customLogger.Info("数据库连接成功")
 }
 
 // initBaseData 初始化基础数据

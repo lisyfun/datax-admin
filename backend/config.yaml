@@ -14,6 +14,7 @@ db:
   conn_max_lifetime: 3600
   log_mode: info
   ssl_mode: disable
+  time_zone: Asia/Shanghai
   charset: utf8mb4
 
 jwt:
@@ -23,4 +24,11 @@ jwt:
 datax:
   home: "/app"  # DataX 安装目录
   bin: "/app/bin/datax"  # DataX 可执行文件路径
+
+logger:
+  log_path: "logs"  # 日志文件路径
+  max_size: 100     # 单个日志文件最大大小（MB）
+  max_backups: 7    # 最大保留的旧日志文件数
+  max_age: 30       # 日志文件保留的最大天数
+  compress: true    # 是否压缩旧日志文件
 

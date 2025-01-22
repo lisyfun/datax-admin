@@ -3,7 +3,7 @@ package controllers
 import (
 	"datax-admin/services"
 	"datax-admin/types"
-	"fmt"
+	"datax-admin/utils/logger"
 	"io"
 	"net/http"
 	"strconv"
@@ -141,30 +141,30 @@ func (c *TerminalController) GetTerminalByID(ctx *gin.Context) {
 
 // ConnectTerminal WebSocket终端连接处理
 func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
+	logger.Info("收到终端连接请求")
 
-	fmt.Println("收到终端连接请求")
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
 	if err != nil {
-		fmt.Printf("无效的终端ID: %v\n", err)
+		logger.Error("无效的终端ID: %v", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的终端ID"})
 		return
 	}
 
-	fmt.Printf("正在获取终端信息, ID: %d\n", id)
+	logger.Info("正在获取终端信息, ID: %d", id)
 	terminal, err := c.terminalService.GetTerminalByID(uint(id))
 	if err != nil {
-		fmt.Printf("获取终端信息失败: %v\n", err)
+		logger.Error("获取终端信息失败: %v", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if terminal.Password == "" {
-		fmt.Printf("终端密码未设置, ID: %d\n", id)
+		logger.Error("终端密码未设置, ID: %d", id)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "终端密码未设置"})
 		return
 	}
 
-	fmt.Printf("正在升级WebSocket连接, ID: %d\n", id)
+	logger.Info("正在升级WebSocket连接, ID: %d", id)
 	// 升级HTTP连接为WebSocket
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
@@ -177,29 +177,29 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 
 	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
-		fmt.Printf("WebSocket升级失败: %v\n", err)
+		logger.Error("WebSocket升级失败: %v", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "WebSocket升级失败"})
 		return
 	}
 	defer ws.Close()
 
-	fmt.Printf("正在创建SSH连接, Host: %s, Port: %d\n", terminal.Host, terminal.Port)
+	logger.Info("正在创建SSH连接, Host: %s, Port: %d", terminal.Host, terminal.Port)
 	// 创建SSH连接
 	sshClient, err := services.NewSSHClient(terminal.Host, terminal.Port, terminal.Username, terminal.Password)
 	if err != nil {
-		fmt.Printf("SSH连接失败: %v\n", err)
+		logger.Error("SSH连接失败: %v", err)
 		ws.WriteJSON(map[string]interface{}{
 			"type": "error",
-			"data": fmt.Sprintf("SSH连接失败: %v", err),
+			"data": err.Error(),
 		})
 		return
 	}
 	defer sshClient.Close()
 
-	fmt.Printf("正在更新终端状态为在线, ID: %d\n", id)
+	logger.Info("正在更新终端状态为在线, ID: %d", id)
 	// 更新终端状态为在线
 	if err := c.terminalService.UpdateTerminalStatus(uint(id), "online"); err != nil {
-		fmt.Printf("更新终端状态失败: %v\n", err)
+		logger.Error("更新终端状态失败: %v", err)
 		ws.WriteJSON(map[string]interface{}{
 			"type": "error",
 			"data": "更新终端状态失败",
@@ -207,7 +207,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 		return
 	}
 
-	fmt.Printf("终端连接成功, 开始数据传输, ID: %d\n", id)
+	logger.Info("终端连接成功, 开始数据传输, ID: %d", id)
 
 	// 创建用于同步的通道
 	done := make(chan bool)
@@ -220,10 +220,10 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 			n, err := sshClient.Read(buf)
 			if err != nil {
 				if err != io.EOF {
-					fmt.Printf("读取SSH数据失败: %v\n", err)
+					logger.Error("读取SSH数据失败: %v", err)
 					ws.WriteJSON(map[string]interface{}{
 						"type": "error",
-						"data": fmt.Sprintf("读取SSH数据失败: %v", err),
+						"data": err.Error(),
 					})
 				}
 				return
@@ -234,7 +234,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 					"data": string(buf[:n]),
 				})
 				if err != nil {
-					fmt.Printf("发送WebSocket数据失败: %v\n", err)
+					logger.Error("发送WebSocket数据失败: %v", err)
 					return
 				}
 			}
@@ -250,7 +250,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 			}
 			err := ws.ReadJSON(&msg)
 			if err != nil {
-				fmt.Printf("读取WebSocket数据失败: %v\n", err)
+				logger.Error("读取WebSocket数据失败: %v", err)
 				return
 			}
 
@@ -258,10 +258,10 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 			case "input":
 				_, err = sshClient.Write([]byte(msg.Data))
 				if err != nil {
-					fmt.Printf("写入SSH数据失败: %v\n", err)
+					logger.Error("写入SSH数据失败: %v", err)
 					ws.WriteJSON(map[string]interface{}{
 						"type": "error",
-						"data": fmt.Sprintf("写入SSH数据失败: %v", err),
+						"data": err.Error(),
 					})
 					return
 				}
@@ -272,7 +272,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 				}
 				if err := json.Unmarshal([]byte(msg.Data), &resize); err == nil {
 					if err := sshClient.ResizeTerminal(resize.Cols, resize.Rows); err != nil {
-						fmt.Printf("调整终端大小失败: %v\n", err)
+						logger.Error("调整终端大小失败: %v", err)
 					}
 				}
 			}
@@ -283,6 +283,6 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 
 	// 更新终端状态为离线
 	if err := c.terminalService.UpdateTerminalStatus(uint(id), "offline"); err != nil {
-		fmt.Printf("更新终端状态失败: %v\n", err)
+		logger.Error("更新终端状态失败: %v", err)
 	}
 }

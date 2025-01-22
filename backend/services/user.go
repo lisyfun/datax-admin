@@ -4,8 +4,8 @@ import (
 	"datax-admin/models"
 	"datax-admin/types"
 	"datax-admin/utils"
+	"datax-admin/utils/logger"
 	"errors"
-	"log"
 	"strings"
 	"time"
 
@@ -62,7 +62,7 @@ func (s *UserService) Login(req *types.LoginRequest) (*types.LoginResponse, erro
 		LoginTime: time.Now(),
 	}
 	if err := models.DB.Create(&loginLog).Error; err != nil {
-		log.Printf("记录登录日志失败: %v", err)
+		logger.Error("记录登录日志失败: %v", err)
 	}
 
 	// 更新用户在线状态

@@ -12,6 +12,7 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"db"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
 	DataX    DataXConfig    `mapstructure:"datax"`
+	Logger   LoggerConfig   `mapstructure:"logger"`
 }
 
 type ServerConfig struct {
@@ -41,8 +42,16 @@ type JWTConfig struct {
 }
 
 type DataXConfig struct {
-	Bin  string `yaml:"bin"`  // DataX可执行文件路径
-	Home string `yaml:"home"` // DataX安装目录
+	Home string `mapstructure:"home"`
+	Bin  string `mapstructure:"bin"`
+}
+
+type LoggerConfig struct {
+	LogPath    string `mapstructure:"log_path"`    // 日志文件路径
+	MaxSize    int    `mapstructure:"max_size"`    // 单个日志文件最大大小（MB）
+	MaxBackups int    `mapstructure:"max_backups"` // 最大保留的旧日志文件数
+	MaxAge     int    `mapstructure:"max_age"`     // 日志文件保留的最大天数
+	Compress   bool   `mapstructure:"compress"`    // 是否压缩旧日志文件
 }
 
 var GlobalConfig Config
