@@ -7,9 +7,3 @@
 <script lang="ts" setup>
 // Terminal management container component
 </script>
-
-<style scoped>
-.container {
-  padding: 20px;
-}
-</style>
