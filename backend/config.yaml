@@ -1,6 +1,6 @@
 server:
   port: ":28080"
-  mode: debug
+  mode: release
   base_path: "/"
 
 db:
@@ -12,6 +12,9 @@ db:
   max_idle_conns: 10
   max_open_conns: 100
   conn_max_lifetime: 3600
+  log_mode: info
+  ssl_mode: disable
+  charset: utf8mb4
 
 jwt:
   secret: your-secret-key
