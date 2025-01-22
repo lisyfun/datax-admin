@@ -4,7 +4,7 @@ import (
 	"datax-admin/config"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -13,11 +13,28 @@ func GenerateToken(userID uint, username string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  userID,
 		"username": username,
-		"exp":      time.Now().Add(time.Duration(config.GlobalConfig.JWT.Expire) * time.Second).Unix(),
+		"exp":      time.Now().Add(time.Hour * time.Duration(config.GlobalConfig.JWT.Expire)).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(config.GlobalConfig.JWT.Secret))
+}
+
+// ParseToken 解析 JWT token
+func ParseToken(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(config.GlobalConfig.JWT.Secret), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, jwt.ErrSignatureInvalid
 }
 
 // ComparePasswords 比较密码

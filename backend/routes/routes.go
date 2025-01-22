@@ -4,7 +4,7 @@ import (
 	"datax-admin/config"
 	"datax-admin/controllers"
 	"datax-admin/middleware"
-	"fmt"
+	"datax-admin/utils/logger"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -35,7 +35,7 @@ func SetupRoutes(r *gin.Engine) {
 	wsGroup := r.Group(config.GlobalConfig.Server.BasePath + "/ws")
 	{
 		wsGroup.GET("/terminals/:id", func(c *gin.Context) {
-			fmt.Printf("收到WebSocket请求: %s\n", c.Request.URL.Path)
+			logger.Info("收到WebSocket请求: %s\n", c.Request.URL.Path)
 			terminalController.ConnectTerminal(c)
 		})
 	}
