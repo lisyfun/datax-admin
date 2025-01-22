@@ -35,7 +35,7 @@ func SetupRoutes(r *gin.Engine) {
 	wsGroup := r.Group(config.GlobalConfig.Server.BasePath + "/ws")
 	{
 		wsGroup.GET("/terminals/:id", func(c *gin.Context) {
-			logger.Info("收到WebSocket请求: %s\n", c.Request.URL.Path)
+			logger.Info("收到WebSocket请求: %s", c.Request.URL.Path)
 			terminalController.ConnectTerminal(c)
 		})
 	}

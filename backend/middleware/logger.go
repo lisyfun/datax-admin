@@ -11,8 +11,9 @@ import (
 func CustomLogger() gin.HandlerFunc {
 	return gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
 		// 自定义日志格式
-		return fmt.Sprintf("[Go] %s | %s | %d | %s | %s | %s | %s | %s\n",
-			param.TimeStamp.Format("2006/01/02 15:04:05"),
+		return fmt.Sprintf("%-7s %s %s %d %s %s %s %s %s \n",
+			"[Go]",
+			param.TimeStamp.Format("2006-01-02 15:04:05"),
 			param.Method,
 			param.StatusCode,
 			param.Latency,
