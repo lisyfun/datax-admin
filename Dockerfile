@@ -26,13 +26,12 @@ COPY --from=backend-builder /app/backend/bin/datax_linux_amd64 /app/bin/datax
 
 # 复制 Caddy 配置
 COPY Caddyfile /etc/caddy/Caddyfile
+COPY start.sh /app/start.sh
 
 # 创建启动脚本
 WORKDIR /app
-RUN printf '#!/bin/sh\n\
-./datax-admin & \n\
-caddy run --config /etc/caddy/Caddyfile\n' > start.sh && \
-chmod +x start.sh
+RUN caddy fmt --overwrite /etc/caddy/Caddyfile && \
+    chmod +x start.sh
 
 EXPOSE 80
 CMD ["sh", "/app/start.sh"]

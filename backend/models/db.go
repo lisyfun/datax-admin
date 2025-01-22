@@ -15,17 +15,34 @@ var DB *gorm.DB
 
 func InitDB() {
 	var err error
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=True&loc=Local",
 		config.GlobalConfig.Database.Username,
 		config.GlobalConfig.Database.Password,
 		config.GlobalConfig.Database.Host,
 		config.GlobalConfig.Database.Port,
 		config.GlobalConfig.Database.DBName,
+		config.GlobalConfig.Database.Charset,
 	)
 
+	logMode := logger.Warn
+	switch config.GlobalConfig.Database.LogMode {
+	case "info":
+		logMode = logger.Info
+	case "warn":
+		logMode = logger.Warn
+	case "error":
+		logMode = logger.Error
+	}
+
+	switch config.GlobalConfig.Database.SSLMode {
+	case "disable":
+		dsn += "&tls=skip-verify"
+	}
+
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logMode),
 	})
+
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -36,9 +53,9 @@ func InitDB() {
 	}
 
 	// 设置连接池
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetMaxIdleConns(config.GlobalConfig.Database.MaxIdleConns)
+	sqlDB.SetMaxOpenConns(config.GlobalConfig.Database.MaxOpenConns)
+	sqlDB.SetConnMaxLifetime(time.Hour * time.Duration(config.GlobalConfig.Database.MaxLifetime))
 
 	// 自动迁移数据库表
 	err = DB.AutoMigrate(

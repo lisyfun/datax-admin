@@ -1,50 +1,55 @@
+{
+	# 禁用自动HTTPS，因为我们只在内部使用HTTP
+	auto_https off
+}
+
 :80 {
-    # 重定向根路径到 /datax
-    redir / /datax 301
+	# 重定向根路径到 /datax
+	redir / /datax 301
 
-    # 处理静态文件
-    handle /datax/* {
-        uri strip_prefix /datax
-        root * /usr/share/caddy/dist
-        try_files {path} /index.html
-        file_server
-    }
+	# 处理静态文件
+	handle /datax/* {
+		uri strip_prefix /datax
+		root * /usr/share/caddy/dist
+		try_files {path} /index.html
+		file_server
+	}
 
-    # 处理静态资源
-    handle /datax/assets/* {
-        uri strip_prefix /datax
-        root * /usr/share/caddy/dist
-        file_server
-    }
+	# 处理静态资源
+	handle /datax/assets/* {
+		uri strip_prefix /datax
+		root * /usr/share/caddy/dist
+		file_server
+	}
 
-    # API 反向代理
-    handle /datax/api/* {
-        uri strip_prefix /datax
-        reverse_proxy localhost:28080 {
-            header_up Host {host}
-            header_up X-Real-IP {remote_host}
-        }
-    }
+	# API 反向代理
+	handle /datax/api/* {
+		uri strip_prefix /datax
+		reverse_proxy localhost:28080 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
 
-    # WebSocket 反向代理
-    @websocket {
-        header Connection *Upgrade*
-        header Upgrade websocket
-        path /datax/ws/*
-    }
-    handle @websocket {
-        uri strip_prefix /datax
-        reverse_proxy localhost:28080 {
-            header_up Host {host}
-            header_up X-Real-IP {remote_host}
-            header_up Connection {http.request.header.Connection}
-            header_up Upgrade {http.request.header.Upgrade}
-        }
-    }
+	# WebSocket 反向代理
+	@websocket {
+		header Connection *Upgrade*
+		header Upgrade websocket
+		path /datax/ws/*
+	}
+	handle @websocket {
+		uri strip_prefix /datax
+		reverse_proxy localhost:28080 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up Connection {http.request.header.Connection}
+			header_up Upgrade {http.request.header.Upgrade}
+		}
+	}
 
-    log {
-        output stdout
-        format console
-        level DEBUG
-    }
+	log {
+		output stdout
+		format console
+		level ERROR
+	}
 }
