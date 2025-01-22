@@ -10,6 +10,7 @@ RUN go build -o datax-admin .
 FROM caddy:2.7-alpine
 WORKDIR /usr/share/caddy
 
+
 # 设置时区
 RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
@@ -30,7 +31,8 @@ COPY start.sh /app/start.sh
 
 # 创建启动脚本
 WORKDIR /app
-RUN caddy fmt --overwrite /etc/caddy/Caddyfile && \
+RUN caddy add-package github.com/caddyserver/transform-encoder && \
+		caddy fmt --overwrite /etc/caddy/Caddyfile && \
     chmod +x start.sh
 
 EXPOSE 80

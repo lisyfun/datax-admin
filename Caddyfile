@@ -49,7 +49,8 @@
 
 	log {
 		output stdout
-		format console
-		level ERROR
+		format transform "[Caddy] {time.now} {level} {request>remote_ip} {request>method} {request>uri} {status} {duration}s {size}"
+		level INFO
 	}
 }
+
