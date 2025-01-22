@@ -14,7 +14,6 @@ db:
   conn_max_lifetime: 3600
   log_mode: info
   ssl_mode: disable
-  time_zone: Asia/Shanghai
   charset: utf8mb4
 
 jwt:
