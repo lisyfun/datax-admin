@@ -3,6 +3,7 @@ package services
 import (
 	"datax-admin/models"
 	"datax-admin/types"
+	"datax-admin/utils/cache"
 	"fmt"
 	"runtime"
 	"sync"
@@ -17,6 +18,14 @@ var (
 	onlineUsers     = make(map[uint]time.Time)
 	onlineUsersLock sync.RWMutex
 	startTime       = time.Now()
+	dashboardSvc    *DashboardService
+	initOnce        sync.Once
+)
+
+const (
+	dashboardCacheKey = "dashboard_data"
+	cacheDuration     = 5 * time.Minute
+	updateInterval    = 1 * time.Minute // 数据更新间隔
 )
 
 // UpdateUserOnlineStatus 更新用户在线状态
@@ -54,11 +63,137 @@ func GetOnlineUserCount() int64 {
 }
 
 // DashboardService 仪表盘服务
-type DashboardService struct{}
+type DashboardService struct {
+	stopChan chan struct{}
+}
 
 // NewDashboardService 创建仪表盘服务
 func NewDashboardService() *DashboardService {
-	return &DashboardService{}
+	initOnce.Do(func() {
+		dashboardSvc = &DashboardService{
+			stopChan: make(chan struct{}),
+		}
+		go dashboardSvc.startBackgroundUpdate()
+	})
+	return dashboardSvc
+}
+
+// Stop 停止后台更新任务
+func (s *DashboardService) Stop() {
+	close(s.stopChan)
+}
+
+// startBackgroundUpdate 启动后台更新任务
+func (s *DashboardService) startBackgroundUpdate() {
+	ticker := time.NewTicker(updateInterval)
+	defer ticker.Stop()
+
+	// 立即执行一次更新
+	s.updateDashboardData()
+
+	for {
+		select {
+		case <-ticker.C:
+			s.updateDashboardData()
+		case <-s.stopChan:
+			return
+		}
+	}
+}
+
+// updateDashboardData 更新仪表盘数据
+func (s *DashboardService) updateDashboardData() {
+	var (
+		stats        types.DashboardStats
+		recentLogins []types.RecentLogin
+		systemInfo   *types.SystemInfo
+		trendData    []types.JobExecutionTrend
+		wg           sync.WaitGroup
+		errChan      = make(chan error, 4)
+	)
+
+	// 并发获取各项数据
+	wg.Add(4)
+
+	// 获取统计数据
+	go func() {
+		defer wg.Done()
+		if err := s.getStats(&stats); err != nil {
+			errChan <- err
+		}
+	}()
+
+	// 获取最近登录记录
+	go func() {
+		defer wg.Done()
+		var err error
+		recentLogins, err = s.getRecentLogins()
+		if err != nil {
+			errChan <- err
+		}
+	}()
+
+	// 获取系统信息
+	go func() {
+		defer wg.Done()
+		var err error
+		systemInfo, err = s.GetSystemInfo()
+		if err != nil {
+			errChan <- err
+		}
+	}()
+
+	// 获取趋势数据
+	go func() {
+		defer wg.Done()
+		var err error
+		trendData, err = s.getJobExecutionTrend()
+		if err != nil {
+			errChan <- err
+		}
+	}()
+
+	// 等待所有goroutine完成
+	wg.Wait()
+	close(errChan)
+
+	// 检查是否有错误
+	for err := range errChan {
+		// 只记录错误，不中断更新
+		fmt.Printf("Dashboard update error: %v\n", err)
+		return
+	}
+
+	// 构建响应数据
+	response := &types.DashboardResponse{
+		Stats:        stats,
+		RecentLogins: recentLogins,
+		SystemInfo:   *systemInfo,
+		TrendData:    trendData,
+	}
+
+	// 更新缓存
+	dashboardCache := cache.GetOrCreate[*types.DashboardResponse]("dashboard")
+	dashboardCache.Set(dashboardCacheKey, response, cacheDuration)
+}
+
+// GetDashboardData 获取仪表盘数据
+func (s *DashboardService) GetDashboardData() (*types.DashboardResponse, error) {
+	// 从缓存获取数据
+	dashboardCache := cache.GetOrCreate[*types.DashboardResponse]("dashboard")
+	if data, exists := dashboardCache.Get(dashboardCacheKey); exists {
+		return data, nil
+	}
+
+	// 如果缓存中没有数据，触发一次更新并等待
+	s.updateDashboardData()
+
+	// 再次尝试从缓存获取
+	if data, exists := dashboardCache.Get(dashboardCacheKey); exists {
+		return data, nil
+	}
+
+	return nil, fmt.Errorf("failed to get dashboard data")
 }
 
 // GetSystemInfo 获取系统信息
@@ -112,46 +247,132 @@ func (s *DashboardService) GetSystemInfo() (*types.SystemInfo, error) {
 	}, nil
 }
 
-// GetDashboardData 获取仪表盘数据
-func (s *DashboardService) GetDashboardData() (*types.DashboardResponse, error) {
-	var stats types.DashboardStats
+// getJobExecutionTrend 获取最近7天的任务执行趋势
+func (s *DashboardService) getJobExecutionTrend() ([]types.JobExecutionTrend, error) {
+	var trends []types.JobExecutionTrend
+
+	// 使用单个SQL查询获取7天的数据
+	query := `
+		WITH RECURSIVE dates AS (
+			SELECT CURDATE() as date
+			UNION ALL
+			SELECT DATE_SUB(date, INTERVAL 1 DAY)
+			FROM dates
+			WHERE DATE_SUB(date, INTERVAL 1 DAY) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+		),
+		daily_stats AS (
+			SELECT
+				DATE(created_at) as stat_date,
+				SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as success_count,
+				SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed_count
+			FROM job_histories
+			WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+			GROUP BY DATE(created_at)
+		)
+		SELECT
+			dates.date,
+			COALESCE(daily_stats.success_count, 0) as success_count,
+			COALESCE(daily_stats.failed_count, 0) as failed_count
+		FROM dates
+		LEFT JOIN daily_stats ON dates.date = daily_stats.stat_date
+		ORDER BY dates.date DESC
+		LIMIT 7;
+	`
+
+	type Result struct {
+		Date         time.Time
+		SuccessCount int64
+		FailedCount  int64
+	}
+
+	var results []Result
+	if err := models.DB.Raw(query).Scan(&results).Error; err != nil {
+		return nil, err
+	}
+
+	for _, r := range results {
+		trends = append(trends, types.JobExecutionTrend{
+			Date:         r.Date.Format("2006-01-02"),
+			SuccessCount: r.SuccessCount,
+			FailedCount:  r.FailedCount,
+		})
+	}
+
+	return trends, nil
+}
+
+// getStats 获取统计数据
+func (s *DashboardService) getStats(stats *types.DashboardStats) error {
+	var wg sync.WaitGroup
+	var errChan = make(chan error, 4)
+
+	wg.Add(4)
 
 	// 获取用户总数
-	var userCount int64
-	if err := models.DB.Model(&models.User{}).Count(&userCount).Error; err != nil {
-		return nil, err
-	}
-	stats.UserCount = userCount
+	go func() {
+		defer wg.Done()
+		var userCount int64
+		if err := models.DB.Model(&models.User{}).Count(&userCount).Error; err != nil {
+			errChan <- err
+			return
+		}
+		stats.UserCount = userCount
+	}()
 
 	// 获取角色总数
-	var roleCount int64
-	if err := models.DB.Model(&models.Role{}).Count(&roleCount).Error; err != nil {
-		return nil, err
-	}
-	stats.RoleCount = roleCount
+	go func() {
+		defer wg.Done()
+		var roleCount int64
+		if err := models.DB.Model(&models.Role{}).Count(&roleCount).Error; err != nil {
+			errChan <- err
+			return
+		}
+		stats.RoleCount = roleCount
+	}()
 
 	// 获取权限总数
-	var permissionCount int64
-	if err := models.DB.Model(&models.Permission{}).Count(&permissionCount).Error; err != nil {
-		return nil, err
-	}
-	stats.PermissionCount = permissionCount
+	go func() {
+		defer wg.Done()
+		var permissionCount int64
+		if err := models.DB.Model(&models.Permission{}).Count(&permissionCount).Error; err != nil {
+			errChan <- err
+			return
+		}
+		stats.PermissionCount = permissionCount
+	}()
+
+	// 获取任务执行统计
+	go func() {
+		defer wg.Done()
+		var successCount, failedCount int64
+		if err := models.DB.Model(&models.JobHistory{}).
+			Select("COUNT(CASE WHEN status = 1 THEN 1 END) as success_count, COUNT(CASE WHEN status = 0 THEN 1 END) as failed_count").
+			Row().Scan(&successCount, &failedCount); err != nil {
+			errChan <- err
+			return
+		}
+		stats.SuccessCount = successCount
+		stats.FailedCount = failedCount
+	}()
 
 	// 获取在线用户数
 	stats.OnlineCount = GetOnlineUserCount()
 
-	// 获取任务执行统计
-	var successCount, failedCount int64
-	if err := models.DB.Model(&models.JobHistory{}).Where("status = ?", 1).Count(&successCount).Error; err != nil {
-		return nil, err
-	}
-	if err := models.DB.Model(&models.JobHistory{}).Where("status = ?", 0).Count(&failedCount).Error; err != nil {
-		return nil, err
-	}
-	stats.SuccessCount = successCount
-	stats.FailedCount = failedCount
+	wg.Wait()
+	close(errChan)
 
-	// 获取最近登录记录
+	// 检查是否有错误
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// getRecentLogins 获取最近登录记录
+func (s *DashboardService) getRecentLogins() ([]types.RecentLogin, error) {
 	var loginLogs []models.LoginLog
 	if err := models.DB.Model(&models.LoginLog{}).
 		Select("username, login_time, ip").
@@ -161,7 +382,6 @@ func (s *DashboardService) GetDashboardData() (*types.DashboardResponse, error) 
 		return nil, err
 	}
 
-	// 转换为响应格式
 	recentLogins := make([]types.RecentLogin, len(loginLogs))
 	for i, log := range loginLogs {
 		recentLogins[i] = types.RecentLogin{
@@ -171,59 +391,5 @@ func (s *DashboardService) GetDashboardData() (*types.DashboardResponse, error) 
 		}
 	}
 
-	// 获取系统信息
-	systemInfo, err := s.GetSystemInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	// 获取最近7天的任务执行趋势
-	trendData, err := s.getJobExecutionTrend()
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.DashboardResponse{
-		Stats:        stats,
-		RecentLogins: recentLogins,
-		SystemInfo:   *systemInfo,
-		TrendData:    trendData,
-	}, nil
-}
-
-// getJobExecutionTrend 获取最近7天的任务执行趋势
-func (s *DashboardService) getJobExecutionTrend() ([]types.JobExecutionTrend, error) {
-	var trends []types.JobExecutionTrend
-
-	// 获取最近7天的日期
-	now := time.Now()
-	for i := 6; i >= 0; i-- {
-		date := now.AddDate(0, 0, -i)
-		startTime := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-		endTime := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 999999999, date.Location())
-
-		// 获取成功任务数
-		var successCount int64
-		if err := models.DB.Model(&models.JobHistory{}).
-			Where("status = ? AND created_at BETWEEN ? AND ?", 1, startTime, endTime).
-			Count(&successCount).Error; err != nil {
-			return nil, err
-		}
-
-		// 获取失败任务数
-		var failedCount int64
-		if err := models.DB.Model(&models.JobHistory{}).
-			Where("status = ? AND created_at BETWEEN ? AND ?", 0, startTime, endTime).
-			Count(&failedCount).Error; err != nil {
-			return nil, err
-		}
-
-		trends = append(trends, types.JobExecutionTrend{
-			Date:         date.Format("2006-01-02"),
-			SuccessCount: successCount,
-			FailedCount:  failedCount,
-		})
-	}
-
-	return trends, nil
+	return recentLogins, nil
 }
