@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"datax-admin/utils/logger"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -26,8 +27,7 @@ func CustomLogger() gin.HandlerFunc {
 // CustomRecovery 自定义恢复中间件
 func CustomRecovery() gin.HandlerFunc {
 	return gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, err interface{}) {
-		// 添加 [Go] 前缀到错误日志
-		fmt.Printf("[Go] ERROR: %v\n", err)
+		logger.Error("服务器内部错误: %v", err)
 		c.AbortWithStatus(500)
 	})
 }
