@@ -266,19 +266,35 @@ func (s *UserService) ResetPassword(userID uint, req *types.ResetPasswordRequest
 
 // DeleteUser 删除用户
 func (s *UserService) DeleteUser(userID uint) error {
+	// 开启事务
+	tx := models.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	// 检查用户是否存在
 	user := &models.User{}
-	if err := models.DB.First(user, userID).Error; err != nil {
+	if err := tx.First(user, userID).Error; err != nil {
+		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("用户不存在")
 		}
 		return err
 	}
 
-	// 软删除用户
-	if err := models.DB.Delete(user).Error; err != nil {
+	// 删除用户角色关联
+	if err := tx.Where("user_id = ?", userID).Delete(&models.UserRole{}).Error; err != nil {
+		tx.Rollback()
 		return err
 	}
 
-	return nil
+	// 软删除用户
+	if err := tx.Delete(user).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
