@@ -44,6 +44,14 @@
             <template #icon><icon-plus /></template>
             新建终端
           </a-button>
+          <a-button
+            type="primary"
+            status="success"
+            @click="handleBatchUpload"
+          >
+            <template #icon><icon-upload /></template>
+            批量上传 {{ selectedKeys.length ? `(${selectedKeys.length})` : '' }}
+          </a-button>
           <a-button @click="() => fetchData()">
             <template #icon><icon-refresh /></template>
             刷新
@@ -60,6 +68,12 @@
         :stripe="true"
         :hover="true"
         :scroll="{ x: '100%' }"
+        :row-selection="{
+          type: 'checkbox',
+          showCheckedAll: true
+        }"
+        v-model:selected-keys="selectedKeys"
+        @selection-change="onSelectionChange"
         @page-change="onPageChange"
         @page-size-change="onPageSizeChange"
       >
@@ -289,7 +303,7 @@
       @cancel="handleUploadCancel"
       :mask-closable="false"
       :unmount-on-close="true"
-      :width="480"
+      :width="600"
     >
       <a-form :model="{ path: uploadPath }" layout="vertical">
         <a-form-item field="path" label="上传路径">
@@ -320,6 +334,24 @@
             </template>
           </a-upload>
         </a-form-item>
+        <a-divider v-if="uploadRecords.length > 0">上传记录</a-divider>
+        <div v-if="uploadRecords.length > 0" class="upload-records">
+          <a-list :data="uploadRecords">
+            <template #item="{ item }">
+              <a-list-item>
+                <div class="upload-record-item">
+                  <span class="terminal-name">{{ item.terminalName }}</span>
+                  <span class="upload-status">
+                    <a-tag :color="getStatusColor(item.status)">
+                      {{ getStatusText(item.status) }}
+                    </a-tag>
+                  </span>
+                  <span v-if="item.message" class="upload-message">{{ item.message }}</span>
+                </div>
+              </a-list-item>
+            </template>
+          </a-list>
+        </div>
       </a-form>
       <template #footer>
         <div class="modal-footer">
@@ -329,8 +361,9 @@
               type="primary"
               :loading="uploadLoading"
               @click="handleUploadSubmit"
+              :disabled="uploadLoading"
             >
-              上传
+              {{ uploadLoading ? '上传中...' : '上传' }}
             </a-button>
           </a-space>
         </div>
@@ -340,7 +373,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import type { FileItem, RequestOption } from '@arco-design/web-vue/es/upload/interfaces';
 import {
@@ -374,7 +407,17 @@ const currentTerminal = ref<TerminalInfo | null>(null);
 const fileList = ref<FileItem[]>([]);
 const uploadPath = ref('/tmp');
 const tableData = ref<TerminalInfo[]>([]);
+const selectedKeys = ref<(string | number)[]>([]);
+const uploadRecords = ref<{
+  terminalId: number;
+  terminalName: string;
+  status: 'uploading' | 'success' | 'error';
+  message?: string;
+}[]>([]);
 const router = useRouter();
+
+const selectedCount = computed(() => selectedKeys.value.length);
+const selectedIds = computed(() => selectedKeys.value.map(id => Number(id)));
 const pagination = reactive({
   total: 0,
   current: 1,
@@ -513,9 +556,30 @@ const handleUpload = (record: TerminalInfo) => {
   uploadVisible.value = true;
 };
 
+// 处理选择变化
+const onSelectionChange = (keys: (string | number)[]) => {
+  selectedKeys.value = keys;
+};
+
+// 打开批量上传对话框
+const handleBatchUpload = () => {
+  if (!selectedKeys.value.length) {
+    Message.warning('请先选择要上传的终端');
+    return;
+  }
+  uploadPath.value = '/tmp';
+  fileList.value = [];
+  uploadVisible.value = true;
+};
+
 // 处理文件上传
 const handleUploadSubmit = async () => {
-  if (!currentTerminal.value || fileList.value.length === 0) {
+  if (!selectedKeys.value.length) {
+    Message.warning('请选择要上传的终端');
+    return;
+  }
+
+  if (fileList.value.length === 0) {
     Message.warning('请选择要上传的文件');
     return;
   }
@@ -530,13 +594,65 @@ const handleUploadSubmit = async () => {
       }
     });
 
-    await terminalApi.uploadFiles(currentTerminal.value.id, formData);
-    Message.success('文件上传成功');
-    uploadVisible.value = false;
+    // 初始化上传记录
+    uploadRecords.value = selectedKeys.value.map(id => {
+      const terminal = tableData.value.find(t => t.id === Number(id));
+      return {
+        terminalId: Number(id),
+        terminalName: terminal?.name || `终端${id}`,
+        status: 'uploading'
+      };
+    });
+
+    // 并行上传文件
+    await Promise.all(
+      uploadRecords.value.map(async record => {
+        try {
+          await terminalApi.uploadFiles(record.terminalId, formData);
+          record.status = 'success';
+          record.message = '上传成功';
+        } catch (error) {
+          record.status = 'error';
+          record.message = error instanceof Error ? error.message : '上传失败';
+        }
+      })
+    );
+
+    // 检查是否全部成功
+    const hasError = uploadRecords.value.some(record => record.status === 'error');
+    if (hasError) {
+      Message.warning('部分终端上传失败，请查看详情');
+    } else {
+      Message.success('所有文件上传成功');
+    }
   } catch (error) {
     Message.error('文件上传失败');
   } finally {
     uploadLoading.value = false;
+  }
+};
+
+// 获取状态颜色
+const getStatusColor = (status: 'uploading' | 'success' | 'error') => {
+  switch (status) {
+    case 'uploading':
+      return 'blue';
+    case 'success':
+      return 'green';
+    case 'error':
+      return 'red';
+  }
+};
+
+// 获取状态文本
+const getStatusText = (status: 'uploading' | 'success' | 'error') => {
+  switch (status) {
+    case 'uploading':
+      return '上传中';
+    case 'success':
+      return '成功';
+    case 'error':
+      return '失败';
   }
 };
 
@@ -545,7 +661,7 @@ const handleUploadCancel = () => {
   uploadVisible.value = false;
   fileList.value = [];
   uploadPath.value = '/tmp';
-  currentTerminal.value = null;
+  uploadRecords.value = [];
 };
 
 // 提交表单
@@ -664,6 +780,37 @@ fetchData();
   }
 
   .form-extra-tip {
+    color: var(--color-text-3);
+    font-size: 12px;
+  }
+}
+
+.upload-records {
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0 -20px;
+  padding: 0 20px;
+
+  :deep(.arco-list-item) {
+    padding: 8px 0;
+  }
+}
+
+.upload-record-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  .terminal-name {
+    flex: 1;
+    font-weight: 500;
+  }
+
+  .upload-status {
+    margin: 0 12px;
+  }
+
+  .upload-message {
     color: var(--color-text-3);
     font-size: 12px;
   }
