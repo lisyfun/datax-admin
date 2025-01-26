@@ -138,6 +138,20 @@
                     </template>
                   </a-button>
                 </a-tooltip>
+                <a-tooltip content="上传文件">
+                  <a-button
+                    type="primary"
+                    size="mini"
+                    shape="circle"
+                    status="success"
+                    @click="handleUpload(record)"
+                    class="action-button"
+                  >
+                    <template #icon>
+                      <icon-upload />
+                    </template>
+                  </a-button>
+                </a-tooltip>
                 <a-tooltip content="编辑信息">
                   <a-button
                     type="primary"
@@ -267,12 +281,68 @@
         </div>
       </template>
     </a-modal>
+
+    <!-- 文件上传对话框 -->
+    <a-modal
+      v-model:visible="uploadVisible"
+      title="上传文件"
+      @cancel="handleUploadCancel"
+      :mask-closable="false"
+      :unmount-on-close="true"
+      :width="480"
+    >
+      <a-form :model="{ path: uploadPath }" layout="vertical">
+        <a-form-item field="path" label="上传路径">
+          <a-input
+            v-model="uploadPath"
+            placeholder="请输入文件上传路径"
+            allow-clear
+          >
+            <template #prefix>
+              <icon-folder />
+            </template>
+          </a-input>
+        </a-form-item>
+        <a-form-item field="files" label="选择文件">
+          <a-upload
+            v-model:file-list="fileList"
+            :custom-request="(options: RequestOption) => ({ abort: () => {} })"
+            :auto-upload="false"
+            multiple
+          >
+            <template #upload-button>
+              <a-button type="primary">
+                <template #icon>
+                  <icon-upload />
+                </template>
+                选择文件
+              </a-button>
+            </template>
+          </a-upload>
+        </a-form-item>
+      </a-form>
+      <template #footer>
+        <div class="modal-footer">
+          <a-space>
+            <a-button @click="handleUploadCancel">取消</a-button>
+            <a-button
+              type="primary"
+              :loading="uploadLoading"
+              @click="handleUploadSubmit"
+            >
+              上传
+            </a-button>
+          </a-space>
+        </div>
+      </template>
+    </a-modal>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, reactive } from 'vue';
 import { Message } from '@arco-design/web-vue';
+import type { FileItem, RequestOption } from '@arco-design/web-vue/es/upload/interfaces';
 import {
   IconPlus,
   IconEdit,
@@ -289,6 +359,8 @@ import {
   IconRobot,
   IconCheckCircleFill,
   IconCloseCircleFill,
+  IconUpload,
+  IconFolder,
 } from '@arco-design/web-vue/es/icon';
 import type { TerminalInfo } from '@/types/terminal';
 import terminalApi from '@/api/terminal';
@@ -296,6 +368,11 @@ import { useRouter } from 'vue-router';
 
 const loading = ref(false);
 const submitLoading = ref(false);
+const uploadVisible = ref(false);
+const uploadLoading = ref(false);
+const currentTerminal = ref<TerminalInfo | null>(null);
+const fileList = ref<FileItem[]>([]);
+const uploadPath = ref('/tmp');
 const tableData = ref<TerminalInfo[]>([]);
 const router = useRouter();
 const pagination = reactive({
@@ -426,6 +503,49 @@ const handleDelete = async (record: TerminalInfo) => {
 // 连接终端
 const handleConnect = (record: TerminalInfo) => {
   router.push(`/terminal/connect/${record.id}`);
+};
+
+// 打开上传对话框
+const handleUpload = (record: TerminalInfo) => {
+  currentTerminal.value = record;
+  uploadPath.value = '/tmp';
+  fileList.value = [];
+  uploadVisible.value = true;
+};
+
+// 处理文件上传
+const handleUploadSubmit = async () => {
+  if (!currentTerminal.value || fileList.value.length === 0) {
+    Message.warning('请选择要上传的文件');
+    return;
+  }
+
+  try {
+    uploadLoading.value = true;
+    const formData = new FormData();
+    formData.append('path', uploadPath.value);
+    fileList.value.forEach(file => {
+      if (file.file) {
+        formData.append('files', file.file);
+      }
+    });
+
+    await terminalApi.uploadFiles(currentTerminal.value.id, formData);
+    Message.success('文件上传成功');
+    uploadVisible.value = false;
+  } catch (error) {
+    Message.error('文件上传失败');
+  } finally {
+    uploadLoading.value = false;
+  }
+};
+
+// 取消上传
+const handleUploadCancel = () => {
+  uploadVisible.value = false;
+  fileList.value = [];
+  uploadPath.value = '/tmp';
+  currentTerminal.value = null;
 };
 
 // 提交表单

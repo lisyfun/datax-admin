@@ -6,6 +6,7 @@ import (
 	"datax-admin/utils/logger"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -285,4 +286,89 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 	if err := c.terminalService.UpdateTerminalStatus(uint(id), "offline"); err != nil {
 		logger.Error("更新终端状态失败: %v", err)
 	}
+}
+
+// UploadFiles 上传文件到终端
+func (c *TerminalController) UploadFiles(ctx *gin.Context) {
+	// 获取终端ID
+	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的终端ID"})
+		return
+	}
+
+	// 获取终端信息
+	terminal, err := c.terminalService.GetTerminalByID(uint(id))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 获取上传路径
+	uploadPath := ctx.PostForm("path")
+	if uploadPath == "" {
+		uploadPath = "/tmp"
+	}
+
+	// 获取上传的文件
+	form, err := ctx.MultipartForm()
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "获取上传文件失败"})
+		return
+	}
+
+	files := form.File["files"]
+	if len(files) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "没有选择要上传的文件"})
+		return
+	}
+
+	// 创建SSH客户端
+	sshClient, err := services.NewSSHClient(terminal.Host, terminal.Port, terminal.Username, terminal.Password)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "SSH连接失败"})
+		return
+	}
+	defer sshClient.Close()
+
+	// 上传文件
+	for _, file := range files {
+		// 打开文件
+		src, err := file.Open()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "打开文件失败"})
+			return
+		}
+		defer src.Close()
+
+		// 创建目标文件路径
+		destPath := filepath.Join(uploadPath, file.Filename)
+
+		// 通过SFTP上传文件
+		err = sshClient.UploadFile(src, destPath)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "文件上传失败"})
+			return
+		}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "文件上传成功"})
+}
+
+// DisconnectTerminal 断开终端连接
+func (c *TerminalController) DisconnectTerminal(ctx *gin.Context) {
+	// 获取终端ID
+	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的终端ID"})
+		return
+	}
+
+	// 更新终端状态为离线
+	if err := c.terminalService.UpdateTerminalStatus(uint(id), "offline"); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "更新终端状态失败"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "终端已断开连接"})
 }

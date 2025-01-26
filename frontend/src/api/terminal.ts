@@ -47,4 +47,13 @@ export default {
   disconnectTerminal(id: number) {
     return request.post<{ message: string }>(`/terminals/${id}/disconnect`);
   },
+
+  // 上传文件到终端
+  uploadFiles(id: number, data: FormData) {
+    return request.post<{ message: string }>(`/terminals/${id}/upload`, data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 };

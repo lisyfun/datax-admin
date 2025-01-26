@@ -31,8 +31,8 @@ COPY start.sh /app/start.sh
 
 # 创建启动脚本
 WORKDIR /app
-RUN caddy add-package github.com/caddyserver/transform-encoder && \
-		caddy fmt --overwrite /etc/caddy/Caddyfile && \
+# RUN caddy add-package github.com/caddyserver/transform-encoder && \
+RUN caddy fmt --overwrite /etc/caddy/Caddyfile && \
     chmod +x start.sh
 
 EXPOSE 80
