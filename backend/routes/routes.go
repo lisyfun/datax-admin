@@ -117,12 +117,18 @@ func SetupRoutes(r *gin.Engine) {
 				authenticated.POST("/jobs/history/clean", jobController.CleanJobHistory)
 
 				// 终端管理相关
-				authenticated.POST("/terminals", terminalController.CreateTerminal)
-				authenticated.PUT("/terminals/:id/status", terminalController.UpdateTerminalStatus)
-				authenticated.PUT("/terminals/:id", terminalController.UpdateTerminal)
-				authenticated.DELETE("/terminals/:id", terminalController.DeleteTerminal)
-				authenticated.GET("/terminals/:id", terminalController.GetTerminalByID)
-				authenticated.GET("/terminals", terminalController.GetTerminalList)
+				terminals := authenticated.Group("/terminals")
+				{
+					terminals.POST("", terminalController.CreateTerminal)
+					terminals.PUT("/:id", terminalController.UpdateTerminal)
+					terminals.DELETE("/:id", terminalController.DeleteTerminal)
+					terminals.GET("", terminalController.GetTerminalList)
+					terminals.GET("/:id", terminalController.GetTerminalByID)
+					terminals.PUT("/:id/status", terminalController.UpdateTerminalStatus)
+					terminals.POST("/:id/connect", terminalController.ConnectTerminal)
+					terminals.POST("/:id/disconnect", terminalController.DisconnectTerminal)
+					terminals.POST("/:id/upload", terminalController.UploadFiles)
+				}
 			}
 		}
 	}
