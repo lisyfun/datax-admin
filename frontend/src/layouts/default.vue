@@ -22,8 +22,8 @@
         <a-space :size="16">
           <a-button class="action-btn" type="text" @click="toggleTheme">
             <template #icon>
-              <icon-moon-fill v-if="isDarkMode" />
-              <icon-sun-fill v-else />
+              <icon-sun-fill v-if="isDarkMode" />
+              <icon-moon-fill v-else />
             </template>
           </a-button>
           <a-button class="action-btn" type="text" @click="handleRefresh">
