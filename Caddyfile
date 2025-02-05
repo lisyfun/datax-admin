@@ -4,8 +4,8 @@
 }
 
 :80 {
-	# 重定向根路径到 /datax
-	redir / /datax 301
+	# 重定向根路径到 /datax/
+	redir / /datax/ 301
 
 	# 处理静态文件
 	handle /datax/* {

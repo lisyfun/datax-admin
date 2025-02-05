@@ -1,7 +1,7 @@
 server:
   port: ":28080"
   mode: debug
-  base_path: "/datax"
+  base_path: "/"
 
 db:
   host: 192.168.228.1
