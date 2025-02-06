@@ -46,53 +46,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
           roles: ['*'],
         },
       },
-      {
-        path: 'system',
-        name: 'System',
-        component: () => import('@/views/system/index.vue'),
-        redirect: '/system/users',
-        meta: {
-          title: '系统管理',
-          requiresAuth: true,
-          icon: 'icon-apps',
-          order: 1,
-        },
-        children: [
-          {
-            path: 'users',
-            name: 'Users',
-            component: () => import('@/views/system/users/index.vue'),
-            meta: {
-              title: '用户管理',
-              requiresAuth: true,
-              icon: 'icon-user',
-              roles: ['admin'],
-            },
-          },
-          {
-            path: 'roles',
-            name: 'Roles',
-            component: () => import('@/views/system/roles/index.vue'),
-            meta: {
-              title: '角色管理',
-              requiresAuth: true,
-              icon: 'icon-user-group',
-              roles: ['admin'],
-            },
-          },
-          {
-            path: 'permissions',
-            name: 'Permissions',
-            component: () => import('@/views/system/permissions/index.vue'),
-            meta: {
-              title: '权限管理',
-              requiresAuth: true,
-              icon: 'icon-safe',
-              roles: ['admin'],
-            },
-          },
-        ],
-      },
+
       {
         path: 'job',
         name: 'Job',
@@ -102,7 +56,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
           title: '任务管理',
           requiresAuth: true,
           icon: 'icon-calendar',
-          order: 2,
+          order: 1,
         },
         children: [
           {
@@ -138,7 +92,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
           title: '终端管理',
           requiresAuth: true,
           icon: 'icon-code',
-          order: 3,
+          order: 2,
         },
         children: [
           {
@@ -161,6 +115,53 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               hideInMenu: true,
               roles: ['*'],
+            },
+          },
+        ],
+      },
+      {
+        path: 'system',
+        name: 'System',
+        component: () => import('@/views/system/index.vue'),
+        redirect: '/system/users',
+        meta: {
+          title: '系统管理',
+          requiresAuth: true,
+          icon: 'icon-apps',
+          order: 999,
+        },
+        children: [
+          {
+            path: 'users',
+            name: 'Users',
+            component: () => import('@/views/system/users/index.vue'),
+            meta: {
+              title: '用户管理',
+              requiresAuth: true,
+              icon: 'icon-user',
+              roles: ['admin'],
+            },
+          },
+          {
+            path: 'roles',
+            name: 'Roles',
+            component: () => import('@/views/system/roles/index.vue'),
+            meta: {
+              title: '角色管理',
+              requiresAuth: true,
+              icon: 'icon-user-group',
+              roles: ['admin'],
+            },
+          },
+          {
+            path: 'permissions',
+            name: 'Permissions',
+            component: () => import('@/views/system/permissions/index.vue'),
+            meta: {
+              title: '权限管理',
+              requiresAuth: true,
+              icon: 'icon-safe',
+              roles: ['admin'],
             },
           },
         ],
