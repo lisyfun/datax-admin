@@ -34,11 +34,6 @@ func InitDB() {
 		logMode = logger.Error
 	}
 
-	switch config.GlobalConfig.Database.SSLMode {
-	case "disable":
-		dsn += "&tls=skip-verify"
-	}
-
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logMode),
 	})
