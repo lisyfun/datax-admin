@@ -13,7 +13,6 @@ db:
   max_open_conns: 100
   conn_max_lifetime: 3600
   log_mode: warn
-  ssl_mode: disable
   charset: utf8mb4
 
 jwt:
