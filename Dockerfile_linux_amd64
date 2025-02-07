@@ -1,5 +1,5 @@
 # 第一阶段：构建后端
-FROM golang:1.22.2-alpine as backend-builder
+FROM golang:1.22.2-alpine AS backend-builder
 WORKDIR /app/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
