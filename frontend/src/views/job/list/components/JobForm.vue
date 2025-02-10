@@ -432,7 +432,7 @@ const handleSubmit = async () => {
 
   try {
     await formRef.value.validate();
-    console.log('提交表单时的表单数据:', form);
+    console.log('提交前的表单数据:', JSON.stringify(form, null, 2));
 
     let params: JobShellParams | JobHTTPParams | JobDataXParams;
     if (form.type === 'shell') {
@@ -544,8 +544,8 @@ const handleCancel = () => {
 
 // 监听visible变化，当弹窗关闭时重置表单
 watch(() => props.visible, (newVal) => {
-  if (!newVal) {
-    // 关闭弹窗时，只在非编辑模式下重置表单
+  if (newVal) {
+    // 打开弹窗时，如果是新建模式，则初始化表单
     if (!props.isEdit) {
       Object.assign(form, initFormState());
       if (formRef.value) {
