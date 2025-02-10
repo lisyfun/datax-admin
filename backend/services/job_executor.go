@@ -219,9 +219,7 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 
 	// 合并输出内容
 	var combinedOutput string
-	if outMsg != "" && errMsg != "" {
-		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n标准输出:\n%s\n\n标准错误输出:\n%s", cmdInfo, outMsg, errMsg)
-	} else if outMsg != "" {
+	if outMsg != "" {
 		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n标准输出:\n%s", cmdInfo, outMsg)
 	} else if errMsg != "" {
 		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n标准错误输出:\n%s", cmdInfo, errMsg)
@@ -229,21 +227,14 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n无输出", cmdInfo)
 	}
 
-	if err != nil {
-		// 检查错误输出中是否包含关键的错误信息
-		isRealError := strings.Contains(strings.ToLower(errMsg), "error") ||
-			strings.Contains(strings.ToLower(errMsg), "exception") ||
-			strings.Contains(strings.ToLower(errMsg), "failed")
-
-		if isRealError {
-			history.Status = 0
-			history.Error = fmt.Sprintf("执行DataX任务失败: %v", err)
-			history.Output = combinedOutput
-		} else {
-			// 如果标准错误输出中没有明显的错误信息，认为是正常的日志输出
-			history.Status = 1
-			history.Output = combinedOutput
+	// 如果有错误输出或命令执行失败，则任务状态为失败
+	if errMsg != "" || err != nil {
+		history.Status = 0
+		history.Error = fmt.Sprintf("执行DataX任务失败: %v", err)
+		if errMsg != "" {
+			history.Error = fmt.Sprintf("执行DataX任务失败: %s", errMsg)
 		}
+		history.Output = combinedOutput
 	} else {
 		history.Status = 1
 		history.Output = combinedOutput
