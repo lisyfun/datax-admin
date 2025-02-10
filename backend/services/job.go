@@ -314,6 +314,15 @@ func (s *JobService) executeJob(job *models.Job) {
 		history.EndTime = time.Now()
 		history.Duration = history.EndTime.Sub(history.StartTime).Milliseconds()
 
+		// 如果任务执行失败，更新任务状态为停止
+		if history.Status == 0 {
+			if err := models.DB.Model(job).Update("status", models.JobStatusStop).Error; err != nil {
+				fmt.Printf("更新任务状态失败: %v\n", err)
+			}
+			// 从调度器中移除任务
+			s.scheduler.Remove(fmt.Sprintf("job_%d", job.ID))
+		}
+
 		// 添加错误处理和重试逻辑
 		maxRetries := 3
 		for i := 0; i < maxRetries; i++ {
