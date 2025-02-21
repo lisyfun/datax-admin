@@ -6,7 +6,8 @@ RUN go mod download
 COPY backend .
 RUN go build -o datax-admin .
 
-# 第二阶段：最终镜像
+
+# 第三阶段：最终镜像
 FROM caddy:2.7-alpine
 WORKDIR /usr/share/caddy
 
@@ -31,8 +32,8 @@ COPY start.sh /app/start.sh
 
 # 创建启动脚本
 WORKDIR /app
-# RUN caddy add-package github.com/caddyserver/transform-encoder && \
-RUN caddy fmt --overwrite /etc/caddy/Caddyfile && \
+RUN caddy add-package github.com/caddyserver/transform-encoder && \
+    caddy fmt --overwrite /etc/caddy/Caddyfile && \
     chmod +x start.sh
 
 EXPOSE 80

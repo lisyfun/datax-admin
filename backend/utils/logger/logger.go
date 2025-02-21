@@ -67,9 +67,9 @@ func formatLog(level, msg string) string {
 	file = filepath.Base(file)
 
 	// 格式化日志消息，保持与 Gin 日志格式一致
-	return fmt.Sprintf("%-7s %s | %s | %s:%d | %s ",
-		"[Go]",
-		time.Now().Format("2006-01-02 15:04:05"),
+	return fmt.Sprintf("%s %s | %+5s | %s:%d | %s ",
+		"[GIN]",
+		time.Now().Format("2006/01/02 - 15:04:05"),
 		level,
 		file,
 		line,

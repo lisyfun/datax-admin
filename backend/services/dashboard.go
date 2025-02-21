@@ -252,30 +252,7 @@ func (s *DashboardService) getJobExecutionTrend() ([]types.JobExecutionTrend, er
 	var trends []types.JobExecutionTrend
 
 	// 使用单个SQL查询获取7天的数据
-	query := `
-SELECT
-    selected_date as date,
-    COALESCE(success_count, 0) as success_count,
-    COALESCE(failed_count, 0) as failed_count
-FROM (
-    SELECT DATE_SUB(CURDATE(), INTERVAL n DAY) as selected_date
-    FROM (
-        SELECT 0 as n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL
-        SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
-    ) numbers
-) dates
-LEFT JOIN (
-    SELECT
-        DATE(created_at) as stat_date,
-        SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as success_count,
-        SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed_count
-    FROM job_histories
-    WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-    GROUP BY DATE(created_at)
-) daily_stats ON dates.selected_date = daily_stats.stat_date
-ORDER BY selected_date DESC
-LIMIT 7;`
-
+	query := `SELECT selected_date as date, COALESCE(success_count, 0) as success_count, COALESCE(failed_count, 0) as failed_count FROM (SELECT DATE_SUB(CURDATE(), INTERVAL n DAY) as selected_date FROM (SELECT 0 as n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) numbers) dates LEFT JOIN (SELECT DATE(created_at) as stat_date, SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as success_count, SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed_count FROM job_histories WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(created_at)) daily_stats ON dates.selected_date = daily_stats.stat_date ORDER BY selected_date DESC LIMIT 7;`
 	type Result struct {
 		Date         time.Time
 		SuccessCount int64
