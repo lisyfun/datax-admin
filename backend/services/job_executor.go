@@ -33,7 +33,7 @@ func (s *JobService) executeShellJob(job *models.Job, params interface{}, histor
 	}
 
 	// 准备命令
-	cmd := exec.CommandContext(ctx, "sh", "-c", shellParams.Command)
+	cmd := exec.CommandContext(ctx, "sh", "-c", shellParams.Command+" 2>&1")
 	if shellParams.WorkDir != "" {
 		cmd.Dir = shellParams.WorkDir
 	}
@@ -199,11 +199,10 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	cmd.Dir = config.GlobalConfig.DataX.Home
 
 	// 记录命令信息
-	cmdInfo := fmt.Sprintf("执行命令: %s -job %s\n工作目录: %s\n配置内容:\n%s",
+	cmdInfo := fmt.Sprintf("执行命令: %s -job %s\n工作目录: %s\n",
 		config.GlobalConfig.DataX.Bin,
 		tmpFileName,
-		cmd.Dir,
-		prettyJSON.String())
+		cmd.Dir)
 
 	// 捕获输出
 	var stdout, stderr bytes.Buffer
@@ -217,20 +216,13 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 	outMsg := stdout.String()
 	errMsg := stderr.String()
 
-	// 合并输出内容
-	var combinedOutput string
-	if outMsg != "" && errMsg != "" {
-		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n标准输出:\n%s\n\n标准错误输出:\n%s", cmdInfo, outMsg, errMsg)
-	} else if outMsg != "" {
-		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n标准输出:\n%s", cmdInfo, outMsg)
-	} else if errMsg != "" {
-		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n标准错误输出:\n%s", cmdInfo, errMsg)
-	} else {
-		combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n无输出", cmdInfo)
-	}
+	fullOutput := outMsg + errMsg
 
-	// 检查输出中是否包含成功完成的标志
-	if strings.Contains(errMsg, "数据同步完成") {
+	// 合并输出内容
+	var combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n执行日志:\n%s", cmdInfo, fullOutput)
+
+	// 检查所有输出中是否包含成功完成的标志（同时检查stdout和stderr）
+	if strings.Contains(fullOutput, "数据同步完成") {
 		history.Status = 1
 		history.Output = combinedOutput
 	} else if err != nil {
@@ -239,9 +231,10 @@ func (s *JobService) executeDataXJob(job *models.Job, params interface{}, histor
 		history.Output = combinedOutput
 	} else {
 		// 如果没有明确的成功标志，也没有执行错误，则检查是否有错误关键字
-		isError := strings.Contains(strings.ToLower(errMsg), "error") ||
-			strings.Contains(strings.ToLower(errMsg), "exception") ||
-			strings.Contains(strings.ToLower(errMsg), "失败")
+		fullOutputLower := strings.ToLower(fullOutput)
+		isError := strings.Contains(fullOutputLower, "error") ||
+			strings.Contains(fullOutputLower, "exception") ||
+			strings.Contains(fullOutputLower, "失败")
 
 		if isError {
 			history.Status = 0
