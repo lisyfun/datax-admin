@@ -49,16 +49,9 @@
 
 	log {
 		output stdout
-		format filter {
-		wrap console
-		fields {
-			request>remote_ip ip_mask {
-				ipv4 16
-				ipv6 32
-			}
-		}
-	}
-		level INFO
+		format transform `[WEB] {request>remote_ip} "{request>method} {request>uri} {request>proto}" {status} {size} "{request>headers>Referer>[0]}" ` {
+      time_format "2006/01/02 - 15:04:05"
+    }
 	}
 }
 

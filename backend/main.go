@@ -2,7 +2,6 @@ package main
 
 import (
 	"datax-admin/config"
-	"datax-admin/middleware"
 	"datax-admin/models"
 	"datax-admin/routes"
 	"datax-admin/utils/logger"
@@ -26,9 +25,7 @@ func main() {
 	gin.SetMode(config.GlobalConfig.Server.Mode)
 
 	// 创建路由
-	r := gin.New()
-	r.Use(middleware.CustomLogger())
-	r.Use(middleware.CustomRecovery())
+	r := gin.Default()
 
 	// 注册路由
 	routes.SetupRoutes(r)

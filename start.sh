@@ -1,4 +1,4 @@
 #!/bin/sh
 
-./datax-admin &
-caddy run --config /etc/caddy/Caddyfile
+caddy run --config /etc/caddy/Caddyfile &
+./datax-admin
