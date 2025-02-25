@@ -461,8 +461,8 @@ const handlePasswordFormSubmit = async () => {
     await passwordFormRef.value.validate();
 
     await userApi.updatePassword({
-      old_password: passwordForm.oldPassword,
-      new_password: passwordForm.newPassword
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword
     });
     Message.success('密码修改成功');
     showPasswordForm.value = false;
