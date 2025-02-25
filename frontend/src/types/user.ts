@@ -13,8 +13,8 @@ export interface RegisterParams {
 }
 
 export interface UpdatePasswordParams {
-  old_password: string;
-  new_password: string;
+  oldPassword: string;
+  newPassword: string;
 }
 
 export interface UpdateProfileParams {

@@ -24,7 +24,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function updatePassword(oldPassword: string, newPassword: string) {
-    await userApi.updatePassword({ old_password: oldPassword, new_password: newPassword });
+    await userApi.updatePassword({ oldPassword, newPassword });
   }
 
   async function updateProfile(nickname?: string, email?: string, avatar?: string) {
