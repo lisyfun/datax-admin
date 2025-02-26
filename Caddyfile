@@ -47,11 +47,13 @@
 		}
 	}
 
+	# 日志
 	log {
-		output stdout
-		format transform `[WEB] {request>remote_ip} "{request>method} {request>uri} {request>proto}" {status} {size} "{request>headers>Referer>[0]}" ` {
-      time_format "2006/01/02 - 15:04:05"
-    }
+		output file /app/logs/access.log {
+			roll_size 10MB
+			roll_keep 5
+			roll_keep_for 720h
+		}
 	}
 }
 
