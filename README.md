@@ -1,27 +1,163 @@
 # DataX Admin
 
-DataX Admin 是一个现代化的前后端分离管理系统，采用 Vue 3 + Go 技术栈开发。
+DataX Admin 是一个强大的数据同步和管理平台，基于 Go 和 Vue.js 构建。它提供了友好的用户界面，用于配置、监控和管理 DataX 数据同步任务。
 
-## 技术栈
+## 功能特性
 
-### 前端技术栈
+- 可视化配置 DataX 任务
+- 实时监控任务执行状态
+- 支持多种数据源（MySQL、PostgreSQL、Oracle 等）
+- 任务调度和定时执行
+- 用户权限管理
+- 系统监控和性能分析
+- SSH 终端支持
 
-- Vue 3：渐进式 JavaScript 框架
-- TypeScript：JavaScript 的超集，提供类型检查
-- Arco Design Vue：字节跳动出品的企业级设计系统
-- Pinia：Vue 的状态管理库
-- Vue Router：Vue.js 的官方路由
-- Vite：新一代前端构建工具
-- i18n：国际化解决方案
+## 系统要求
 
-### 后端技术栈
+- Go 1.18 或更高版本
+- Node.js 16 或更高版本
+- MySQL 5.7 或更高版本
+- DataX 环境
 
-- Go 1.22：编程语言
-- Gin：Web 框架
-- GORM：ORM 框架
-- JWT：用户认证
-- MySQL：数据库
-- Viper：配置管理
+## 快速开始
+
+### 使用 Docker
+
+最简单的方式是使用 Docker 运行 DataX Admin：
+
+```bash
+# 拉取镜像
+docker pull datax-admin:latest
+
+# 运行容器
+docker run -d -p 28080:28080 --name datax-admin datax-admin:latest
+```
+
+访问 http://localhost:28080 即可使用系统。
+
+### 从源码构建
+
+1. 克隆仓库
+
+```bash
+git clone https://github.com/yourusername/datax-admin.git
+cd datax-admin
+```
+
+2. 使用 Makefile 构建
+
+```bash
+# 完整构建（前端 + 后端 + Docker）
+make full
+
+# 或者分步构建
+make build-frontend  # 构建前端
+make build           # 构建后端
+```
+
+3. 运行应用
+
+```bash
+make run
+```
+
+## 使用 Makefile
+
+项目提供了一个功能丰富的 Makefile，用于简化构建和开发过程。
+
+### 主要命令
+
+- `make build` - 构建后端可执行文件（当前平台）
+- `make build-frontend` - 构建前端
+- `make clean` - 清理构建产物
+- `make test` - 运行测试
+- `make docker` - 构建 Docker 镜像 (AMD64)
+- `make docker-arm64` - 构建 Docker 镜像 (ARM64)
+- `make docker-all` - 构建所有架构的 Docker 镜像
+- `make docker-multi` - 构建并推送多架构 Docker 镜像
+- `make release` - 构建所有平台的发布版本
+- `make run` - 构建并运行应用
+- `make help` - 显示帮助信息
+
+### 多平台构建
+
+- `make linux-amd64` - 构建 Linux AMD64 可执行文件
+- `make linux-arm64` - 构建 Linux ARM64 可执行文件
+- `make darwin-amd64` - 构建 macOS AMD64 可执行文件
+- `make darwin-arm64` - 构建 macOS ARM64 可执行文件
+- `make windows-amd64` - 构建 Windows AMD64 可执行文件
+
+### 示例
+
+```bash
+# 构建当前平台的可执行文件
+make build
+
+# 构建所有平台的发布版本
+make release
+
+# 构建并标记特定版本的 Docker 镜像 (AMD64)
+make docker VERSION=v1.0.0
+
+# 构建并标记特定版本的 Docker 镜像 (ARM64)
+make docker-arm64 VERSION=v1.0.0
+
+# 构建所有架构的 Docker 镜像
+make docker-all VERSION=v1.0.0
+
+# 构建并推送多架构 Docker 镜像
+make docker-multi VERSION=v1.0.0
+
+# 完整构建（前端、后端和所有架构的 Docker 镜像）
+make full
+```
+
+### Docker 镜像说明
+
+项目支持构建不同架构的 Docker 镜像：
+
+- `datax-admin:版本号` - 基于 AMD64 架构的镜像
+- `datax-admin:版本号-arm64` - 基于 ARM64 架构的镜像
+
+使用多架构镜像时，Docker 会自动选择适合当前系统的镜像版本。
+
+## 配置
+
+系统配置位于 `backend/config.yaml` 文件中，主要包括：
+
+```yaml
+server:
+  port: ":28080"
+  mode: debug
+  base_path: "/"
+
+db:
+  host: localhost
+  port: 3306
+  username: root
+  password: password
+  dbname: datax_admin
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 3600
+  log_mode: info
+  charset: utf8mb4
+
+jwt:
+  secret: your-secret-key
+  expire: 86400  # 24 hours
+
+datax:
+  home: "/app"  # DataX 安装目录
+  bin: "/app/bin/datax"  # DataX 可执行文件路径
+
+logger:
+  log_path: "logs"  # 日志文件路径
+  max_size: 100     # 单个日志文件最大大小（MB）
+  max_backups: 7    # 最大保留的旧日志文件数
+  max_age: 30       # 日志文件保留的最大天数
+  compress: true    # 是否压缩旧日志文件
+```
 
 ## 项目结构
 
@@ -55,66 +191,6 @@ datax-admin/
     ├── go.mod
     └── main.go
 ```
-
-## 功能特性
-
-- 用户认证与授权
-- 菜单管理
-- 角色管理
-- 权限管理
-- 系统配置
-- 国际化支持
-- 主题定制
-- 响应式设计
-
-## 快速开始
-
-### 环境要求
-
-- Node.js >= 16
-- Go >= 1.22
-- MySQL >= 8.0
-
-### 前端启动
-
-```bash
-# 进入前端目录
-cd frontend
-
-# 安装依赖
-pnpm install
-
-# 启动开发服务器
-pnpm dev
-
-# 构建生产版本
-pnpm build
-```
-
-### 后端启动
-
-```bash
-# 进入后端目录
-cd backend
-
-# 安装依赖
-go mod tidy
-
-# 启动服务
-go run main.go
-```
-
-### 配置说明
-
-1. 前端配置
-   - 环境变量配置在 `.env` 文件中
-   - 开发环境配置在 `.env.development` 文件中
-   - 生产环境配置在 `.env.production` 文件中
-
-2. 后端配置
-   - 配置文件位于 `backend/config` 目录
-   - 支持 YAML 格式的配置文件
-   - 可通过环境变量覆盖配置
 
 ## 开发指南
 
