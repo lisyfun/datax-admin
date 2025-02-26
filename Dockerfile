@@ -46,7 +46,7 @@ EXPOSE 80
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:28080/api/v1/ping || exit 1
+  CMD curl -f http://localhost/datax/api/v1/ping || exit 1
 
 # 启动命令
 CMD ["sh", "/app/start.sh"]
