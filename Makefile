@@ -145,8 +145,8 @@ docker: linux-amd64
 		--build-arg CONFIG_FILE=./backend/config.yaml \
 		-t $(DOCKER_IMAGE):$(VERSION)-amd64 .
 	@echo -e "$(GREEN)Docker 镜像构建完成: $(DOCKER_IMAGE):$(VERSION)-amd64$(NC)"
-	docker save $(DOCKER_IMAGE):$(VERSION)-amd64 > $(DOCKER_IMAGE).tar
-	@echo -e "$(GREEN)Docker 镜像保存完成: $(DOCKER_IMAGE).tar$(NC)"
+	docker save $(DOCKER_IMAGE):$(VERSION)-amd64 > $(DOCKER_IMAGE)-$(VERSION)-amd64.tar
+	@echo -e "$(GREEN)Docker 镜像保存完成: $(DOCKER_IMAGE)-$(VERSION)-amd64.tar$(NC)"
 
 # 构建 Docker 镜像 (ARM64)
 .PHONY: docker-arm64
