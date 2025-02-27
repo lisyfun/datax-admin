@@ -21,26 +21,13 @@ DataX Admin 是一个强大的数据同步和管理平台，基于 Go 和 Vue.js
 
 ## 快速开始
 
-### 使用 Docker
-
-最简单的方式是使用 Docker 运行 DataX Admin：
-
-```bash
-# 拉取镜像
-docker pull datax-admin:latest
-
-# 运行容器
-docker run -d -p 28080:28080 --name datax-admin datax-admin:latest
-```
-
-访问 http://localhost:28080 即可使用系统。
 
 ### 从源码构建
 
 1. 克隆仓库
 
 ```bash
-git clone https://github.com/yourusername/datax-admin.git
+git clone https://github.com/lisyfun/datax-admin.git
 cd datax-admin
 ```
 
