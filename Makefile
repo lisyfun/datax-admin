@@ -138,7 +138,7 @@ darwin: darwin-amd64 darwin-arm64
 .PHONY: docker
 docker: linux-amd64
 	@echo -e "$(YELLOW)构建 Docker 镜像 $(DOCKER_IMAGE):$(VERSION)...$(NC)"
-	docker build -f Dockerfile \
+	docker build --platform linux/amd64 -f Dockerfile \
 		--build-arg BINARY_NAME=$(BINARY_NAME) \
 		--build-arg BINARY_VERSION=linux-amd64 \
 		--build-arg DATAX_VERSION=linux-amd64 \
