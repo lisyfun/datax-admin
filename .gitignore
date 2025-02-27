@@ -1,4 +1,6 @@
 datax-admin.tar
-./backend/logs/app.log
+./backend/logs/*
 ./.DS_Store
 *.tar
+*.tar.gz
+./backend/bin/datax-admin*
