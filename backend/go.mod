@@ -1,4 +1,4 @@
-module datax-admin
+module datax-admin/backend
 
 go 1.22.2
 
