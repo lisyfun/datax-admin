@@ -3,4 +3,4 @@ datax-admin.tar
 ./.DS_Store
 *.tar
 *.tar.gz
-./backend/bin/datax-admin*
+backend/bin/*
