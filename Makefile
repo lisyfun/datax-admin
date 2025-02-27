@@ -143,8 +143,8 @@ docker: linux-amd64
 		--build-arg BINARY_VERSION=linux-amd64 \
 		--build-arg DATAX_VERSION=linux-amd64 \
 		--build-arg CONFIG_FILE=./backend/config.yaml \
-		-t $(DOCKER_IMAGE):$(VERSION) .
-	@echo -e "$(GREEN)Docker 镜像构建完成: $(DOCKER_IMAGE):$(VERSION)$(NC)"
+		-t $(DOCKER_IMAGE):$(VERSION)-amd64 .
+	@echo -e "$(GREEN)Docker 镜像构建完成: $(DOCKER_IMAGE):$(VERSION)-amd64$(NC)"
 
 # 构建 Docker 镜像 (ARM64)
 .PHONY: docker-arm64

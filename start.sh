@@ -5,7 +5,7 @@
 
 # 等待后端服务启动
 echo "等待后端服务启动..."
-while ! curl -s http://localhost/datax/api/v1/ping > /dev/null; do
+while ! curl -s http://localhost:28080/api/v1/ping > /dev/null; do
     sleep 1
 done
 echo "后端服务已启动"
