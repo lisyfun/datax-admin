@@ -16,7 +16,7 @@ db:
   charset: utf8mb4
 
 jwt:
-  secret: your-secret-key
+  secret: "b4zljlMro70w4Ps6DNago2rENqw8rvkCqTQOrFAfQd8="
   expire: 86400  # 24 hours
 
 datax:
