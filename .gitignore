@@ -1,5 +1,8 @@
 datax-admin.tar
-./backend/logs/*
+# 忽略后端日志文件
+backend/logs/
+backend/logs/*
+*/backend/logs/*
 ./.DS_Store
 *.tar
 *.tar.gz
