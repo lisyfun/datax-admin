@@ -1,5 +1,10 @@
 # DataX Admin
 
+
+
+![image](https://github.com/user-attachments/assets/7882709f-6147-47cc-ab30-4f4515538ff4)
+
+
 DataX Admin 是一个基于 Go 和 Vue.js 构建的数据同步任务管理平台，提供了友好的界面来配置和管理 DataX 数据同步任务。
 
 ## 功能特性
