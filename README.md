@@ -30,24 +30,19 @@ DataX Admin 是一个基于 Go 和 Vue.js 构建的数据同步任务管理平�
 
 1. 拉取镜像
 ```bash
-# AMD64 架构
-docker pull datax-admin:latest
-
-# ARM64 架构
-docker pull datax-admin:latest-arm64
+docker pull lisongyu/datax-admin:latest
 ```
 
 2. 运行容器
 ```bash
 docker run -d \
   --name datax-admin \
-  -p 80:80 \
-  -p 28080:28080 \
+  -p 28080:80 \
   -v $(pwd)/logs:/app/logs \
-  datax-admin:latest  # ARM64 使用 datax-admin:latest-arm64
+  lisongyu/datax-admin:latest  # ARM64 使用 datax-admin:latest-arm64
 ```
 
-访问 http://localhost/datax/ 即可使用系统。
+访问 http://localhost:28080/datax 即可使用系统。
 
 ### 从源码构建
 
@@ -57,31 +52,21 @@ git clone https://github.com/lisyfun/datax-admin.git
 cd datax-admin
 ```
 
-2. 构建前端
-```bash
-cd frontend
-pnpm install
-pnpm build
-cd ..
-```
-
-3. 构建后端
-```bash
-cd backend
-go build -o bin/datax-admin
-cd ..
-```
-
-4. 使用 Makefile 构建（推荐）
+2. 使用 Makefile 构建（推荐）
 ```bash
 # 完整构建（前端 + 后端 + Docker）
-make full VERSION=v1.0.0
-
-# 或者分步构建
-make build-frontend  # 构建前端
-make build          # 构建后端
-make docker         # 构建 Docker 镜像
+make docker
 ```
+
+3. 运行容器
+```bash
+docker run -d \
+  --name datax-admin \
+  -p 28080:80 \
+  -v $(pwd)/logs:/app/logs \
+  lisongyu/datax-admin:latest  # ARM64 使用 datax-admin:latest-arm64
+```
+
 
 ## 使用 Makefile
 
@@ -96,12 +81,6 @@ make docker         # 构建 Docker 镜像
 - `make clean` - 清理构建产物
 - `make help` - 显示帮助信息
 
-### 多平台构建
-
-- `make linux-amd64` - 构建 Linux AMD64 版本
-- `make linux-arm64` - 构建 Linux ARM64 版本
-- `make darwin-amd64` - 构建 macOS AMD64 版本
-- `make darwin-arm64` - 构建 macOS ARM64 版本
 
 ## 配置说明
 

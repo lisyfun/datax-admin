@@ -10,6 +10,8 @@ VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME=$(shell date -u '+%Y-%m-%d %H:%M:%S')
 COMMIT_HASH=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 LDFLAGS=-ldflags "-X 'main.Version=$(VERSION)' -X 'main.BuildTime=$(BUILD_TIME)' -X 'main.CommitHash=$(COMMIT_HASH)'"
+# Docker Hub 用户名，可以通过环境变量设置或在命令行传入
+DOCKER_USERNAME?=lisongyu
 
 # Go 环境变量
 export GO111MODULE=on
@@ -43,6 +45,7 @@ help:
 	@echo "  docker          构建Docker镜像 (AMD64)"
 	@echo "  docker-arm64    构建Docker镜像 (ARM64)"
 	@echo "  docker-all      构建所有架构的Docker镜像"
+	@echo "  docker-push     推送多架构Docker镜像并创建latest标签"
 	@echo "  linux           构建Linux可执行文件"
 	@echo "  darwin          构建macOS可执行文件"
 	@echo "  linux-amd64     构建Linux AMD64可执行文件"
@@ -57,6 +60,7 @@ help:
 	@echo "  make docker VERSION=v1.0.0"
 	@echo "  make docker-arm64 VERSION=v1.0.0"
 	@echo "  make docker-all VERSION=v1.0.0"
+	@echo "  make docker-push DOCKER_USERNAME=myusername VERSION=v1.0.0"
 	@echo ""
 
 # 创建目录
@@ -159,10 +163,77 @@ docker-arm64: linux-arm64
 		--build-arg CONFIG_FILE=./backend/config.yaml \
 		-t $(DOCKER_IMAGE):$(VERSION)-arm64 .
 	@echo -e "$(GREEN)ARM64 Docker 镜像构建完成: $(DOCKER_IMAGE):$(VERSION)-arm64$(NC)"
-	docker run -it -p 28080:80 $(DOCKER_IMAGE):$(VERSION)-arm64
+	# docker run -it -p 28080:80 $(DOCKER_IMAGE):$(VERSION)-arm64
 	@echo -e "$(GREEN)Docker 容器已启动: $(DOCKER_IMAGE):$(VERSION)-arm64$(NC)"
 	@echo "访问地址: http://localhost:28080/datax/"
 
+# docker 启动 amd64
+.PHONY: docker-run
+docker-run:
+	docker run -d \
+		--name datax-admin \
+		-p 28080:80 \
+		-v $(pwd)/logs:/app/logs \
+		$(DOCKER_IMAGE):$(VERSION)-amd64
+
+# docker 启动 arm64
+.PHONY: docker-run-arm64
+docker-run-arm64:
+	docker run -d \
+		--name datax-admin \
+		-p 28080:80 \
+		-v $(pwd)/logs:/app/logs \
+		$(DOCKER_IMAGE):$(VERSION)-arm64
+
+# 构建所有架构的 Docker 镜像
+.PHONY: docker-all
+docker-all: docker docker-arm64
+	@echo -e "$(GREEN)所有架构的 Docker 镜像构建完成$(NC)"
+
+# 推送多架构 Docker 镜像并创建 latest 标签
+.PHONY: docker-push
+docker-push: docker-all
+	@echo -e "$(YELLOW)推送多架构 Docker 镜像并创建 latest 标签...$(NC)"
+	@echo -e "$(YELLOW)使用 Docker Hub 用户名: $(DOCKER_USERNAME)$(NC)"
+
+	# 为镜像添加标签
+	docker tag $(DOCKER_IMAGE):$(VERSION)-amd64 $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-amd64
+	docker tag $(DOCKER_IMAGE):$(VERSION)-arm64 $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64
+
+	# 推送镜像到 Docker Hub
+	docker push $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-amd64
+	docker push $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64
+
+	# 创建并推送多架构清单
+	docker manifest create $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest \
+		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-amd64 \
+		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64
+
+	# 为清单中的每个镜像添加架构信息
+	docker manifest annotate $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest \
+		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-amd64 --os linux --arch amd64
+	docker manifest annotate $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest \
+		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64 --os linux --arch arm64
+
+	# 推送清单
+	docker manifest push $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest
+
+	# 同样为当前版本创建多架构清单
+	docker manifest create $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION) \
+		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-amd64 \
+		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64
+
+	docker manifest annotate $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION) \
+		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-amd64 --os linux --arch amd64
+	docker manifest annotate $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION) \
+		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64 --os linux --arch arm64
+
+	docker manifest push $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)
+
+	@echo -e "$(GREEN)多架构 Docker 镜像推送完成$(NC)"
+	@echo -e "$(GREEN)镜像可通过以下方式拉取:$(NC)"
+	@echo "  docker pull $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest"
+	@echo "  docker pull $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)"
 
 # 运行应用
 .PHONY: run
