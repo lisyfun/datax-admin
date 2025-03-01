@@ -78,31 +78,31 @@ func formatLog(level, msg string) string {
 }
 
 // Info 记录信息级别的日志
-func Info(format string, v ...interface{}) {
+func Info(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
 	InfoLogger.Println(formatLog("INFO", msg))
 }
 
 // Warn 记录警告级别的日志
-func Warn(format string, v ...interface{}) {
+func Warn(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
 	WarnLogger.Println(formatLog("WARN", msg))
 }
 
 // Error 记录错误级别的日志
-func Error(format string, v ...interface{}) {
+func Error(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
 	ErrorLogger.Println(formatLog("ERROR", msg))
 }
 
 // Debug 记录调试级别的日志
-func Debug(format string, v ...interface{}) {
+func Debug(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
 	DebugLogger.Println(formatLog("DEBUG", msg))
 }
 
 // Fatal 记录致命错误并退出程序
-func Fatal(format string, v ...interface{}) {
+func Fatal(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
 	ErrorLogger.Println(formatLog("FATAL", msg))
 	os.Exit(1)

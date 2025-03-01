@@ -189,7 +189,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 	sshClient, err := services.NewSSHClient(terminal.Host, terminal.Port, terminal.Username, terminal.Password)
 	if err != nil {
 		logger.Error("SSH连接失败: %v", err)
-		ws.WriteJSON(map[string]interface{}{
+		ws.WriteJSON(map[string]any{
 			"type": "error",
 			"data": err.Error(),
 		})
@@ -201,7 +201,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 	// 更新终端状态为在线
 	if err := c.terminalService.UpdateTerminalStatus(uint(id), "online"); err != nil {
 		logger.Error("更新终端状态失败: %v", err)
-		ws.WriteJSON(map[string]interface{}{
+		ws.WriteJSON(map[string]any{
 			"type": "error",
 			"data": "更新终端状态失败",
 		})
@@ -222,7 +222,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 			if err != nil {
 				if err != io.EOF {
 					logger.Error("读取SSH数据失败: %v", err)
-					ws.WriteJSON(map[string]interface{}{
+					ws.WriteJSON(map[string]any{
 						"type": "error",
 						"data": err.Error(),
 					})
@@ -230,7 +230,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 				return
 			}
 			if n > 0 {
-				err = ws.WriteJSON(map[string]interface{}{
+				err = ws.WriteJSON(map[string]any{
 					"type": "output",
 					"data": string(buf[:n]),
 				})
@@ -260,7 +260,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 				_, err = sshClient.Write([]byte(msg.Data))
 				if err != nil {
 					logger.Error("写入SSH数据失败: %v", err)
-					ws.WriteJSON(map[string]interface{}{
+					ws.WriteJSON(map[string]any{
 						"type": "error",
 						"data": err.Error(),
 					})

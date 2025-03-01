@@ -125,7 +125,7 @@ func (s *UserService) UpdatePassword(userID uint, req *types.UpdatePasswordReque
 
 // UpdateProfile 更新个人信息
 func (s *UserService) UpdateProfile(userID uint, req *types.UpdateProfileRequest) error {
-	updates := map[string]interface{}{}
+	updates := map[string]any{}
 	if req.Nickname != "" {
 		updates["nickname"] = req.Nickname
 	}

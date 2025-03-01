@@ -16,7 +16,7 @@ import (
 )
 
 // executeShellJob 执行Shell任务
-func (s *JobService) executeShellJob(job *models.Job, params interface{}, history *models.JobHistory) {
+func (s *JobService) executeShellJob(job *models.Job, params any, history *models.JobHistory) {
 	var shellParams models.JobShellParams
 	if err := mapToStruct(params, &shellParams); err != nil {
 		history.Status = 0
@@ -62,7 +62,7 @@ func (s *JobService) executeShellJob(job *models.Job, params interface{}, histor
 }
 
 // executeHTTPJob 执行HTTP任务
-func (s *JobService) executeHTTPJob(job *models.Job, params interface{}, history *models.JobHistory) {
+func (s *JobService) executeHTTPJob(job *models.Job, params any, history *models.JobHistory) {
 	var httpParams models.JobHTTPParams
 	if err := mapToStruct(params, &httpParams); err != nil {
 		history.Status = 0
@@ -127,7 +127,7 @@ func (s *JobService) executeHTTPJob(job *models.Job, params interface{}, history
 }
 
 // executeDataXJob 执行DataX任务
-func (s *JobService) executeDataXJob(job *models.Job, params interface{}, history *models.JobHistory) {
+func (s *JobService) executeDataXJob(job *models.Job, params any, history *models.JobHistory) {
 	var dataxParams models.JobDataXParams
 	if err := mapToStruct(params, &dataxParams); err != nil {
 		history.Status = 0

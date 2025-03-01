@@ -30,7 +30,7 @@ func (s *MenuService) CreateMenu(req *types.CreateMenuRequest) error {
 
 // UpdateMenu 更新菜单
 func (s *MenuService) UpdateMenu(id uint, req *types.UpdateMenuRequest) error {
-	return models.DB.Model(&models.Menu{}).Where("id = ?", id).Updates(map[string]interface{}{
+	return models.DB.Model(&models.Menu{}).Where("id = ?", id).Updates(map[string]any{
 		"parent_id": req.ParentID,
 		"name":      req.Name,
 		"path":      req.Path,
