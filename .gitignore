@@ -7,3 +7,5 @@ backend/logs/*
 *.tar
 *.tar.gz
 backend/bin/*
+bin/*
+*/bin/*

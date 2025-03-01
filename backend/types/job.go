@@ -7,25 +7,25 @@ import (
 
 // CreateJobRequest 创建任务请求
 type CreateJobRequest struct {
-	Name        string      `json:"name" binding:"required,max=100"`
-	Type        string      `json:"type" binding:"required,oneof=shell http datax"`
-	Description string      `json:"description" binding:"max=500"`
-	CronExpr    string      `json:"cron_expr" binding:"required,max=100"`
-	Timeout     int         `json:"timeout" binding:"min=0"`
-	RetryCount  int         `json:"retry_count" binding:"min=0"`
-	RetryDelay  int         `json:"retry_delay" binding:"min=0"`
-	Params      interface{} `json:"params" binding:"required"`
+	Name        string `json:"name" binding:"required,max=100"`
+	Type        string `json:"type" binding:"required,oneof=shell http datax"`
+	Description string `json:"description" binding:"max=500"`
+	CronExpr    string `json:"cron_expr" binding:"required,max=100"`
+	Timeout     int    `json:"timeout" binding:"min=0"`
+	RetryCount  int    `json:"retry_count" binding:"min=0"`
+	RetryDelay  int    `json:"retry_delay" binding:"min=0"`
+	Params      any    `json:"params" binding:"required"`
 }
 
 // UpdateJobRequest 更新任务请求
 type UpdateJobRequest struct {
-	Name        string      `json:"name" binding:"omitempty,max=100"`
-	Description string      `json:"description" binding:"max=500"`
-	CronExpr    string      `json:"cron_expr" binding:"omitempty,max=100"`
-	Timeout     int         `json:"timeout" binding:"min=0"`
-	RetryCount  int         `json:"retry_count" binding:"min=0"`
-	RetryDelay  int         `json:"retry_delay" binding:"min=0"`
-	Params      interface{} `json:"params"`
+	Name        string `json:"name" binding:"omitempty,max=100"`
+	Description string `json:"description" binding:"max=500"`
+	CronExpr    string `json:"cron_expr" binding:"omitempty,max=100"`
+	Timeout     int    `json:"timeout" binding:"min=0"`
+	RetryCount  int    `json:"retry_count" binding:"min=0"`
+	RetryDelay  int    `json:"retry_delay" binding:"min=0"`
+	Params      any    `json:"params"`
 }
 
 // JobListRequest 任务列表请求

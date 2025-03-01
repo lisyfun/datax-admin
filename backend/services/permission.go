@@ -38,7 +38,7 @@ func (s *PermissionService) CreatePermission(req *types.CreatePermissionRequest)
 
 // UpdatePermission 更新权限
 func (s *PermissionService) UpdatePermission(id uint, req *types.UpdatePermissionRequest) error {
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"name":      req.Name,
 		"type":      req.Type,
 		"parent_id": req.ParentID,

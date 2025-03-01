@@ -22,7 +22,7 @@ func GenerateToken(userID uint, username string) (string, error) {
 
 // ParseToken 解析 JWT token
 func ParseToken(tokenString string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		return []byte(config.GlobalConfig.JWT.Secret), nil
 	})
 

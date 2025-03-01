@@ -27,7 +27,7 @@ func CustomLogger() gin.HandlerFunc {
 
 // CustomRecovery 自定义恢复中间件
 func CustomRecovery() gin.HandlerFunc {
-	return gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, err interface{}) {
+	return gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, err any) {
 		logger.Error("服务器内部错误: %v", err)
 		c.AbortWithStatus(500)
 	})

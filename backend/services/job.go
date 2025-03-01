@@ -80,7 +80,7 @@ func (s *JobService) UpdateJob(jobID uint, req *types.UpdateJobRequest, userID u
 		}
 	}
 
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"name":        req.Name,
 		"description": req.Description,
 		"cron_expr":   req.CronExpr,
@@ -252,7 +252,7 @@ func (s *JobService) GetJobHistoryList(req *types.JobHistoryListRequest) (*types
 }
 
 // validateAndSerializeParams 验证并序列化任务参数
-func (s *JobService) validateAndSerializeParams(jobType string, params interface{}) (string, error) {
+func (s *JobService) validateAndSerializeParams(jobType string, params any) (string, error) {
 	var err error
 	switch models.JobType(jobType) {
 	case models.JobTypeShell:
@@ -339,7 +339,7 @@ func (s *JobService) executeJob(job *models.Job) {
 		}
 	}()
 
-	var params interface{}
+	var params any
 	if err := json.Unmarshal([]byte(job.Params), &params); err != nil {
 		history.Status = 0
 		history.Error = fmt.Sprintf("解析任务参数失败: %v", err)
@@ -358,7 +358,7 @@ func (s *JobService) executeJob(job *models.Job) {
 }
 
 // 辅助函数：将map转换为结构体
-func mapToStruct(in interface{}, out interface{}) error {
+func mapToStruct(in any, out any) error {
 	bytes, err := json.Marshal(in)
 	if err != nil {
 		return err

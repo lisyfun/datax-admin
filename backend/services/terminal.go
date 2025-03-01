@@ -28,7 +28,7 @@ func (s *TerminalService) CreateTerminal(req *types.CreateTerminalRequest) error
 
 // UpdateTerminal 更新终端
 func (s *TerminalService) UpdateTerminal(id uint, req *types.UpdateTerminalRequest) error {
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"name":     req.Name,
 		"host":     req.Host,
 		"port":     req.Port,
@@ -111,7 +111,7 @@ func (s *TerminalService) GetTerminalList(req *types.TerminalListRequest) (*type
 
 // UpdateTerminalStatus 更新终端状态
 func (s *TerminalService) UpdateTerminalStatus(id uint, status string) error {
-	result := models.DB.Model(&models.Terminal{}).Where("id = ?", id).Updates(map[string]interface{}{
+	result := models.DB.Model(&models.Terminal{}).Where("id = ?", id).Updates(map[string]any{
 		"status":    status,
 		"last_seen": time.Now(),
 	})
