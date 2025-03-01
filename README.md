@@ -64,7 +64,7 @@ docker run -d \
   --name datax-admin \
   -p 28080:80 \
   -v $(pwd)/logs:/app/logs \
-  lisongyu/datax-admin:latest  # ARM64 使用 datax-admin:latest-arm64
+  datax-admin:$(VERSION)-arm64
 ```
 
 
