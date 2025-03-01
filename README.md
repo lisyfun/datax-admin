@@ -39,7 +39,7 @@ docker run -d \
   --name datax-admin \
   -p 28080:80 \
   -v $(pwd)/logs:/app/logs \
-  lisongyu/datax-admin:latest  # ARM64 使用 datax-admin:latest-arm64
+  lisongyu/datax-admin:latest
 ```
 
 访问 http://localhost:28080/datax 即可使用系统。
