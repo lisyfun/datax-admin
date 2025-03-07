@@ -126,7 +126,7 @@ build-arm64: $(DIST_DIR)
 
 # 构建 Docker 镜像
 .PHONY: docker
-docker: $(DIST_DIR)
+docker: build
 	@echo -e "$(YELLOW)构建 Docker 镜像 $(DOCKER_IMAGE):$(VERSION)...$(NC)"
 	docker build --platform linux/amd64 -f Dockerfile \
 		--build-arg BINARY_NAME=$(BINARY_NAME) \
@@ -140,7 +140,7 @@ docker: $(DIST_DIR)
 
 # 构建 Docker 镜像 (ARM64)
 .PHONY: docker-arm64
-docker-arm64: $(DIST_DIR)
+docker-arm64: build-arm64
 	@echo -e "$(YELLOW)构建 ARM64 Docker 镜像 $(DOCKER_IMAGE):$(VERSION)-arm64$(NC)"
 	docker build -f Dockerfile \
 		--build-arg BINARY_NAME=$(BINARY_NAME) \
