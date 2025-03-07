@@ -44,6 +44,9 @@ importers:
       pinia:
         specifier: ^2.3.0
         version: 2.3.0(typescript@5.6.3)(vue@3.5.13(typescript@5.6.3))
+      sm-crypto:
+        specifier: ^0.3.13
+        version: 0.3.13
       vue:
         specifier: ^3.5.13
         version: 3.5.13(typescript@5.6.3)
@@ -586,6 +589,9 @@ packages:
   is-what@3.14.1:
     resolution: {integrity: sha512-sNxgpk9793nzSs7bA6JQJGeIuRBQhAaNGG77kzYQgMkrID+lS6SlK07K5LaptscDlSaIgH+GPFzf+d75FVxozA==}
 
+  jsbn@1.1.0:
+    resolution: {integrity: sha512-4bYVV3aAMtDTTu4+xsDYa6sy9GyJ69/amsu9sYF2zqjiEoZA5xJi3BrfX3uY+/IekIu7MwdObdbDWpoZdBv3/A==}
+
   less@4.2.1:
     resolution: {integrity: sha512-CasaJidTIhWmjcqv0Uj5vccMI7pJgfD9lMkKtlnTHAdJdYK/7l8pM9tumLyJ0zhbD4KJLo/YvTj+xznQd5NBhg==}
     engines: {node: '>=6'}
@@ -690,6 +696,9 @@ packages:
 
   simple-swizzle@0.2.2:
     resolution: {integrity: sha512-JA//kQgZtbuY83m+xT+tXJkmJncGMTFT+C+g2h2R9uxkYIrE2yy9sgmcLhCnw57/WSD+Eh3J97FPEDFnbXnDUg==}
+
+  sm-crypto@0.3.13:
+    resolution: {integrity: sha512-ztNF+pZq6viCPMA1A6KKu3bgpkmYti5avykRHbcFIdSipFdkVmfUw2CnpM2kBJyppIalqvczLNM3wR8OQ0pT5w==}
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -1219,6 +1228,8 @@ snapshots:
 
   is-what@3.14.1: {}
 
+  jsbn@1.1.0: {}
+
   less@4.2.1:
     dependencies:
       copy-anything: 2.0.6
@@ -1343,6 +1354,10 @@ snapshots:
   simple-swizzle@0.2.2:
     dependencies:
       is-arrayish: 0.3.2
+
+  sm-crypto@0.3.13:
+    dependencies:
+      jsbn: 1.1.0
 
   source-map-js@1.2.1: {}
 

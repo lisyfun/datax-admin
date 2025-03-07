@@ -189,6 +189,17 @@ export const appRoutes: AppRouteRecordRaw[] = [
               roles: ['*'],
             },
           },
+          {
+            path: 'crypto',
+            name: 'Crypto',
+            component: () => import('@/views/tools/Crypto.vue'),
+            meta: {
+              title: '加解密工具',
+              requiresAuth: true,
+              icon: 'icon-lock',
+              roles: ['*'],
+            },
+          },
         ],
       },
     ],

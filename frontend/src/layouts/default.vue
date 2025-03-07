@@ -137,6 +137,7 @@ import {
   IconMoonFill,
   IconSunFill,
   IconCommand,
+  IconLock,
 } from '@arco-design/web-vue/es/icon';
 import * as userApi from '@/api/user';
 import { appRoutes } from '../router';
@@ -173,6 +174,7 @@ const iconMap: Record<string, any> = {
   'icon-robot': IconRobot,
   'icon-common': IconCommon,
   'icon-command': IconCommand,
+  'icon-lock': IconLock,
 };
 
 // 生成菜单项
