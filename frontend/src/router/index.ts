@@ -91,7 +91,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
         meta: {
           title: '终端管理',
           requiresAuth: true,
-          icon: 'icon-code',
+          icon: 'icon-command',
           order: 2,
         },
         children: [

@@ -136,6 +136,7 @@ import {
   IconCommon,
   IconMoonFill,
   IconSunFill,
+  IconCommand,
 } from '@arco-design/web-vue/es/icon';
 import * as userApi from '@/api/user';
 import { appRoutes } from '../router';
@@ -171,6 +172,7 @@ const iconMap: Record<string, any> = {
   'icon-code': IconCode,
   'icon-robot': IconRobot,
   'icon-common': IconCommon,
+  'icon-command': IconCommand,
 };
 
 // 生成菜单项
