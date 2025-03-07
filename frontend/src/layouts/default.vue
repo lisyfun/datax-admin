@@ -133,7 +133,7 @@ import {
   IconMenuFold,
   IconMenuUnfold,
   IconExport,
-  IconSettings,
+  IconCommon,
   IconMoonFill,
   IconSunFill,
 } from '@arco-design/web-vue/es/icon';
@@ -170,6 +170,7 @@ const iconMap: Record<string, any> = {
   'icon-bulb': IconBulb,
   'icon-code': IconCode,
   'icon-robot': IconRobot,
+  'icon-common': IconCommon,
 };
 
 // 生成菜单项

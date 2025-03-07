@@ -166,6 +166,31 @@ export const appRoutes: AppRouteRecordRaw[] = [
           },
         ],
       },
+      {
+        path: 'tools',
+        name: 'Tools',
+        component: () => import('@/views/tools/index.vue'),
+        redirect: '/tools/json-formatter',
+        meta: {
+          title: '工具箱',
+          requiresAuth: true,
+          icon: 'icon-common',
+          order: 3,
+        },
+        children: [
+          {
+            path: 'json-formatter',
+            name: 'JsonFormatter',
+            component: () => import('@/views/tools/JsonFormatter.vue'),
+            meta: {
+              title: 'JSON 格式化',
+              requiresAuth: true,
+              icon: 'icon-code',
+              roles: ['*'],
+            },
+          },
+        ],
+      },
     ],
   },
 ];
