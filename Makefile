@@ -93,54 +93,40 @@ build-frontend:
 	fi
 	@echo -e "$(GREEN)前端构建完成$(NC)"
 
-# 构建后端 (当前平台)
+# 构建后端 (AMD平台)
 .PHONY: build
 build: $(DIST_DIR)
-	@echo -e "$(YELLOW)构建后端 (当前平台)...$(NC)"
-	cd $(MAIN_PACKAGE) && go build $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME) .
-	@echo -e "$(GREEN)后端构建完成: $(DIST_DIR)/$(BINARY_NAME)$(NC)"
-
-# 构建 Linux AMD64
-.PHONY: linux-amd64
-linux-amd64: $(DIST_DIR)
+	@echo -e "$(YELLOW)构建前端...$(NC)"
+	cd $(FRONTEND_DIR) && \
+	if command -v pnpm > /dev/null; then \
+		pnpm install && pnpm run build; \
+	else \
+		npm install && npm run build; \
+	fi
+	@echo -e "$(GREEN)前端构建完成$(NC)"
 	@echo -e "$(YELLOW)构建 Linux AMD64...$(NC)"
 	cd $(MAIN_PACKAGE) && GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-amd64 .
 	@echo -e "$(GREEN)构建完成: $(DIST_DIR)/$(BINARY_NAME)-linux-amd64$(NC)"
 
-# 构建 Linux ARM64
-.PHONY: linux-arm64
-linux-arm64: $(DIST_DIR)
-	@echo -e "$(YELLOW)构建 Linux ARM64...$(NC)"
+# 构建 (当前平台)
+.PHONY: build-arm64
+build-arm64: $(DIST_DIR)
+	@echo -e "$(YELLOW)构建前端...$(NC)"
+	cd $(FRONTEND_DIR) && \
+	if command -v pnpm > /dev/null; then \
+		pnpm install && pnpm run build; \
+	else \
+		npm install && npm run build; \
+	fi
+	@echo -e "$(GREEN)前端构建完成$(NC)"
+	@echo -e "$(YELLOW)构建 Linux AMD64...$(NC)"
 	cd $(MAIN_PACKAGE) && GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-arm64 .
 	@echo -e "$(GREEN)构建完成: $(DIST_DIR)/$(BINARY_NAME)-linux-arm64$(NC)"
 
-# 构建 macOS AMD64
-.PHONY: darwin-amd64
-darwin-amd64: $(DIST_DIR)
-	@echo -e "$(YELLOW)构建 macOS AMD64...$(NC)"
-	cd $(MAIN_PACKAGE) && GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-darwin-amd64 .
-	@echo -e "$(GREEN)构建完成: $(DIST_DIR)/$(BINARY_NAME)-darwin-amd64$(NC)"
-
-# 构建 macOS ARM64
-.PHONY: darwin-arm64
-darwin-arm64: $(DIST_DIR)
-	@echo -e "$(YELLOW)构建 macOS ARM64...$(NC)"
-	cd $(MAIN_PACKAGE) && GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64 .
-	@echo -e "$(GREEN)构建完成: $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64$(NC)"
-
-# 构建所有 Linux 平台
-.PHONY: linux
-linux: linux-amd64 linux-arm64
-	@echo -e "$(GREEN)所有 Linux 平台构建完成$(NC)"
-
-# 构建所有 macOS 平台
-.PHONY: darwin
-darwin: darwin-amd64 darwin-arm64
-	@echo -e "$(GREEN)所有 macOS 平台构建完成$(NC)"
 
 # 构建 Docker 镜像
 .PHONY: docker
-docker: linux-amd64
+docker: $(DIST_DIR)
 	@echo -e "$(YELLOW)构建 Docker 镜像 $(DOCKER_IMAGE):$(VERSION)...$(NC)"
 	docker build --platform linux/amd64 -f Dockerfile \
 		--build-arg BINARY_NAME=$(BINARY_NAME) \
@@ -154,7 +140,7 @@ docker: linux-amd64
 
 # 构建 Docker 镜像 (ARM64)
 .PHONY: docker-arm64
-docker-arm64: linux-arm64
+docker-arm64: $(DIST_DIR)
 	@echo -e "$(YELLOW)构建 ARM64 Docker 镜像 $(DOCKER_IMAGE):$(VERSION)-arm64$(NC)"
 	docker build -f Dockerfile \
 		--build-arg BINARY_NAME=$(BINARY_NAME) \
@@ -163,7 +149,7 @@ docker-arm64: linux-arm64
 		--build-arg CONFIG_FILE=./backend/config.yaml \
 		-t $(DOCKER_IMAGE):$(VERSION)-arm64 .
 	@echo -e "$(GREEN)ARM64 Docker 镜像构建完成: $(DOCKER_IMAGE):$(VERSION)-arm64$(NC)"
-	# docker run -it -p 28080:80 $(DOCKER_IMAGE):$(VERSION)-arm64
+	 docker run -it -p 28080:80 $(DOCKER_IMAGE):$(VERSION)-arm64
 	@echo -e "$(GREEN)Docker 容器已启动: $(DOCKER_IMAGE):$(VERSION)-arm64$(NC)"
 	@echo "访问地址: http://localhost:28080/datax/"
 
@@ -235,8 +221,3 @@ docker-push: docker-all
 	@echo "  docker pull $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest"
 	@echo "  docker pull $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)"
 
-# 运行应用
-.PHONY: run
-run: build
-	@echo -e "$(YELLOW)运行应用...$(NC)"
-	$(DIST_DIR)/$(BINARY_NAME)
