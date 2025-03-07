@@ -190,9 +190,33 @@ const AES_IV = 'upbest@2019_best'
 // 复制到剪贴板
 const copyToClipboard = async (text: string) => {
   if (!text) return
+
   try {
-    await navigator.clipboard.writeText(text)
-    Message.success('复制成功')
+    // 首先尝试使用 navigator.clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      Message.success('复制成功')
+      return
+    }
+
+    // 备选方案：创建临时文本区域
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-999999px'
+    textArea.style.top = '-999999px'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+
+    try {
+      document.execCommand('copy')
+      textArea.remove()
+      Message.success('复制成功')
+    } catch (error) {
+      textArea.remove()
+      Message.error('复制失败')
+    }
   } catch (error) {
     Message.error('复制失败')
   }
