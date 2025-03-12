@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import type { AppRouteRecordRaw } from './types';
 import DefaultLayout from '@/layouts/default.vue';
@@ -207,7 +207,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
 ];
 
 const router = createRouter({
-  history: createWebHistory('/datax/'),
+  history: createWebHashHistory('/datax/'),
   routes: appRoutes as RouteRecordRaw[],
 });
 
