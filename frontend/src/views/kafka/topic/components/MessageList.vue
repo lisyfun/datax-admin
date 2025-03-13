@@ -1,10 +1,20 @@
 <template>
   <div class="container">
-    <a-card title="消息列表">
+    <a-card>
+      <template #title>
+        <div class="card-title">
+          <span>消息列表 ：{{ topicName }}</span>
+          <a-button @click="handleBack">
+            <template #icon>
+              <icon-left />
+            </template>
+            返回
+          </a-button>
+        </div>
+      </template>
       <!-- 主题信息头部 -->
       <div class="topic-header">
-        <div class="back-button" @click="handleBack">
-        <icon-left />
+        <div class="back-button" >
         <span>{{ topicName }}</span>
       </div>
       <div class="topic-info">
@@ -480,5 +490,11 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   background-color: rgba(255, 255, 255, 0.5);
+}
+
+.card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 </style>

@@ -1,7 +1,18 @@
 <template>
   <div class="container">
     <Breadcrumb :items="['工具箱', 'Kafka 管理', '主题管理']" />
-    <a-card class="general-card" title="主题管理">
+    <a-card class="general-card">
+      <template #title>
+        <div class="card-title">
+          <span>主题管理</span>
+          <a-button @click="handleBack">
+            <template #icon>
+              <icon-left />
+            </template>
+            返回
+          </a-button>
+        </div>
+      </template>
       <a-row>
         <a-col :flex="1">
           <a-form :model="searchForm" :label-col-props="{ span: 6 }" :wrapper-col-props="{ span: 18 }" label-align="left">
@@ -136,6 +147,7 @@ import { Message } from '@arco-design/web-vue';
 import useLoading from '@/hooks/loading';
 import { queryTopicList, createTopic, alterTopic, deleteTopic, getTopicPartitions, consumeMessages } from '@/api/kafka';
 import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
+import { IconLeft, IconPlus, IconEdit, IconDelete, IconSearch, IconRefresh } from '@arco-design/web-vue/es/icon';
 
 const route = useRoute();
 const router = useRouter();
@@ -414,11 +426,24 @@ const handleConsume = async () => {
   }
 };
 
+// 返回集群管理页面
+const handleBack = () => {
+  router.push({
+    name: 'KafkaCluster'
+  });
+};
+
 fetchData();
 </script>
 
 <style scoped lang="less">
 .container {
   padding: 16px;
+}
+
+.card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 </style>
