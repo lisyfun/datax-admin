@@ -201,21 +201,42 @@ const fetchPartitions = async () => {
 // 获取消息列表
 const fetchMessages = async () => {
   loading.value = true;
+  messages.value = []; // 清空之前的消息
+
   try {
-    const { data } = await consumeMessages(clusterId, topicName, {
+    console.log('开始获取消息，参数:', {
+      clusterId,
+      topicName,
       partition: searchForm.partition,
       offset: searchForm.offset,
       count: searchForm.count,
       keyFilter: searchForm.keyFilter,
       valueFilter: searchForm.valueFilter,
-      groupId: searchForm.groupId, // 传递消费者组 ID
+      groupId: searchForm.groupId,
     });
-    messages.value = data;
-    if (data.length === 0) {
-      Message.info('没有找到符合条件的消息');
+
+    const res = await consumeMessages(clusterId, topicName, {
+      partition: searchForm.partition,
+      offset: searchForm.offset,
+      count: searchForm.count,
+      keyFilter: searchForm.keyFilter,
+      valueFilter: searchForm.valueFilter,
+      groupId: searchForm.groupId,
+    });
+
+    if (res.data.code === 0) {
+      messages.value = res.data.data || [];
+      if (messages.value.length === 0) {
+        Message.info('没有找到符合条件的消息');
+      } else {
+        Message.success(`成功获取 ${messages.value.length} 条消息`);
+      }
+    } else {
+      Message.error(res.data.message || '获取消息失败');
     }
   } catch (err: any) {
-    Message.error(err.response?.data?.message || '获取消息失败');
+    console.error('获取消息失败:', err);
+    Message.error(err.response?.data?.message || '获取消息失败，请检查网络连接或服务器状态');
   } finally {
     loading.value = false;
   }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"datax-admin/models"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -298,19 +297,44 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	brokers := strings.Split(cluster.BrokerServers, ",")
 	consumer, err := sarama.NewConsumer(brokers, config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("创建消费者失败: %v", err)
 	}
 	defer consumer.Close()
+
+	// 如果 offset 为 -1，则获取最新偏移量
+	if offset == -1 {
+		client, err := sarama.NewClient(brokers, config)
+		if err != nil {
+			return nil, fmt.Errorf("创建客户端失败: %v", err)
+		}
+		defer client.Close()
+
+		newestOffset, err := client.GetOffset(topic, int32(partition), sarama.OffsetNewest)
+		if err != nil {
+			return nil, fmt.Errorf("获取最新偏移量失败: %v", err)
+		}
+
+		// 如果最新偏移量为0，说明没有消息
+		if newestOffset == 0 {
+			return []KafkaMessage{}, nil
+		}
+
+		// 从最新偏移量往前取 count 条消息
+		offset = newestOffset - int64(count)
+		if offset < 0 {
+			offset = 0
+		}
+	}
 
 	// 创建分区消费者
 	partitionConsumer, err := consumer.ConsumePartition(topic, int32(partition), offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("创建分区消费者失败: %v", err)
 	}
 	defer partitionConsumer.Close()
 
-	// 消费消息
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// 消费消息，增加超时时间到30秒
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	var messages []KafkaMessage
@@ -358,13 +382,15 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 			}
 
 		case err := <-partitionConsumer.Errors():
-			return nil, err
+			return nil, fmt.Errorf("消费消息出错: %v", err)
 
 		case <-ctx.Done():
-			if len(messages) == 0 {
-				return nil, errors.New("超时，未能获取到消息")
+			// 超时但有消息，返回已获取的消息
+			if len(messages) > 0 {
+				return messages, nil
 			}
-			return messages, nil
+			// 超时且没有消息，返回空数组
+			return []KafkaMessage{}, nil
 		}
 	}
 }

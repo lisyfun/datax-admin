@@ -3,6 +3,7 @@ package controllers
 import (
 	"datax-admin/models"
 	"datax-admin/services"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -368,6 +369,11 @@ func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 	count, _ := strconv.Atoi(ctx.DefaultQuery("count", "100"))
 	keyFilter := ctx.Query("keyFilter")
 	valueFilter := ctx.Query("valueFilter")
+	groupId := ctx.Query("groupId") // 获取消费者组ID
+
+	// 打印请求参数，便于调试
+	fmt.Printf("消费消息请求参数: clusterId=%d, topic=%s, partition=%d, offset=%d, count=%d, keyFilter=%s, valueFilter=%s, groupId=%s\n",
+		id, topicName, partition, offset, count, keyFilter, valueFilter, groupId)
 
 	messages, err := c.kafkaService.ConsumeMessages(uint(id), topicName, partition, offset, count, keyFilter, valueFilter)
 	if err != nil {
