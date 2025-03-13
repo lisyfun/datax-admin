@@ -3,7 +3,23 @@
     <a-card>
       <template #title>
         <div class="card-title">
-          <span>消息列表 ：{{ topicName }}</span>
+          <div class="title-left">
+            <span class="topic-name">{{ topicName }}</span>
+            <a-space class="topic-stats">
+              <span class="stat-item">
+                <span class="stat-label">起始偏移量:</span>
+                <span class="stat-value">{{ topicInfo.beginningOffset || '-' }}</span>
+              </span>
+              <span class="stat-item">
+                <span class="stat-label">结束偏移量:</span>
+                <span class="stat-value">{{ topicInfo.endOffset || '-' }}</span>
+              </span>
+              <span class="stat-item">
+                <span class="stat-label">消息数量:</span>
+                <span class="stat-value">{{ topicInfo.size || '-' }}</span>
+              </span>
+            </a-space>
+          </div>
           <a-button @click="handleBack">
             <template #icon>
               <icon-left />
@@ -12,131 +28,111 @@
           </a-button>
         </div>
       </template>
-      <!-- 主题信息头部 -->
-      <div class="topic-header">
-        <div class="back-button" >
-        <span>{{ topicName }}</span>
-      </div>
-      <div class="topic-info">
-        <div class="info-item">
-          <div class="info-label">起始偏移量</div>
-          <div class="info-value">{{ topicInfo.beginningOffset || '-' }}</div>
+
+      <!-- 筛选条件 -->
+      <div class="filter-bar">
+        <div class="filter-group">
+          <div class="filter-label">分区:</div>
+          <a-select
+            v-model="searchForm.partition"
+            placeholder="请选择分区"
+            allow-clear
+            @change="handlePartitionChange"
+            style="width: 120px"
+          >
+            <a-option v-for="p in partitions" :key="p" :value="p">{{ p }}</a-option>
+          </a-select>
         </div>
-        <div class="info-item">
-          <div class="info-label">结束偏移量</div>
-          <div class="info-value">{{ topicInfo.endOffset || '-' }}</div>
+
+        <div class="filter-group">
+          <div class="filter-label">自动偏移量重置:</div>
+          <a-select
+            v-model="offsetReset"
+            style="width: 120px"
+            @change="handleOffsetResetChange"
+          >
+            <a-option value="latest">最新</a-option>
+            <a-option value="earliest">最早</a-option>
+          </a-select>
         </div>
-        <div class="info-item">
-          <div class="info-label">消息数量</div>
-          <div class="info-value">{{ topicInfo.size || '-' }}</div>
+
+        <div class="filter-group">
+          <div class="filter-label">偏移量:</div>
+          <a-input-number
+            v-model="searchForm.offset"
+            placeholder="偏移量"
+            style="width: 150px"
+          />
         </div>
-      </div>
-    </div>
 
-    <!-- 筛选条件 -->
-    <div class="filter-bar">
-      <div class="filter-group">
-        <div class="filter-label">分区:</div>
-        <a-select
-          v-model="searchForm.partition"
-          placeholder="请选择分区"
-          allow-clear
-          @change="handlePartitionChange"
-          style="width: 120px"
-        >
-          <a-option v-for="p in partitions" :key="p" :value="p">{{ p }}</a-option>
-        </a-select>
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-label">自动偏移量重置:</div>
-        <a-select
-          v-model="offsetReset"
-          style="width: 120px"
-          @change="handleOffsetResetChange"
-        >
-          <a-option value="latest">最新</a-option>
-          <a-option value="earliest">最早</a-option>
-        </a-select>
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-label">偏移量:</div>
-        <a-input-number
-          v-model="searchForm.offset"
-          placeholder="偏移量"
-          style="width: 150px"
-        />
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-label">数量:</div>
-        <a-input-number
-          v-model="searchForm.count"
-          :min="1"
-          :max="100"
-          placeholder="消息数量"
-          style="width: 120px"
-        />
-      </div>
-    </div>
-
-    <div class="filter-bar">
-      <div class="filter-group">
-        <div class="filter-label">key:</div>
-        <a-input
-          v-model="searchForm.keyFilter"
-          placeholder="filter key"
-          style="width: 220px"
-          allow-clear
-        />
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-label">value:</div>
-        <a-input
-          v-model="searchForm.valueFilter"
-          placeholder="filter value"
-          style="width: 220px"
-          allow-clear
-        />
-      </div>
-
-      <div class="filter-group">
-        <a-button type="primary" @click="handleSearch">
-          拉取
-        </a-button>
-        <a-button @click="handleReset" style="margin-left: 8px">
-          重置
-        </a-button>
-      </div>
-    </div>
-
-    <!-- 消息列表 -->
-    <div class="message-container">
-      <div v-for="(message, index) in messages" :key="index" class="message-item">
-        <div class="message-meta">
-          <span class="meta-item">partition: <b>{{ message.partition }}</b></span>
-          <span class="meta-item">key: <b>{{ message.key || '-' }}</b></span>
-          <span class="meta-item">offset: <b>{{ message.offset }}</b></span>
-          <span class="meta-item">timestamp: <b>{{ formatDateTime(String(message.timestamp)) }}</b></span>
-        </div>
-        <div class="message-content">
-          <a-typography-paragraph :ellipsis="{rows: 3, expandable: true, showTooltip: true}">
-            <pre>{{ formatValue(message.value) }}</pre>
-          </a-typography-paragraph>
+        <div class="filter-group">
+          <div class="filter-label">数量:</div>
+          <a-input-number
+            v-model="searchForm.count"
+            :min="1"
+            :max="100"
+            placeholder="消息数量"
+            style="width: 120px"
+          />
         </div>
       </div>
 
-      <div v-if="messages.length === 0 && !loading" class="empty-message">
-        没有找到符合条件的消息
+      <div class="filter-bar">
+        <div class="filter-group">
+          <div class="filter-label">key:</div>
+          <a-input
+            v-model="searchForm.keyFilter"
+            placeholder="filter key"
+            style="width: 220px"
+            allow-clear
+          />
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-label">value:</div>
+          <a-input
+            v-model="searchForm.valueFilter"
+            placeholder="filter value"
+            style="width: 220px"
+            allow-clear
+          />
+        </div>
+
+        <div class="filter-group">
+          <a-button type="primary" @click="handleSearch">
+            拉取
+          </a-button>
+          <a-button @click="handleReset" style="margin-left: 8px">
+            重置
+          </a-button>
+        </div>
       </div>
 
-      <div v-if="loading" class="loading-container">
-        <a-spin />
+      <!-- 消息列表 -->
+      <div class="message-container">
+        <div v-for="(message, index) in messages" :key="index" class="message-item">
+          <div class="message-meta">
+            <span class="meta-item">partition: <b>{{ message.partition }}</b></span>
+            <span class="meta-item">key: <b>{{ message.key || '-' }}</b></span>
+            <span class="meta-item">offset: <b>{{ message.offset }}</b></span>
+            <span class="meta-item">timestamp: <b>{{ formatDateTime(String(message.timestamp)) }}</b></span>
+          </div>
+          <div class="message-content">
+            <a-typography-paragraph :ellipsis="{rows: 3, expandable: true, showTooltip: true}">
+              <pre>{{ formatValue(message.value) }}</pre>
+            </a-typography-paragraph>
+          </div>
+        </div>
+
+        <div v-if="messages.length === 0 && !loading" class="empty-message">
+          没有找到符合条件的消息
+        </div>
+
+        <div v-if="loading" class="loading-container">
+          <a-spin />
+        </div>
       </div>
-    </div>
-  </a-card>
+    </a-card>
   </div>
 </template>
 
@@ -496,5 +492,32 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+
+  .title-left {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+
+    .topic-name {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .topic-stats {
+      .stat-item {
+        font-size: 14px;
+
+        .stat-label {
+          color: var(--color-text-3);
+          margin-right: 8px;
+        }
+
+        .stat-value {
+          color: var(--color-text-1);
+          font-weight: 500;
+        }
+      }
+    }
+  }
 }
 </style>

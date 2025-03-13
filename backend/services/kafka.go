@@ -223,9 +223,9 @@ func (s *KafkaService) getKafkaAdminClient(cluster *models.KafkaCluster) (sarama
 	config.Version = sarama.V2_8_1_0 // 使用与服务器相同的版本
 
 	// 设置较短的超时时间，避免长时间等待
-	config.Net.DialTimeout = 5 * time.Second
-	config.Net.ReadTimeout = 5 * time.Second
-	config.Net.WriteTimeout = 5 * time.Second
+	config.Net.DialTimeout = 1 * time.Second
+	config.Net.ReadTimeout = 1 * time.Second
+	config.Net.WriteTimeout = 1 * time.Second
 
 	// 设置消费者组配置
 	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
@@ -352,9 +352,9 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 
 	// 设置较短的超时时间
-	config.Net.DialTimeout = 5 * time.Second
-	config.Net.ReadTimeout = 5 * time.Second
-	config.Net.WriteTimeout = 5 * time.Second
+	config.Net.DialTimeout = 1 * time.Second
+	config.Net.ReadTimeout = 1 * time.Second
+	config.Net.WriteTimeout = 1 * time.Second
 
 	// 设置安全配置
 	if cluster.SecurityProtocol != "" {
@@ -424,7 +424,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	<-handler.ready
 
 	// 使用计时器来避免长时间等待
-	timer := time.NewTimer(5 * time.Second)
+	timer := time.NewTimer(1 * time.Second)
 	defer timer.Stop()
 
 	// 收集消息
@@ -740,9 +740,9 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 	// 创建 Kafka 配置
 	config := sarama.NewConfig()
 	config.Version = sarama.V2_0_0_0
-	config.Net.DialTimeout = 5 * time.Second
-	config.Net.ReadTimeout = 5 * time.Second
-	config.Net.WriteTimeout = 5 * time.Second
+	config.Net.DialTimeout = 1 * time.Second
+	config.Net.ReadTimeout = 1 * time.Second
+	config.Net.WriteTimeout = 1 * time.Second
 
 	// 设置认证信息
 	if cluster.SecurityProtocol == "SASL_PLAINTEXT" || cluster.SecurityProtocol == "SASL_SSL" {

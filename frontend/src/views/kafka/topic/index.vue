@@ -15,10 +15,10 @@
       </template>
       <a-row>
         <a-col :flex="1">
-          <a-form :model="searchForm" :label-col-props="{ span: 6 }" :wrapper-col-props="{ span: 18 }" label-align="left">
+          <a-form :model="searchForm" :label-col-props="{ span: 0 }" :wrapper-col-props="{ span: 24 }" label-align="left">
             <a-row :gutter="16">
-              <a-col :span="8">
-                <a-form-item field="search" label="搜索">
+              <a-col :span="6">
+                <a-form-item field="search" label="">
                   <a-input v-model="searchForm.search" placeholder="请输入主题名称" @press-enter="search" />
                 </a-form-item>
               </a-col>
@@ -41,15 +41,7 @@
             </a-row>
           </a-form>
         </a-col>
-        <a-divider style="height: 32px" direction="vertical" />
-        <a-col :flex="'86px'" style="text-align: right">
-          <a-button type="primary" @click="openForm()">
-            <template #icon>
-              <icon-plus />
-            </template>
-            新增
-          </a-button>
-        </a-col>
+
       </a-row>
       <a-table
         row-key="name"
@@ -63,20 +55,6 @@
       >
         <template #name="{ record }">
           <a-link @click="goToMessages(record)">{{ record.name }}</a-link>
-        </template>
-        <template #operations="{ record }">
-          <a-space>
-            <a-button type="text" size="small" @click="openForm(record)">
-              <icon-edit />
-              编辑
-            </a-button>
-            <a-popconfirm content="确定要删除该主题吗？" @ok="handleDelete(record)">
-              <a-button type="text" status="danger" size="small">
-                <icon-delete />
-                删除
-              </a-button>
-            </a-popconfirm>
-          </a-space>
         </template>
       </a-table>
     </a-card>
@@ -227,12 +205,7 @@ const columns = computed<TableColumnData[]>(() => [
     title: '总日志大小',
     dataIndex: 'logSize',
   },
-  {
-    title: '操作',
-    dataIndex: 'operations',
-    slotName: 'operations',
-    width: 160,
-  },
+  
 ]);
 
 const messageColumns = computed<TableColumnData[]>(() => [
