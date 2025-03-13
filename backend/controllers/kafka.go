@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -346,6 +347,8 @@ func (c *KafkaController) AlterTopic(ctx *gin.Context) {
 
 // ConsumeMessages 消费消息
 func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
+	startTime := time.Now()
+
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusOK, gin.H{
@@ -383,6 +386,11 @@ func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 		})
 		return
 	}
+
+	// 记录性能日志
+	elapsed := time.Since(startTime)
+	fmt.Printf("消费消息完成: clusterId=%d, topic=%s, partition=%d, offset=%d, count=%d, 获取到 %d 条消息, 耗时: %v\n",
+		id, topicName, partition, offset, count, len(messages), elapsed)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,

@@ -275,6 +275,10 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	// 创建消费者配置
 	config := sarama.NewConfig()
 	config.Consumer.Return.Errors = true
+	// 设置较短的超时时间
+	config.Net.DialTimeout = 5 * time.Second
+	config.Net.ReadTimeout = 5 * time.Second
+	config.Net.WriteTimeout = 5 * time.Second
 
 	// 设置安全配置
 	if cluster.SecurityProtocol != "" {
@@ -295,36 +299,51 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 
 	// 连接到 Kafka 集群
 	brokers := strings.Split(cluster.BrokerServers, ",")
+
+	// 先创建客户端，用于获取偏移量信息
+	client, err := sarama.NewClient(brokers, config)
+	if err != nil {
+		return nil, fmt.Errorf("创建客户端失败: %v", err)
+	}
+	defer client.Close()
+
+	// 获取分区的最新和最早偏移量
+	oldestOffset, err := client.GetOffset(topic, int32(partition), sarama.OffsetOldest)
+	if err != nil {
+		return nil, fmt.Errorf("获取最早偏移量失败: %v", err)
+	}
+
+	newestOffset, err := client.GetOffset(topic, int32(partition), sarama.OffsetNewest)
+	if err != nil {
+		return nil, fmt.Errorf("获取最新偏移量失败: %v", err)
+	}
+
+	// 如果分区没有消息，直接返回空数组
+	if newestOffset == 0 || oldestOffset == newestOffset {
+		return []KafkaMessage{}, nil
+	}
+
+	// 处理偏移量
+	if offset == -1 {
+		// 从最新偏移量往前取 count 条消息
+		offset = newestOffset - int64(count)
+		if offset < oldestOffset {
+			offset = oldestOffset
+		}
+	} else if offset < oldestOffset {
+		// 如果请求的偏移量小于最早的偏移量，从最早的偏移量开始
+		offset = oldestOffset
+	} else if offset >= newestOffset {
+		// 如果请求的偏移量大于等于最新的偏移量，返回空数组
+		return []KafkaMessage{}, nil
+	}
+
+	// 创建消费者
 	consumer, err := sarama.NewConsumer(brokers, config)
 	if err != nil {
 		return nil, fmt.Errorf("创建消费者失败: %v", err)
 	}
 	defer consumer.Close()
-
-	// 如果 offset 为 -1，则获取最新偏移量
-	if offset == -1 {
-		client, err := sarama.NewClient(brokers, config)
-		if err != nil {
-			return nil, fmt.Errorf("创建客户端失败: %v", err)
-		}
-		defer client.Close()
-
-		newestOffset, err := client.GetOffset(topic, int32(partition), sarama.OffsetNewest)
-		if err != nil {
-			return nil, fmt.Errorf("获取最新偏移量失败: %v", err)
-		}
-
-		// 如果最新偏移量为0，说明没有消息
-		if newestOffset == 0 {
-			return []KafkaMessage{}, nil
-		}
-
-		// 从最新偏移量往前取 count 条消息
-		offset = newestOffset - int64(count)
-		if offset < 0 {
-			offset = 0
-		}
-	}
 
 	// 创建分区消费者
 	partitionConsumer, err := consumer.ConsumePartition(topic, int32(partition), offset)
@@ -333,18 +352,39 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	}
 	defer partitionConsumer.Close()
 
-	// 消费消息，增加超时时间到30秒
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// 计算需要获取的消息数量
+	remainingMessages := int(newestOffset - offset)
+	if remainingMessages <= 0 {
+		return []KafkaMessage{}, nil
+	}
+
+	// 限制获取的消息数量
+	messagesToFetch := count
+	if messagesToFetch > remainingMessages {
+		messagesToFetch = remainingMessages
+	}
+
+	// 设置较短的超时时间，避免长时间等待
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	var messages []KafkaMessage
 	messageCount := 0
 
-	for {
+	// 使用计时器来避免长时间等待
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+
+	for messageCount < messagesToFetch {
 		select {
-		case msg := <-partitionConsumer.Messages():
+		case msg, ok := <-partitionConsumer.Messages():
+			if !ok {
+				// 通道已关闭
+				return messages, nil
+			}
+
 			// 过滤消息
-			if keyFilter != "" && string(msg.Key) != keyFilter {
+			if keyFilter != "" && !strings.Contains(string(msg.Key), keyFilter) {
 				continue
 			}
 
@@ -377,22 +417,30 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 			messages = append(messages, message)
 			messageCount++
 
-			if messageCount >= count {
-				return messages, nil
-			}
+			// 重置计时器
+			timer.Reset(5 * time.Second)
 
 		case err := <-partitionConsumer.Errors():
 			return nil, fmt.Errorf("消费消息出错: %v", err)
 
-		case <-ctx.Done():
+		case <-timer.C:
 			// 超时但有消息，返回已获取的消息
 			if len(messages) > 0 {
 				return messages, nil
 			}
 			// 超时且没有消息，返回空数组
 			return []KafkaMessage{}, nil
+
+		case <-ctx.Done():
+			// 上下文超时
+			if len(messages) > 0 {
+				return messages, nil
+			}
+			return []KafkaMessage{}, nil
 		}
 	}
+
+	return messages, nil
 }
 
 // CreateTopic 创建 Topic

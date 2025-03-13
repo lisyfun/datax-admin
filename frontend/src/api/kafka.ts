@@ -115,6 +115,9 @@ export function getTopicPartitions(clusterId: number, topicName: string) {
   return request.get(`/kafka/clusters/${clusterId}/topics/${topicName}/partitions`);
 }
 
-export function consumeMessages(clusterId: number, topicName: string, params: KafkaConsumeParams) {
-  return request.get(`/kafka/clusters/${clusterId}/topics/${topicName}/messages`, { params });
+export function consumeMessages(clusterId: number, topicName: string, params: KafkaConsumeParams, config?: any) {
+  return request.get(`/kafka/clusters/${clusterId}/topics/${topicName}/messages`, {
+    params,
+    ...config
+  });
 }

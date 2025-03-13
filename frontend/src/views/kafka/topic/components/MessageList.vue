@@ -215,6 +215,10 @@ const fetchMessages = async () => {
       groupId: searchForm.groupId,
     });
 
+    // 设置请求超时
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
+
     const res = await consumeMessages(clusterId, topicName, {
       partition: searchForm.partition,
       offset: searchForm.offset,
@@ -222,7 +226,9 @@ const fetchMessages = async () => {
       keyFilter: searchForm.keyFilter,
       valueFilter: searchForm.valueFilter,
       groupId: searchForm.groupId,
-    });
+    }, { signal: controller.signal });
+
+    clearTimeout(timeoutId);
 
     if (res.data.code === 0) {
       messages.value = res.data.data || [];
@@ -236,7 +242,11 @@ const fetchMessages = async () => {
     }
   } catch (err: any) {
     console.error('获取消息失败:', err);
-    Message.error(err.response?.data?.message || '获取消息失败，请检查网络连接或服务器状态');
+    if (err.name === 'AbortError') {
+      Message.error('请求超时，请尝试减少消息数量或使用更精确的过滤条件');
+    } else {
+      Message.error(err.response?.data?.message || '获取消息失败，请检查网络连接或服务器状态');
+    }
   } finally {
     loading.value = false;
   }
