@@ -49,13 +49,42 @@ type KafkaMessage struct {
 	Value     string    `json:"value"`
 }
 
+// ValidateClusterConnection 验证集群连接
+func (s *KafkaService) ValidateClusterConnection(cluster *models.KafkaCluster) error {
+	admin, err := s.getKafkaAdminClient(cluster)
+	if err != nil {
+		return fmt.Errorf("连接失败: %v", err)
+	}
+	defer admin.Close()
+
+	// 尝试列出主题来验证连接
+	_, err = admin.ListTopics()
+	if err != nil {
+		return fmt.Errorf("验证失败: %v", err)
+	}
+
+	return nil
+}
+
 // CreateKafkaCluster 创建 Kafka 集群
 func (s *KafkaService) CreateKafkaCluster(cluster *models.KafkaCluster) error {
+	// 先验证连接
+	if err := s.ValidateClusterConnection(cluster); err != nil {
+		return err
+	}
+
+	// 验证成功后创建集群
 	return models.DB.Create(cluster).Error
 }
 
 // UpdateKafkaCluster 更新 Kafka 集群
 func (s *KafkaService) UpdateKafkaCluster(cluster *models.KafkaCluster) error {
+	// 先验证连接
+	if err := s.ValidateClusterConnection(cluster); err != nil {
+		return err
+	}
+
+	// 验证成功后更新集群
 	return models.DB.Save(cluster).Error
 }
 

@@ -13,7 +13,7 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "types": ["vite/client", "vue-i18n"]
+    "types": ["vite/client"]
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
   "exclude": ["node_modules", "dist"]

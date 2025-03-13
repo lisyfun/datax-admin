@@ -253,8 +253,7 @@ const messageColumns = computed<TableColumnData[]>(() => [
 const fetchData = async () => {
   setLoading(true);
   try {
-    const { data } = await queryTopicList({
-      clusterId: clusterId.value,
+    const { data } = await queryTopicList(clusterId.value, {
       page: pagination.current,
       pageSize: pagination.pageSize,
       search: searchForm.search,
@@ -309,15 +308,12 @@ const handleSubmit = async () => {
   if (!res) {
     try {
       if (form.name) {
-        await alterTopic({
-          clusterId: clusterId.value,
-          name: form.name,
+        await alterTopic(clusterId.value, form.name, {
           partitions: form.partitions,
         });
         Message.success('更新成功');
       } else {
-        await createTopic({
-          clusterId: clusterId.value,
+        await createTopic(clusterId.value, {
           name: form.name,
           partitions: form.partitions,
           replicas: form.replicas,
@@ -334,10 +330,7 @@ const handleSubmit = async () => {
 
 const handleDelete = async (record: any) => {
   try {
-    await deleteTopic({
-      clusterId: clusterId.value,
-      name: record.name,
-    });
+    await deleteTopic(clusterId.value, record.name);
     Message.success('删除成功');
     fetchData();
   } catch (err) {
@@ -347,10 +340,7 @@ const handleDelete = async (record: any) => {
 
 const openConsumer = async (record: any) => {
   try {
-    const { data } = await getTopicPartitions({
-      clusterId: clusterId.value,
-      name: record.name,
-    });
+    const { data } = await getTopicPartitions(clusterId.value, record.name);
     partitions.value = data;
     consumerForm.name = record.name;
     consumerForm.partition = data[0] || 0;
@@ -376,9 +366,7 @@ const handleConsume = async () => {
   const res = await consumerFormRef.value?.validate();
   if (!res) {
     try {
-      const { data } = await consumeMessages({
-        clusterId: clusterId.value,
-        name: consumerForm.name,
+      const { data } = await consumeMessages(clusterId.value, consumerForm.name, {
         partition: consumerForm.partition,
         offset: consumerForm.offset,
         count: consumerForm.count,

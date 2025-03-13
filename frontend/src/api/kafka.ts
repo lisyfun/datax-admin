@@ -60,22 +60,18 @@ export interface KafkaTopic {
 }
 
 export interface KafkaTopicQuery {
-  clusterId: number | string;
   page: number;
   pageSize: number;
   search?: string;
 }
 
 export interface KafkaTopicCreate {
-  clusterId: number | string;
   name: string;
   partitions: number;
   replicas: number;
 }
 
 export interface KafkaTopicUpdate {
-  clusterId: number | string;
-  name: string;
   partitions: number;
 }
 
@@ -88,8 +84,6 @@ export interface KafkaMessage {
 }
 
 export interface KafkaConsumeParams {
-  clusterId: number | string;
-  name: string;
   partition: number;
   offset: number;
   count: number;
@@ -97,26 +91,26 @@ export interface KafkaConsumeParams {
   valueFilter?: string;
 }
 
-export function queryTopicList(params: KafkaTopicQuery) {
-  return request.get('/kafka/topics', { params });
+export function queryTopicList(clusterId: number, params: KafkaTopicQuery) {
+  return request.get(`/kafka/clusters/${clusterId}/topics`, { params });
 }
 
-export function createTopic(data: KafkaTopicCreate) {
-  return request.post('/kafka/topics', data);
+export function createTopic(clusterId: number, data: KafkaTopicCreate) {
+  return request.post(`/kafka/clusters/${clusterId}/topics`, data);
 }
 
-export function alterTopic(data: KafkaTopicUpdate) {
-  return request.put(`/kafka/topics/${data.name}`, data);
+export function alterTopic(clusterId: number, topicName: string, data: KafkaTopicUpdate) {
+  return request.put(`/kafka/clusters/${clusterId}/topics/${topicName}`, data);
 }
 
-export function deleteTopic(params: { clusterId: number | string; name: string }) {
-  return request.delete(`/kafka/topics/${params.name}`, { params });
+export function deleteTopic(clusterId: number, topicName: string) {
+  return request.delete(`/kafka/clusters/${clusterId}/topics/${topicName}`);
 }
 
-export function getTopicPartitions(params: { clusterId: number | string; name: string }) {
-  return request.get(`/kafka/topics/${params.name}/partitions`, { params });
+export function getTopicPartitions(clusterId: number, topicName: string) {
+  return request.get(`/kafka/clusters/${clusterId}/topics/${topicName}/partitions`);
 }
 
-export function consumeMessages(params: KafkaConsumeParams) {
-  return request.get(`/kafka/topics/${params.name}/messages`, { params });
+export function consumeMessages(clusterId: number, topicName: string, params: KafkaConsumeParams) {
+  return request.get(`/kafka/clusters/${clusterId}/topics/${topicName}/messages`, { params });
 }

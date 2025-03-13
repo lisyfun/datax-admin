@@ -309,8 +309,8 @@ const handleSubmit = async () => {
       }
       closeForm();
       fetchData();
-    } catch (err) {
-      // handle error
+    } catch (err: any) {
+      Message.error(err.response?.data?.message || '操作失败');
     }
   }
 };
@@ -320,8 +320,8 @@ const handleDelete = async (record: KafkaCluster) => {
     await deleteCluster(record.id);
     Message.success('删除成功');
     fetchData();
-  } catch (err) {
-    // handle error
+  } catch (err: any) {
+    Message.error(err.response?.data?.message || '删除失败');
   }
 };
 
