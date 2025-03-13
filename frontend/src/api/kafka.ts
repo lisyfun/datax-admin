@@ -115,6 +115,16 @@ export function getTopicPartitions(clusterId: number, topicName: string) {
   return request.get(`/kafka/clusters/${clusterId}/topics/${topicName}/partitions`);
 }
 
+export interface KafkaTopicInfo {
+  beginningOffset: number;
+  endOffset: number;
+  size: number;
+}
+
+export function getTopicInfo(clusterId: number, topicName: string) {
+  return request.get(`/kafka/clusters/${clusterId}/topics/${topicName}/info`);
+}
+
 export function consumeMessages(clusterId: number, topicName: string, params: KafkaConsumeParams, config?: any) {
   return request.get(`/kafka/clusters/${clusterId}/topics/${topicName}/messages`, {
     params,

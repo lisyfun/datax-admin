@@ -589,7 +589,7 @@ func (s *KafkaService) GetTopicPartitions(clusterID uint, name string) ([]int32,
 }
 
 // GetPartitionOffsets 获取分区偏移量
-func (s *KafkaService) GetPartitionOffsets(clusterID uint, topic string, partition int32) (int64, int64, error) {
+func (s *KafkaService) GetPartitionOffsets(clusterID uint, topicName string, partition int32) (int64, int64, error) {
 	// 获取集群信息
 	cluster, err := s.GetKafkaCluster(clusterID)
 	if err != nil {
@@ -625,16 +625,79 @@ func (s *KafkaService) GetPartitionOffsets(clusterID uint, topic string, partiti
 	defer client.Close()
 
 	// 获取最早偏移量
-	oldest, err := client.GetOffset(topic, partition, sarama.OffsetOldest)
+	oldest, err := client.GetOffset(topicName, partition, sarama.OffsetOldest)
 	if err != nil {
 		return 0, 0, err
 	}
 
 	// 获取最新偏移量
-	newest, err := client.GetOffset(topic, partition, sarama.OffsetNewest)
+	newest, err := client.GetOffset(topicName, partition, sarama.OffsetNewest)
 	if err != nil {
 		return 0, 0, err
 	}
 
 	return oldest, newest, nil
+}
+
+// GetTopicInfo 获取主题信息（起始偏移量、结束偏移量、消息数量）
+func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, int64, int64, error) {
+	// 获取集群信息
+	cluster, err := s.GetKafkaCluster(clusterID)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("获取集群信息失败: %v", err)
+	}
+
+	// 创建 Kafka 配置
+	config := sarama.NewConfig()
+	config.Version = sarama.V2_0_0_0
+	config.Net.DialTimeout = 5 * time.Second
+	config.Net.ReadTimeout = 5 * time.Second
+	config.Net.WriteTimeout = 5 * time.Second
+
+	// 设置认证信息
+	if cluster.SecurityProtocol == "SASL_PLAINTEXT" || cluster.SecurityProtocol == "SASL_SSL" {
+		config.Net.SASL.Enable = true
+		config.Net.SASL.Mechanism = sarama.SASLMechanism(cluster.SaslMechanism)
+		config.Net.SASL.User = cluster.Username
+		config.Net.SASL.Password = cluster.Password
+	}
+
+	// 创建 Kafka 客户端
+	client, err := sarama.NewClient(strings.Split(cluster.BrokerServers, ","), config)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("连接 Kafka 集群失败: %v", err)
+	}
+	defer client.Close()
+
+	// 获取主题的所有分区
+	partitions, err := client.Partitions(topicName)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("获取主题分区失败: %v", err)
+	}
+
+	var beginningOffset, endOffset, size int64
+
+	// 遍历所有分区，获取起始偏移量和结束偏移量
+	for _, partition := range partitions {
+		oldest, err := client.GetOffset(topicName, partition, sarama.OffsetOldest)
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("获取分区 %d 的起始偏移量失败: %v", partition, err)
+		}
+
+		newest, err := client.GetOffset(topicName, partition, sarama.OffsetNewest)
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("获取分区 %d 的结束偏移量失败: %v", partition, err)
+		}
+
+		// 累加所有分区的偏移量
+		if partition == 0 || oldest < beginningOffset {
+			beginningOffset = oldest
+		}
+		if newest > endOffset {
+			endOffset = newest
+		}
+		size += newest - oldest
+	}
+
+	return beginningOffset, endOffset, size, nil
 }

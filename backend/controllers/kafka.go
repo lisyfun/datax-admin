@@ -482,3 +482,44 @@ func (c *KafkaController) GetPartitionOffsets(ctx *gin.Context) {
 		},
 	})
 }
+
+// GetTopicInfo 获取主题信息（起始偏移量、结束偏移量、消息数量）
+func (c *KafkaController) GetTopicInfo(ctx *gin.Context) {
+	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
+		return
+	}
+
+	topicName := ctx.Param("topicName")
+	if topicName == "" {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "主题名称不能为空",
+		})
+		return
+	}
+
+	// 获取主题信息
+	beginningOffset, endOffset, size, err := c.kafkaService.GetTopicInfo(uint(id), topicName)
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data": gin.H{
+			"beginningOffset": beginningOffset,
+			"endOffset":       endOffset,
+			"size":            size,
+		},
+	})
+}
