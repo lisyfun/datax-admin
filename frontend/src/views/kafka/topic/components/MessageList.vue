@@ -1,8 +1,9 @@
 <template>
-  <div class="message-list">
-    <!-- 主题信息头部 -->
-    <div class="topic-header">
-      <div class="back-button" @click="handleBack">
+  <div class="container">
+    <a-card title="消息列表">
+      <!-- 主题信息头部 -->
+      <div class="topic-header">
+        <div class="back-button" @click="handleBack">
         <icon-left />
         <span>{{ topicName }}</span>
       </div>
@@ -125,6 +126,7 @@
         <a-spin />
       </div>
     </div>
+  </a-card>
   </div>
 </template>
 
@@ -317,6 +319,7 @@ const handleBack = () => {
   router.push({
     name: 'KafkaTopic',
     params: { clusterId },
+    query: { clusterName: route.query.clusterName as string }
   });
 };
 
@@ -327,6 +330,10 @@ onMounted(() => {
 </script>
 
 <style scoped lang="less">
+.container {
+  padding: 16px;
+}
+
 .message-list {
   padding: 20px;
   background-color: var(--color-bg-1);

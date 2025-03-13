@@ -1,6 +1,8 @@
 <template>
   <div class="container">
-    <a-card class="crypto-tool" :bordered="false">
+    <a-card class="crypto-tool">
+      <template #title>加解密工具</template>
+      <template #extra></template>
       <a-tabs default-active-key="1">
         <a-tab-pane key="1" title="AES">
           <div class="section">

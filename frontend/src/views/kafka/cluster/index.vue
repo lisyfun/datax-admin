@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <Breadcrumb :items="['Kafka 管理', '集群管理']" />
+    <Breadcrumb :items="['工具箱', 'Kafka 管理', '集群管理']" />
     <a-card class="general-card" title="集群管理">
       <a-row>
         <a-col :flex="1">
@@ -369,6 +369,7 @@ const goToTopics = (record: KafkaCluster) => {
   router.push({
     name: 'KafkaTopic',
     params: { clusterId: record.id },
+    query: { clusterName: record.name }
   });
 };
 
@@ -390,6 +391,6 @@ fetchData();
 
 <style scoped lang="less">
 .container {
-  padding: 0 20px 20px;
+  padding: 16px;
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <Breadcrumb :items="['Kafka 管理', '主题管理']" />
+    <Breadcrumb :items="['工具箱', 'Kafka 管理', '主题管理']" />
     <a-card class="general-card" title="主题管理">
       <a-row>
         <a-col :flex="1">
@@ -359,6 +359,7 @@ const goToMessages = async (record: any) => {
       query: {
         partition: firstPartition,
         offset: -1,
+        clusterName: route.query.clusterName as string
       },
     });
   } catch (err) {
@@ -418,6 +419,6 @@ fetchData();
 
 <style scoped lang="less">
 .container {
-  padding: 0 20px 20px;
+  padding: 16px;
 }
 </style>

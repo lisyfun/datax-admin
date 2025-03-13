@@ -1,6 +1,8 @@
 <template>
   <div class="container">
-    <a-card class="json-formatter" :bordered="false">
+    <a-card>
+      <template #title>JSON 格式化</template>
+      <template #extra></template>
       <a-row class="toolbar" :gutter="16">
         <a-col :span="24">
           <a-space>
