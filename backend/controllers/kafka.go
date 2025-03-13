@@ -3,7 +3,7 @@ package controllers
 import (
 	"datax-admin/models"
 	"datax-admin/services"
-	"datax-admin/utils/response"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -29,90 +29,142 @@ func (c *KafkaController) ListClusters(ctx *gin.Context) {
 
 	clusters, err := c.kafkaService.ListKafkaClusters(page, pageSize, search)
 	if err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, clusters)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data":    clusters,
+	})
 }
 
 // GetCluster 获取集群详情
 func (c *KafkaController) GetCluster(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
 	cluster, err := c.kafkaService.GetKafkaCluster(uint(id))
 	if err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, cluster)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data":    cluster,
+	})
 }
 
 // CreateCluster 创建集群
 func (c *KafkaController) CreateCluster(ctx *gin.Context) {
 	var cluster models.KafkaCluster
 	if err := ctx.ShouldBindJSON(&cluster); err != nil {
-		response.Error(ctx, "参数错误："+err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "参数错误：" + err.Error(),
+		})
 		return
 	}
 
 	if err := c.kafkaService.CreateKafkaCluster(&cluster); err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, cluster)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data":    cluster,
+	})
 }
 
 // UpdateCluster 更新集群
 func (c *KafkaController) UpdateCluster(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
 	var cluster models.KafkaCluster
 	if err := ctx.ShouldBindJSON(&cluster); err != nil {
-		response.Error(ctx, "参数错误："+err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "参数错误：" + err.Error(),
+		})
 		return
 	}
 
 	cluster.ID = uint(id)
 	if err := c.kafkaService.UpdateKafkaCluster(&cluster); err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, cluster)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data":    cluster,
+	})
 }
 
 // DeleteCluster 删除集群
 func (c *KafkaController) DeleteCluster(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
 	if err := c.kafkaService.DeleteKafkaCluster(uint(id)); err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, nil)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+	})
 }
 
 // ListTopics 获取主题列表
 func (c *KafkaController) ListTopics(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
@@ -122,41 +174,64 @@ func (c *KafkaController) ListTopics(ctx *gin.Context) {
 
 	topics, err := c.kafkaService.ListTopics(uint(id), page, pageSize, search)
 	if err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, topics)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data":    topics,
+	})
 }
 
 // GetTopicDetails 获取主题详情
 func (c *KafkaController) GetTopicDetails(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
 	topicName := ctx.Param("topicName")
 	if topicName == "" {
-		response.Error(ctx, "主题名称不能为空")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "主题名称不能为空",
+		})
 		return
 	}
 
 	topic, err := c.kafkaService.GetTopicDetails(uint(id), topicName)
 	if err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, topic)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data":    topic,
+	})
 }
 
 // CreateTopic 创建主题
 func (c *KafkaController) CreateTopic(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
@@ -167,51 +242,78 @@ func (c *KafkaController) CreateTopic(ctx *gin.Context) {
 	}
 
 	if err := ctx.ShouldBindJSON(&params); err != nil {
-		response.Error(ctx, "参数错误："+err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "参数错误：" + err.Error(),
+		})
 		return
 	}
 
 	if err := c.kafkaService.CreateTopic(uint(id), params.Name, params.Partitions, params.Replicas); err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, nil)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+	})
 }
 
 // DeleteTopic 删除主题
 func (c *KafkaController) DeleteTopic(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
 	topicName := ctx.Param("topicName")
 	if topicName == "" {
-		response.Error(ctx, "主题名称不能为空")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "主题名称不能为空",
+		})
 		return
 	}
 
 	if err := c.kafkaService.DeleteTopic(uint(id), topicName); err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, nil)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+	})
 }
 
 // AlterTopic 修改主题
 func (c *KafkaController) AlterTopic(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
 	topicName := ctx.Param("topicName")
 	if topicName == "" {
-		response.Error(ctx, "主题名称不能为空")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "主题名称不能为空",
+		})
 		return
 	}
 
@@ -220,29 +322,44 @@ func (c *KafkaController) AlterTopic(ctx *gin.Context) {
 	}
 
 	if err := ctx.ShouldBindJSON(&params); err != nil {
-		response.Error(ctx, "参数错误："+err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "参数错误：" + err.Error(),
+		})
 		return
 	}
 
 	if err := c.kafkaService.AlterTopic(uint(id), topicName, params.Partitions); err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, nil)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+	})
 }
 
 // ConsumeMessages 消费消息
 func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
 	topicName := ctx.Param("topicName")
 	if topicName == "" {
-		response.Error(ctx, "主题名称不能为空")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "主题名称不能为空",
+		})
 		return
 	}
 
@@ -254,64 +371,100 @@ func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 
 	messages, err := c.kafkaService.ConsumeMessages(uint(id), topicName, partition, offset, count, keyFilter, valueFilter)
 	if err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, messages)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data":    messages,
+	})
 }
 
 // GetTopicPartitions 获取主题分区信息
 func (c *KafkaController) GetTopicPartitions(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
 	topicName := ctx.Param("topicName")
 	if topicName == "" {
-		response.Error(ctx, "主题名称不能为空")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "主题名称不能为空",
+		})
 		return
 	}
 
 	partitions, err := c.kafkaService.GetTopicPartitions(uint(id), topicName)
 	if err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, partitions)
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data":    partitions,
+	})
 }
 
 // GetPartitionOffsets 获取分区偏移量
 func (c *KafkaController) GetPartitionOffsets(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
-		response.Error(ctx, "无效的集群ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
 		return
 	}
 
 	topicName := ctx.Param("topicName")
 	if topicName == "" {
-		response.Error(ctx, "主题名称不能为空")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "主题名称不能为空",
+		})
 		return
 	}
 
 	partition, err := strconv.ParseInt(ctx.Param("partition"), 10, 32)
 	if err != nil {
-		response.Error(ctx, "无效的分区ID")
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的分区ID",
+		})
 		return
 	}
 
 	oldest, newest, err := c.kafkaService.GetPartitionOffsets(uint(id), topicName, int32(partition))
 	if err != nil {
-		response.Error(ctx, err.Error())
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
 		return
 	}
 
-	response.Success(ctx, gin.H{
-		"oldest": oldest,
-		"newest": newest,
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data": gin.H{
+			"oldest": oldest,
+			"newest": newest,
+		},
 	})
 }
