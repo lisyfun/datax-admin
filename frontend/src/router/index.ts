@@ -151,6 +151,17 @@ export const appRoutes: AppRouteRecordRaw[] = [
               hideInMenu: true,
             },
           },
+          {
+            path: 'clusters/:clusterId/topics/:topicName/messages',
+            name: 'KafkaMessage',
+            component: () => import('@/views/kafka/topic/components/MessageList.vue'),
+            meta: {
+              title: '消息列表',
+              requiresAuth: true,
+              roles: ['*'],
+              hideInMenu: true,
+            },
+          },
         ],
       },
       {

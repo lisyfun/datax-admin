@@ -51,7 +51,7 @@
         @page-size-change="onPageSizeChange"
       >
         <template #name="{ record }">
-          <a-link @click="openConsumer(record)">{{ record.name }}</a-link>
+          <a-link @click="goToMessages(record)">{{ record.name }}</a-link>
         </template>
         <template #operations="{ record }">
           <a-space>
@@ -131,13 +131,14 @@
 
 <script lang="ts" setup>
 import { ref, reactive, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
 import useLoading from '@/hooks/loading';
 import { queryTopicList, createTopic, alterTopic, deleteTopic, getTopicPartitions, consumeMessages } from '@/api/kafka';
 import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
 
 const route = useRoute();
+const router = useRouter();
 const clusterId = computed(() => {
   const id = route.params.clusterId;
   return Array.isArray(id) ? parseInt(id[0], 10) : parseInt(id, 10);
@@ -342,6 +343,20 @@ const handleDelete = async (record: any) => {
   }
 };
 
+const goToMessages = (record: any) => {
+  router.push({
+    name: 'KafkaMessage',
+    params: {
+      clusterId: clusterId.value,
+      topicName: record.name,
+    },
+    query: {
+      partition: 0,
+      offset: -1,
+    },
+  });
+};
+
 const openConsumer = async (record: any) => {
   try {
     const { data } = await getTopicPartitions(clusterId.value, record.name);
@@ -370,19 +385,21 @@ const handleConsume = async () => {
   const res = await consumerFormRef.value?.validate();
   if (!res) {
     try {
-      const { data } = await consumeMessages(clusterId.value, consumerForm.name, {
-        partition: consumerForm.partition,
-        offset: consumerForm.offset,
-        count: consumerForm.count,
-        keyFilter: consumerForm.keyFilter,
-        valueFilter: consumerForm.valueFilter,
+      // 跳转到消息列表页面
+      router.push({
+        name: 'KafkaMessage',
+        params: {
+          clusterId: clusterId.value,
+          topicName: consumerForm.name,
+        },
+        query: {
+          partition: consumerForm.partition,
+          offset: consumerForm.offset,
+        },
       });
-      messages.value = data;
-      if (data.length === 0) {
-        Message.info('没有找到符合条件的消息');
-      }
-    } catch (err) {
-      // handle error
+      closeConsumer();
+    } catch (err: any) {
+      Message.error(err.response?.data?.message || '操作失败');
     }
   }
 };

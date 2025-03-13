@@ -89,6 +89,7 @@ export interface KafkaConsumeParams {
   count: number;
   keyFilter?: string;
   valueFilter?: string;
+  groupId?: string;
 }
 
 export function queryTopicList(clusterId: number, params: KafkaTopicQuery) {
