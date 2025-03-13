@@ -253,15 +253,19 @@ const messageColumns = computed<TableColumnData[]>(() => [
 const fetchData = async () => {
   setLoading(true);
   try {
-    const { data } = await queryTopicList(clusterId.value, {
+    const res = await queryTopicList(clusterId.value, {
       page: pagination.current,
       pageSize: pagination.pageSize,
       search: searchForm.search,
     });
-    renderData.value = data.items;
-    pagination.total = data.total;
-  } catch (err) {
-    // handle error
+    if (res.data.code === 0) {
+      renderData.value = res.data.data.items;
+      pagination.total = res.data.data.total;
+    } else {
+      Message.error(res.data.message || '获取主题列表失败');
+    }
+  } catch (err: any) {
+    Message.error(err.response?.data?.message || '获取主题列表失败');
   } finally {
     setLoading(false);
   }

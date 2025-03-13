@@ -32,10 +32,10 @@ type KafkaTopic struct {
 	Name        string `json:"name"`
 	Partitions  int    `json:"partitions"`
 	Replicas    int    `json:"replicas"`
-	AvgLogSize  string `json:"avg_log_size"`
-	LogSize     string `json:"log_size"`
-	ClusterID   uint   `json:"cluster_id"`
-	ClusterName string `json:"cluster_name"`
+	AvgLogSize  string `json:"avgLogSize"`
+	LogSize     string `json:"logSize"`
+	ClusterID   uint   `json:"clusterId"`
+	ClusterName string `json:"clusterName"`
 }
 
 // KafkaMessage 消息信息
