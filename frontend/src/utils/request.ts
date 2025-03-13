@@ -50,7 +50,7 @@ request.interceptors.response.use(
           Message.error('服务器错误');
           break;
         default:
-          Message.error('请求失败');
+          Message.error(error.response.data?.message || '请求失败');
       }
     } else {
       Message.error('网络错误，请检查网络连接');

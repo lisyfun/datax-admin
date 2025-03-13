@@ -120,6 +120,40 @@ export const appRoutes: AppRouteRecordRaw[] = [
         ],
       },
       {
+        path: 'kafka',
+        name: 'Kafka',
+        component: () => import('@/views/kafka/index.vue'),
+        meta: {
+          title: 'Kafka 管理',
+          requiresAuth: true,
+          icon: 'icon-apps',
+          order: 3,
+        },
+        children: [
+          {
+            path: 'cluster',
+            name: 'KafkaCluster',
+            component: () => import('@/views/kafka/cluster/index.vue'),
+            meta: {
+              title: '集群管理',
+              requiresAuth: true,
+              roles: ['*'],
+            },
+          },
+          {
+            path: 'cluster/:clusterId/topic',
+            name: 'KafkaTopic',
+            component: () => import('@/views/kafka/topic/index.vue'),
+            meta: {
+              title: '主题管理',
+              requiresAuth: true,
+              roles: ['*'],
+              hideInMenu: true,
+            },
+          },
+        ],
+      },
+      {
         path: 'system',
         name: 'System',
         component: () => import('@/views/system/index.vue'),
