@@ -14,7 +14,7 @@ export interface KafkaCluster {
   updatedAt: string;
   topicCount: number;
   brokerCount: number;
-  consumerGroups: string[];
+  consumerGroupCount: number;
 }
 
 export interface KafkaClusterQuery {

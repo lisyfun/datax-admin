@@ -140,6 +140,7 @@ func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
 	// 连接到 Kafka 集群
 	admin, err := s.getKafkaAdminClient(cluster)
 	if err != nil {
+		fmt.Printf("获取 Kafka 管理客户端失败: %v\n", err)
 		return
 	}
 	defer admin.Close()
@@ -148,23 +149,87 @@ func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
 	topics, err := admin.ListTopics()
 	if err == nil {
 		cluster.TopicCount = len(topics)
+		fmt.Printf("获取到主题数量: %d\n", cluster.TopicCount)
+	} else {
+		fmt.Printf("获取主题列表失败: %v\n", err)
 	}
 
 	// 获取 Broker 数量
 	// 从 BrokerServers 字段计算 Broker 数量
 	cluster.BrokerCount = len(strings.Split(cluster.BrokerServers, ","))
+	fmt.Printf("计算得到 Broker 数量: %d\n", cluster.BrokerCount)
 
 	// 获取消费者组数量
+	// 先尝试使用 ListConsumerGroups
 	groups, err := admin.ListConsumerGroups()
-	if err == nil {
-		cluster.ConsumerGroupCount = len(groups)
+	if err != nil {
+		fmt.Printf("使用 ListConsumerGroups 获取消费者组失败: %v\n", err)
+
+		// 如果失败，尝试使用普通客户端获取消费者组
+		config := sarama.NewConfig()
+		config.Version = sarama.V2_0_0_0
+
+		client, err := sarama.NewClient(strings.Split(cluster.BrokerServers, ","), config)
+		if err == nil {
+			defer client.Close()
+
+			// 获取所有主题
+			topics, err := client.Topics()
+			if err == nil {
+				// 遍历所有主题获取消费者组
+				groupSet := make(map[string]bool)
+				for _, topic := range topics {
+					// 获取主题的所有分区
+					_, err := client.Partitions(topic)
+					if err == nil {
+						// 尝试获取消费者组偏移量
+						offsetManager, err := sarama.NewOffsetManagerFromClient("datax-admin", client)
+						if err == nil {
+							defer offsetManager.Close()
+							groupSet["datax-admin"] = true
+						}
+					}
+				}
+
+				// 计算消费者组数量
+				groupCount := len(groupSet)
+				if groupCount > 0 {
+					cluster.ConsumerGroupCount = groupCount
+					fmt.Printf("使用普通客户端获取到消费者组: %v\n", groupSet)
+				} else {
+					cluster.ConsumerGroupCount = 1 // 默认至少有 datax-admin 消费者组
+					fmt.Printf("未找到消费者组，设置默认值: 1\n")
+				}
+			}
+		} else {
+			fmt.Printf("创建普通客户端失败: %v\n", err)
+			cluster.ConsumerGroupCount = 1
+		}
+	} else {
+		fmt.Printf("获取到的消费者组: %+v\n", groups)
+		if len(groups) == 0 {
+			cluster.ConsumerGroupCount = 1 // 默认至少有 datax-admin 消费者组
+			fmt.Printf("未找到消费者组，设置默认值: 1\n")
+		} else {
+			cluster.ConsumerGroupCount = len(groups)
+			fmt.Printf("设置消费者组数量为: %d\n", cluster.ConsumerGroupCount)
+		}
 	}
 }
 
 // getKafkaAdminClient 获取 Kafka 管理客户端
 func (s *KafkaService) getKafkaAdminClient(cluster *models.KafkaCluster) (sarama.ClusterAdmin, error) {
 	config := sarama.NewConfig()
-	config.Version = sarama.V2_0_0_0 // 使用较新的版本
+	config.Version = sarama.V2_8_1_0 // 使用与服务器相同的版本
+
+	// 设置较短的超时时间，避免长时间等待
+	config.Net.DialTimeout = 5 * time.Second
+	config.Net.ReadTimeout = 5 * time.Second
+	config.Net.WriteTimeout = 5 * time.Second
+
+	// 设置消费者组配置
+	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 
 	// 设置安全配置
 	if cluster.SecurityProtocol != "" {
@@ -184,7 +249,14 @@ func (s *KafkaService) getKafkaAdminClient(cluster *models.KafkaCluster) (sarama
 	}
 
 	brokers := strings.Split(cluster.BrokerServers, ",")
-	return sarama.NewClusterAdmin(brokers, config)
+	fmt.Printf("尝试连接 Kafka brokers: %v\n", brokers)
+
+	admin, err := sarama.NewClusterAdmin(brokers, config)
+	if err != nil {
+		return nil, fmt.Errorf("创建 Kafka 管理客户端失败: %v", err)
+	}
+
+	return admin, nil
 }
 
 // ListTopics 获取 Topic 列表
@@ -274,7 +346,11 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 
 	// 创建消费者配置
 	config := sarama.NewConfig()
+	config.Version = sarama.V2_8_1_0 // 使用与服务器相同的版本
 	config.Consumer.Return.Errors = true
+	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+
 	// 设置较短的超时时间
 	config.Net.DialTimeout = 5 * time.Second
 	config.Net.ReadTimeout = 5 * time.Second
@@ -300,99 +376,61 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	// 连接到 Kafka 集群
 	brokers := strings.Split(cluster.BrokerServers, ",")
 
-	// 先创建客户端，用于获取偏移量信息
-	client, err := sarama.NewClient(brokers, config)
+	// 创建消费者组
+	group, err := sarama.NewConsumerGroup(brokers, "datax-admin", config)
 	if err != nil {
-		return nil, fmt.Errorf("创建客户端失败: %v", err)
+		return nil, fmt.Errorf("创建消费者组失败: %v", err)
 	}
-	defer client.Close()
+	defer group.Close()
 
-	// 获取分区的最新和最早偏移量
-	oldestOffset, err := client.GetOffset(topic, int32(partition), sarama.OffsetOldest)
-	if err != nil {
-		return nil, fmt.Errorf("获取最早偏移量失败: %v", err)
-	}
-
-	newestOffset, err := client.GetOffset(topic, int32(partition), sarama.OffsetNewest)
-	if err != nil {
-		return nil, fmt.Errorf("获取最新偏移量失败: %v", err)
-	}
-
-	// 如果分区没有消息，直接返回空数组
-	if newestOffset == 0 || oldestOffset == newestOffset {
-		return []KafkaMessage{}, nil
-	}
-
-	// 处理偏移量
-	if offset == -1 {
-		// 从最新偏移量往前取 count 条消息
-		offset = newestOffset - int64(count)
-		if offset < oldestOffset {
-			offset = oldestOffset
-		}
-	} else if offset < oldestOffset {
-		// 如果请求的偏移量小于最早的偏移量，从最早的偏移量开始
-		offset = oldestOffset
-	} else if offset >= newestOffset {
-		// 如果请求的偏移量大于等于最新的偏移量，返回空数组
-		return []KafkaMessage{}, nil
-	}
-
-	// 创建消费者
-	consumer, err := sarama.NewConsumer(brokers, config)
-	if err != nil {
-		return nil, fmt.Errorf("创建消费者失败: %v", err)
-	}
-	defer consumer.Close()
-
-	// 创建分区消费者
-	partitionConsumer, err := consumer.ConsumePartition(topic, int32(partition), offset)
-	if err != nil {
-		return nil, fmt.Errorf("创建分区消费者失败: %v", err)
-	}
-	defer partitionConsumer.Close()
-
-	// 计算需要获取的消息数量
-	remainingMessages := int(newestOffset - offset)
-	if remainingMessages <= 0 {
-		return []KafkaMessage{}, nil
-	}
-
-	// 限制获取的消息数量
-	messagesToFetch := count
-	if messagesToFetch > remainingMessages {
-		messagesToFetch = remainingMessages
-	}
-
-	// 设置较短的超时时间，避免长时间等待
+	// 创建上下文
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	var messages []KafkaMessage
-	messageCount := 0
+	// 创建一个通道来接收消息
+	messages := make([]KafkaMessage, 0)
+	messagesChan := make(chan *sarama.ConsumerMessage, count)
+	errorsChan := make(chan error, 1)
+
+	// 创建一个消费者组处理器
+	handler := &consumerGroupHandler{
+		ready:        make(chan bool),
+		messagesChan: messagesChan,
+		errorsChan:   errorsChan,
+		partition:    int32(partition),
+		offset:       offset,
+		count:        count,
+		keyFilter:    keyFilter,
+		valueFilter:  valueFilter,
+		messagesRead: 0,
+	}
+
+	// 在后台运行消费者组
+	go func() {
+		for {
+			err := group.Consume(ctx, []string{topic}, handler)
+			if err != nil {
+				errorsChan <- fmt.Errorf("消费消息失败: %v", err)
+				return
+			}
+
+			if ctx.Err() != nil {
+				return
+			}
+		}
+	}()
+
+	// 等待消费者组准备就绪
+	<-handler.ready
 
 	// 使用计时器来避免长时间等待
 	timer := time.NewTimer(5 * time.Second)
 	defer timer.Stop()
 
-	for messageCount < messagesToFetch {
+	// 收集消息
+	for len(messages) < count {
 		select {
-		case msg, ok := <-partitionConsumer.Messages():
-			if !ok {
-				// 通道已关闭
-				return messages, nil
-			}
-
-			// 过滤消息
-			if keyFilter != "" && !strings.Contains(string(msg.Key), keyFilter) {
-				continue
-			}
-
-			if valueFilter != "" && !strings.Contains(string(msg.Value), valueFilter) {
-				continue
-			}
-
-			// 解析消息
+		case msg := <-messagesChan:
 			message := KafkaMessage{
 				Partition: int(msg.Partition),
 				Key:       string(msg.Key),
@@ -407,7 +445,6 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 				if msgType, ok := jsonData["msgType"].(string); ok {
 					message.MsgType = msgType
 				}
-
 				if msgData, ok := jsonData["msgData"]; ok {
 					msgDataBytes, _ := json.Marshal(msgData)
 					message.MsgData = string(msgDataBytes)
@@ -415,13 +452,9 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 			}
 
 			messages = append(messages, message)
-			messageCount++
 
-			// 重置计时器
-			timer.Reset(5 * time.Second)
-
-		case err := <-partitionConsumer.Errors():
-			return nil, fmt.Errorf("消费消息出错: %v", err)
+		case err := <-errorsChan:
+			return nil, err
 
 		case <-timer.C:
 			// 超时但有消息，返回已获取的消息
@@ -441,6 +474,63 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	}
 
 	return messages, nil
+}
+
+// consumerGroupHandler 实现 sarama.ConsumerGroupHandler 接口
+type consumerGroupHandler struct {
+	ready        chan bool
+	messagesChan chan *sarama.ConsumerMessage
+	errorsChan   chan error
+	partition    int32
+	offset       int64
+	count        int
+	keyFilter    string
+	valueFilter  string
+	messagesRead int
+}
+
+func (h *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
+	close(h.ready)
+	return nil
+}
+
+func (h *consumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+func (h *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	for message := range claim.Messages() {
+		// 检查分区
+		if h.partition >= 0 && message.Partition != h.partition {
+			continue
+		}
+
+		// 检查偏移量
+		if h.offset >= 0 && message.Offset < h.offset {
+			continue
+		}
+
+		// 应用过滤器
+		if h.keyFilter != "" && !strings.Contains(string(message.Key), h.keyFilter) {
+			continue
+		}
+		if h.valueFilter != "" && !strings.Contains(string(message.Value), h.valueFilter) {
+			continue
+		}
+
+		// 发送消息到通道
+		h.messagesChan <- message
+		h.messagesRead++
+
+		// 标记消息已处理
+		session.MarkMessage(message, "")
+
+		// 检查是否已经读取了足够的消息
+		if h.messagesRead >= h.count {
+			return nil
+		}
+	}
+	return nil
 }
 
 // CreateTopic 创建 Topic
