@@ -1,9 +1,9 @@
 package routes
 
 import (
-	v1 "datax-admin/routes/api/v1"
 	"datax-admin/config"
 	"datax-admin/middleware"
+	v1 "datax-admin/routes/api/v1"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -48,6 +48,7 @@ func SetupRoutes(r *gin.Engine) {
 				v1.RegisterMenuRoutes(authenticated)
 				v1.RegisterJobRoutes(authenticated)
 				v1.RegisterTerminalRoutes(authenticated)
+				v1.RegisterKafkaRoutes(authenticated)
 			}
 		}
 	}
