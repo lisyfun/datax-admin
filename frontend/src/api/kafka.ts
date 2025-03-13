@@ -12,6 +12,9 @@ export interface KafkaCluster {
   description: string;
   createdAt: string;
   updatedAt: string;
+  topicCount: number;
+  brokerCount: number;
+  consumerGroups: string[];
 }
 
 export interface KafkaClusterQuery {

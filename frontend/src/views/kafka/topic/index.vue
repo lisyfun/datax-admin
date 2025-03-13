@@ -343,18 +343,27 @@ const handleDelete = async (record: any) => {
   }
 };
 
-const goToMessages = (record: any) => {
-  router.push({
-    name: 'KafkaMessage',
-    params: {
-      clusterId: clusterId.value,
-      topicName: record.name,
-    },
-    query: {
-      partition: 0,
-      offset: -1,
-    },
-  });
+const goToMessages = async (record: any) => {
+  try {
+    // 先获取分区信息
+    const { data } = await getTopicPartitions(clusterId.value, record.name);
+    const firstPartition = data && data.length > 0 ? data[0] : 0;
+
+    // 跳转到消息列表页面
+    router.push({
+      name: 'KafkaMessage',
+      params: {
+        clusterId: clusterId.value,
+        topicName: record.name,
+      },
+      query: {
+        partition: firstPartition,
+        offset: -1,
+      },
+    });
+  } catch (err) {
+    Message.error('获取分区信息失败');
+  }
 };
 
 const openConsumer = async (record: any) => {

@@ -152,17 +152,13 @@ func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
 	}
 
 	// 获取 Broker 数量
-	brokers, err := admin.Controller()
-	if err == nil && brokers != nil {
-		// 这里只是获取了控制器，实际上需要获取所有 Broker
-		// 简单起见，我们可以从 BrokerServers 字段计算
-		cluster.BrokerCount = len(strings.Split(cluster.BrokerServers, ","))
-	}
+	// 从 BrokerServers 字段计算 Broker 数量
+	cluster.BrokerCount = len(strings.Split(cluster.BrokerServers, ","))
 
 	// 获取消费者组数量
 	groups, err := admin.ListConsumerGroups()
 	if err == nil {
-		cluster.ConsumerCount = len(groups)
+		cluster.ConsumerGroupCount = len(groups)
 	}
 }
 
@@ -506,9 +502,13 @@ func (s *KafkaService) GetTopicPartitions(clusterID uint, name string) ([]int32,
 
 	topicMetadata := metadata[0]
 
-	var partitions []int32
-	for _, partition := range topicMetadata.Partitions {
-		partitions = append(partitions, partition.ID)
+	// 创建一个分区数组，大小为分区总数
+	numPartitions := len(topicMetadata.Partitions)
+	partitions := make([]int32, numPartitions)
+
+	// 填充所有分区ID
+	for i := 0; i < numPartitions; i++ {
+		partitions[i] = int32(i)
 	}
 
 	return partitions, nil

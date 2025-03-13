@@ -184,11 +184,11 @@ const fetchPartitions = async () => {
   try {
     const res = await getTopicPartitions(clusterId, topicName);
     if (res.data.code === 0) {
-      // 根据分区数生成分区列表 [0, 1, 2, ...]
-      const partitionCount = res.data.data;
-      partitions.value = Array.from({ length: partitionCount }, (_, i) => i);
-      if (!searchForm.partition && partitionCount > 0) {
-        searchForm.partition = 0;
+      // 直接使用后端返回的分区数组
+      partitions.value = res.data.data;
+      console.log('获取到的分区列表:', partitions.value);
+      if (!searchForm.partition && partitions.value.length > 0) {
+        searchForm.partition = partitions.value[0];
       }
     } else {
       Message.error(res.data.message || '获取分区信息失败');

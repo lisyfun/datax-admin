@@ -53,6 +53,15 @@
         <template #name="{ record }">
           <a-link @click="goToTopics(record)">{{ record.name }}</a-link>
         </template>
+        <template #topicCount="{ record }">
+          <a-tag color="blue">{{ record.topicCount || 0 }}</a-tag>
+        </template>
+        <template #brokerCount="{ record }">
+          <a-tag color="green">{{ record.brokerCount || 0 }}</a-tag>
+        </template>
+        <template #consumerGroupCount="{ record }">
+          <a-tag color="purple">{{ record.consumerGroupCount || 0 }}</a-tag>
+        </template>
         <template #operations="{ record }">
           <a-space>
             <a-button type="text" size="small" @click="openForm(record)">
@@ -129,6 +138,9 @@ interface KafkaCluster {
   username: string;
   password: string;
   description: string;
+  topicCount: number;
+  brokerCount: number;
+  consumerGroupCount: number;
 }
 
 interface SearchForm {
@@ -170,6 +182,9 @@ const form = reactive<KafkaCluster>({
   username: '',
   password: '',
   description: '',
+  topicCount: 0,
+  brokerCount: 0,
+  consumerGroupCount: 0,
 });
 
 const rules = {
@@ -216,6 +231,27 @@ const columns = computed<TableColumnData[]>(() => [
     dataIndex: 'brokerServers',
   },
   {
+    title: '主题数',
+    dataIndex: 'topicCount',
+    width: 100,
+    align: 'center',
+    slotName: 'topicCount',
+  },
+  {
+    title: 'Broker 数',
+    dataIndex: 'brokerCount',
+    width: 100,
+    align: 'center',
+    slotName: 'brokerCount',
+  },
+  {
+    title: '消费者组数',
+    dataIndex: 'consumerGroupCount',
+    width: 120,
+    align: 'center',
+    slotName: 'consumerGroupCount',
+  },
+  {
     title: '安全协议',
     dataIndex: 'securityProtocol',
   },
@@ -232,6 +268,7 @@ const columns = computed<TableColumnData[]>(() => [
     dataIndex: 'operations',
     slotName: 'operations',
     width: 160,
+    fixed: 'right',
   },
 ]);
 
@@ -293,6 +330,9 @@ const closeForm = () => {
   form.username = '';
   form.password = '';
   form.description = '';
+  form.topicCount = 0;
+  form.brokerCount = 0;
+  form.consumerGroupCount = 0;
   visible.value = false;
 };
 
