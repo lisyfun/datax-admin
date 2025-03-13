@@ -138,6 +138,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               title: '集群管理',
               requiresAuth: true,
               roles: ['*'],
+              icon: 'icon-apps',
             },
           },
           {
@@ -245,6 +246,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               roles: ['*'],
             },
           },
+
         ],
       },
     ],
