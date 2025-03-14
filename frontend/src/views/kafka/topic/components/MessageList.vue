@@ -274,7 +274,7 @@ const searchForm = reactive({
   groupId: 'datax-admin', // 添加默认消费者组
 });
 
-// 格式化消息内容
+// 格式化消息内容（展开时使用）
 const formatValue = (value: string) => {
   try {
     const parsed = JSON.parse(value);
@@ -429,23 +429,23 @@ const handleBack = () => {
   });
 };
 
-// 获取消息预览内容
+// 获取消息预览内容（压缩JSON）
 const getPreviewContent = (value: string) => {
   try {
     // 尝试解析 JSON
     const parsed = JSON.parse(value);
-    const formatted = JSON.stringify(parsed, null, 2);
+    // 压缩JSON，不添加空格和换行
+    const compressed = JSON.stringify(parsed);
 
-    // 只返回第一行，不添加省略号
-    const lines = formatted.split('\n');
-    if (lines.length > 1) {
-      return lines[0];
+    // 如果压缩后的内容过长，截取更长的前缀以确保时间戳等信息完整显示
+    if (compressed.length > 100) {
+      return compressed.slice(0, 100);
     }
-    return formatted;
+    return compressed;
   } catch {
-    // 非 JSON 内容，返回前 50 个字符，不添加省略号
-    if (value.length > 50) {
-      return value.slice(0, 50);
+    // 非 JSON 内容，返回前 100 个字符
+    if (value.length > 100) {
+      return value.slice(0, 100);
     }
     return value;
   }
@@ -931,13 +931,15 @@ onMounted(() => {
   max-height: 30px;
   overflow-y: hidden;
   margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow-x: hidden;
+  text-overflow: ellipsis;
   font-family: 'Courier New', monospace;
   font-size: 12px;
   position: relative;
   line-height: 1.3;
   color: var(--color-text-1);
+  max-width: 100%;
 }
 
 .preview-content::after {
@@ -959,6 +961,7 @@ onMounted(() => {
   font-size: 12px;
   line-height: 1.3;
   width: 100%;
+  padding-right: 4px;
 }
 
 .empty-message {
