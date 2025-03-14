@@ -51,7 +51,18 @@
         @page-size-change="onPageSizeChange"
       >
         <template #name="{ record }">
-          <a-link @click="goToTopics(record)">{{ record.name }}</a-link>
+          <a-link
+            :disabled="!record.status"
+            :style="{ cursor: record.status ? 'pointer' : 'not-allowed' }"
+            @click="record.status && goToTopics(record)"
+          >
+            {{ record.name }}
+          </a-link>
+        </template>
+        <template #status="{ record }">
+          <a-tag :color="record.status ? 'green' : 'red'">
+            {{ record.status ? '正常' : '不可用' }}
+          </a-tag>
         </template>
         <template #topicCount="{ record }">
           <a-tag color="blue">{{ record.topicCount || 0 }}</a-tag>
@@ -141,6 +152,7 @@ interface KafkaCluster {
   topicCount: number;
   brokerCount: number;
   consumerGroupCount: number;
+  status: boolean;
 }
 
 interface SearchForm {
@@ -185,6 +197,7 @@ const form = reactive<KafkaCluster>({
   topicCount: 0,
   brokerCount: 0,
   consumerGroupCount: 0,
+  status: true,
 });
 
 const rules = {
@@ -225,6 +238,13 @@ const columns = computed<TableColumnData[]>(() => [
     title: '集群名称',
     dataIndex: 'name',
     slotName: 'name',
+  },
+  {
+    title: '状态',
+    dataIndex: 'status',
+    width: 100,
+    align: 'center',
+    slotName: 'status',
   },
   {
     title: 'Broker 服务器',
@@ -333,6 +353,7 @@ const closeForm = () => {
   form.topicCount = 0;
   form.brokerCount = 0;
   form.consumerGroupCount = 0;
+  form.status = true;
   visible.value = false;
 };
 

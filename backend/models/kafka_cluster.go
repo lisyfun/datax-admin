@@ -15,6 +15,8 @@ type KafkaCluster struct {
 	Username           string    `gorm:"size:100" json:"username"`
 	Password           string    `gorm:"size:255" json:"password"`
 	Description        string    `gorm:"size:500" json:"description"`
+	Status             bool      `gorm:"default:true" json:"status"`
+	LastCheckTime      time.Time `gorm:"" json:"lastCheckTime"`
 	TopicCount         int       `gorm:"-" json:"topicCount"`
 	BrokerCount        int       `gorm:"-" json:"brokerCount"`
 	ConsumerGroupCount int       `gorm:"-" json:"consumerGroupCount"`

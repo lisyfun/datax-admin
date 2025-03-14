@@ -138,13 +138,14 @@ func (s *KafkaService) ListKafkaClusters(page, pageSize int, search string) (*Ka
 		return nil, err
 	}
 
+	// 直接获取集群信息，包括状态和统计数据
 	if err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&clusters).Error; err != nil {
 		return nil, err
 	}
 
-	// 获取每个集群的统计信息
+	// 计算 Broker 数量
 	for i := range clusters {
-		s.enrichClusterStats(&clusters[i])
+		clusters[i].BrokerCount = len(strings.Split(clusters[i].BrokerServers, ","))
 	}
 
 	return &KafkaClusterListResponse{
@@ -153,8 +154,64 @@ func (s *KafkaService) ListKafkaClusters(page, pageSize int, search string) (*Ka
 	}, nil
 }
 
-// enrichClusterStats 丰富集群统计信息
+// CheckClusterStatus 检查集群状态
+func (s *KafkaService) CheckClusterStatus(cluster *models.KafkaCluster) error {
+	// 更新最后检查时间
+	cluster.LastCheckTime = time.Now()
+
+	// 尝试连接集群
+	conn, err := s.getKafkaConn(cluster, "")
+	if err != nil {
+		cluster.Status = false
+		return models.DB.Save(cluster).Error
+	}
+	defer conn.Close()
+
+	// 尝试获取控制器来验证连接
+	_, err = conn.Controller()
+	if err != nil {
+		cluster.Status = false
+		return models.DB.Save(cluster).Error
+	}
+
+	// 连接成功，更新状态
+	cluster.Status = true
+	return models.DB.Save(cluster).Error
+}
+
+// StartClusterHealthCheck 启动集群健康检查
+func (s *KafkaService) StartClusterHealthCheck(checkInterval time.Duration) {
+	ticker := time.NewTicker(checkInterval)
+	go func() {
+		for range ticker.C {
+			var clusters []models.KafkaCluster
+			if err := models.DB.Find(&clusters).Error; err != nil {
+				fmt.Printf("获取集群列表失败: %v\n", err)
+				continue
+			}
+
+			for _, cluster := range clusters {
+				if err := s.CheckClusterStatus(&cluster); err != nil {
+					fmt.Printf("检查集群 %s 状态失败: %v\n", cluster.Name, err)
+				}
+			}
+		}
+	}()
+}
+
+// enrichClusterStats 丰富集群统计信息 - 仅在需要详细信息时使用
 func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
+	// 检查集群状态
+	if err := s.CheckClusterStatus(cluster); err != nil {
+		fmt.Printf("检查集群状态失败: %v\n", err)
+		return
+	}
+
+	// 如果集群不可用，直接返回
+	if !cluster.Status {
+		return
+	}
+
 	// 连接到 Kafka 集群
 	conn, err := s.getKafkaConn(cluster, "")
 	if err != nil {
@@ -176,11 +233,6 @@ func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
 	} else {
 		fmt.Printf("获取主题列表失败: %v\n", err)
 	}
-
-	// 获取 Broker 数量
-	// 从 BrokerServers 字段计算 Broker 数量
-	cluster.BrokerCount = len(strings.Split(cluster.BrokerServers, ","))
-	fmt.Printf("计算得到 Broker 数量: %d\n", cluster.BrokerCount)
 
 	// 获取消费者组数量
 	// 由于 kafka-go 没有直接获取消费者组的 API，我们设置一个默认值

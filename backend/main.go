@@ -4,7 +4,9 @@ import (
 	"datax-admin/config"
 	"datax-admin/models"
 	"datax-admin/routes"
+	"datax-admin/services"
 	"datax-admin/utils/logger"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,6 +22,10 @@ func main() {
 
 	// 初始化数据库
 	models.InitDB()
+
+	// 启动集群健康检查，每1分钟检查一次
+	kafkaService := &services.KafkaService{}
+	kafkaService.StartClusterHealthCheck(1 * time.Minute)
 
 	// 设置gin模式
 	gin.SetMode(config.GlobalConfig.Server.Mode)
