@@ -33,6 +33,7 @@ func RegisterKafkaRoutes(r *gin.RouterGroup) {
 			clusters.GET("/:id/topics/:topicName/messages", kafkaController.ConsumeMessages)
 			clusters.GET("/:id/topics/:topicName/partitions", kafkaController.GetTopicPartitions)
 			clusters.GET("/:id/topics/:topicName/partitions/:partition/offsets", kafkaController.GetPartitionOffsets)
+			clusters.GET("/:id/topics/:topicName/partitions/:partition/offset", kafkaController.GetPartitionOffset)
 			clusters.GET("/:id/topics/:topicName/info", kafkaController.GetTopicInfo)
 		}
 	}

@@ -92,9 +92,10 @@
             <div class="filter-group">
               <div class="filter-label">偏移量:</div>
               <a-input-number
-                v-model="searchForm.offset"
+                :model-value="searchForm.offset"
                 placeholder="偏移量"
                 style="width: 150px"
+                @change="(val) => { searchForm.offset = val !== null ? val : undefined }"
               />
             </div>
 
@@ -154,6 +155,14 @@
                     <icon-refresh />
                   </template>
                   重置
+                </a-button>
+              </a-tooltip>
+              <a-tooltip content="查看当前偏移量状态">
+                <a-button @click="() => { console.log('当前偏移量状态:', { offset: searchForm.offset, offsetReset: searchForm.offsetReset, topicInfo }) }">
+                  <template #icon>
+                    <icon-info-circle />
+                  </template>
+                  调试
                 </a-button>
               </a-tooltip>
             </div>
@@ -228,7 +237,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
-import { consumeMessages, getTopicPartitions, getTopicInfo } from '@/api/kafka';
+import { consumeMessages, getTopicPartitions, getTopicInfo, getPartitionOffset } from '@/api/kafka';
 import { formatDateTime } from '@/utils/date';
 import {
   IconLeft,
@@ -243,6 +252,7 @@ import {
   IconCode,
   IconCalendar,
   IconCopy,
+  IconInfoCircle,
 } from '@arco-design/web-vue/es/icon';
 
 const route = useRoute();
@@ -267,11 +277,12 @@ const topicInfo = reactive({
 // 搜索表单
 const searchForm = reactive({
   partition: parseInt(route.query.partition as string, 10) || 0,
-  offset: parseInt(route.query.offset as string, 10) || -1,
+  offset: route.query.offset ? parseInt(route.query.offset as string, 10) : undefined,
   count: 10,
   keyFilter: '',
   valueFilter: '',
   groupId: 'datax-admin', // 添加默认消费者组
+  offsetReset: 'latest', // 添加偏移量重置模式字段
 });
 
 // 格式化消息内容（展开时使用）
@@ -306,7 +317,10 @@ const fetchPartitions = async () => {
       }
 
       // 获取主题信息
-      fetchTopicInfo();
+      await fetchTopicInfo();
+
+      // 获取偏移量并加载消息
+      await fetchPartitionOffset(searchForm.offsetReset);
     } else {
       Message.error(res.data.message || '获取分区信息失败');
     }
@@ -335,6 +349,45 @@ const fetchTopicInfo = async () => {
   }
 };
 
+// 获取特定类型的偏移量（earliest或latest）
+const fetchPartitionOffset = async (offsetType: string) => {
+  try {
+    loading.value = true;
+    console.log(`正在获取分区 ${searchForm.partition} 的 ${offsetType} 偏移量...`);
+
+    const res = await getPartitionOffset(clusterId, topicName, searchForm.partition, offsetType);
+
+    if (res.data.code === 0) {
+      const offset = res.data.data;
+      console.log(`获取到 ${offsetType} 偏移量: ${offset}`);
+
+      // 更新表单中的偏移量
+      searchForm.offset = offset;
+
+      // 如果是最新偏移量，可能需要减去count来获取最近的几条消息
+      if (offsetType === 'latest' && offset > searchForm.count) {
+        const adjustedOffset = Math.max(0, offset - searchForm.count);
+        console.log(`调整后的最新偏移量: ${adjustedOffset} (原始: ${offset}, 减去: ${searchForm.count})`);
+        searchForm.offset = adjustedOffset;
+      }
+
+      // 获取消息
+      fetchMessages();
+
+      return offset;
+    } else {
+      Message.error(res.data.message || `获取${offsetType}偏移量失败`);
+      return null;
+    }
+  } catch (err: any) {
+    console.error(`获取${offsetType}偏移量失败:`, err);
+    Message.error(err.response?.data?.message || `获取${offsetType}偏移量失败`);
+    return null;
+  } finally {
+    loading.value = false;
+  }
+};
+
 // 获取消息列表
 const fetchMessages = async () => {
   loading.value = true;
@@ -342,15 +395,19 @@ const fetchMessages = async () => {
   expandedMessages.value = []; // 清空展开状态
 
   try {
+    // 使用当前表单中的偏移量，这个偏移量可能是通过fetchPartitionOffset获取的
+    const actualOffset: number = searchForm.offset !== undefined ? searchForm.offset : 0;
+
     console.log('开始获取消息，参数:', {
       clusterId,
       topicName,
       partition: searchForm.partition,
-      offset: searchForm.offset,
+      offset: actualOffset,
       count: searchForm.count,
       keyFilter: searchForm.keyFilter,
       valueFilter: searchForm.valueFilter,
       groupId: searchForm.groupId,
+      offsetReset: searchForm.offsetReset,
     });
 
     // 设置请求超时
@@ -359,7 +416,7 @@ const fetchMessages = async () => {
 
     const res = await consumeMessages(clusterId, topicName, {
       partition: searchForm.partition,
-      offset: searchForm.offset,
+      offset: actualOffset,
       count: searchForm.count,
       keyFilter: searchForm.keyFilter,
       valueFilter: searchForm.valueFilter,
@@ -377,6 +434,12 @@ const fetchMessages = async () => {
         Message.info('没有找到符合条件的消息');
       } else {
         Message.success(`成功获取 ${messages.value.length} 条消息`);
+
+        // 如果获取到消息，可以更新偏移量为第一条消息的偏移量
+        if (messages.value.length > 0) {
+          const firstMessageOffset = messages.value[0].offset;
+          console.log(`获取到的第一条消息偏移量: ${firstMessageOffset}`);
+        }
       }
     } else {
       Message.error(res.data.message || '获取消息失败');
@@ -394,15 +457,24 @@ const fetchMessages = async () => {
 };
 
 // 分区变更
-const handlePartitionChange = () => {
-  searchForm.offset = -1; // 切换分区时重置偏移量为最新位置
+const handlePartitionChange = async () => {
+  console.log('分区变更，重新获取偏移量');
+
+  // 根据当前的offsetReset模式获取相应的偏移量
+  await fetchPartitionOffset(searchForm.offsetReset);
 };
 
 // 偏移量重置选项变更
-const handleOffsetSwitchChange = (value: string | number | boolean) => {
+const handleOffsetSwitchChange = async (value: string | number | boolean) => {
   const checked = Boolean(value);
-  offsetReset.value = checked ? 'latest' : 'earliest';
-  searchForm.offset = checked ? -1 : 0;
+  const newMode = checked ? 'latest' : 'earliest';
+  console.log(`偏移量模式切换为: ${newMode}`);
+
+  offsetReset.value = newMode;
+  searchForm.offsetReset = newMode;
+
+  // 通过API获取实际偏移量
+  await fetchPartitionOffset(newMode);
 };
 
 // 搜索
@@ -413,7 +485,8 @@ const handleSearch = () => {
 // 重置
 const handleReset = () => {
   offsetReset.value = 'latest';
-  searchForm.offset = -1;
+  searchForm.offsetReset = 'latest';
+  searchForm.offset = undefined; // 重置为undefined，让系统根据offsetReset模式自动计算
   searchForm.count = 10;
   searchForm.keyFilter = '';
   searchForm.valueFilter = '';
@@ -521,7 +594,8 @@ const fallbackCopyTextToClipboard = (text: string) => {
 
 onMounted(() => {
   fetchPartitions();
-  fetchMessages();
+  // 在获取分区信息后，会自动调用fetchTopicInfo
+  // 然后在获取到分区和主题信息后，根据当前的offsetReset模式获取偏移量
 });
 </script>
 

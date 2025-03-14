@@ -523,3 +523,59 @@ func (c *KafkaController) GetTopicInfo(ctx *gin.Context) {
 		},
 	})
 }
+
+// GetPartitionOffset 获取特定分区特定类型的偏移量
+func (c *KafkaController) GetPartitionOffset(ctx *gin.Context) {
+	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的集群ID",
+		})
+		return
+	}
+
+	topicName := ctx.Param("topicName")
+	if topicName == "" {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "主题名称不能为空",
+		})
+		return
+	}
+
+	partition, err := strconv.ParseInt(ctx.Param("partition"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的分区ID",
+		})
+		return
+	}
+
+	// 获取偏移量类型（earliest或latest）
+	offsetType := ctx.Query("type")
+	if offsetType != "earliest" && offsetType != "latest" {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "无效的偏移量类型，必须是 earliest 或 latest",
+		})
+		return
+	}
+
+	// 获取偏移量
+	offset, err := c.kafkaService.GetPartitionOffset(uint(id), topicName, int32(partition), offsetType)
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "操作成功",
+		"data":    offset,
+	})
+}

@@ -131,3 +131,9 @@ export function consumeMessages(clusterId: number, topicName: string, params: Ka
     ...config
   });
 }
+
+export function getPartitionOffset(clusterId: number, topicName: string, partition: number, offsetType: string) {
+  return request.get(`/kafka/clusters/${clusterId}/topics/${topicName}/partitions/${partition}/offset`, {
+    params: { type: offsetType }
+  });
+}

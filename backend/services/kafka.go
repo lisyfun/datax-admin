@@ -621,26 +621,78 @@ func (s *KafkaService) GetPartitionOffsets(clusterID uint, topicName string, par
 	// 获取集群信息
 	cluster, err := s.GetKafkaCluster(clusterID)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("获取集群信息失败: %v", err)
 	}
 
-	// 连接到 Kafka 集群
-	conn, err := s.getKafkaConn(cluster, topicName)
+	// 创建 Kafka 读取器配置
+	brokers := strings.Split(cluster.BrokerServers, ",")
+	if len(brokers) == 0 {
+		return 0, 0, fmt.Errorf("未配置 Kafka broker 地址")
+	}
+
+	// 确保broker地址包含主机名和端口号
+	brokerAddr := brokers[0]
+	if !strings.Contains(brokerAddr, ":") {
+		return 0, 0, fmt.Errorf("broker地址格式错误，应为host:port格式")
+	}
+
+	fmt.Printf("获取分区偏移量，连接 Kafka broker: %s, topic: %s, partition: %d\n",
+		brokerAddr, topicName, partition)
+
+	// 创建 dialer
+	dialer := &kafka.Dialer{
+		Timeout:   3 * time.Second, // 增加连接超时时间
+		DualStack: false,           // 禁用 IPv6
+	}
+
+	// 添加认证信息
+	if cluster.SecurityProtocol != "" {
+		switch cluster.SecurityProtocol {
+		case "SASL_PLAINTEXT":
+			mechanism := plain.Mechanism{
+				Username: cluster.Username,
+				Password: cluster.Password,
+			}
+			dialer.SASLMechanism = mechanism
+		case "SASL_SSL":
+			mechanism := plain.Mechanism{
+				Username: cluster.Username,
+				Password: cluster.Password,
+			}
+			dialer.SASLMechanism = mechanism
+			dialer.TLS = &tls.Config{
+				InsecureSkipVerify: true,
+			}
+		}
+	}
+
+	// 创建上下文
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 使用LookupPartition获取分区信息
+	partitionInfo, err := dialer.LookupPartition(ctx, "tcp", brokerAddr, topicName, int(partition))
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("查找分区信息失败: %v", err)
+	}
+
+	// 连接到特定分区
+	conn, err := dialer.DialPartition(ctx, "tcp", brokerAddr, partitionInfo)
+	if err != nil {
+		return 0, 0, fmt.Errorf("连接分区失败: %v", err)
 	}
 	defer conn.Close()
 
 	// 获取最早偏移量
 	oldest, err := conn.ReadFirstOffset()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("获取最早偏移量失败: %v", err)
 	}
 
 	// 获取最新偏移量
 	newest, err := conn.ReadLastOffset()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("获取最新偏移量失败: %v", err)
 	}
 
 	return oldest, newest, nil
@@ -654,17 +706,53 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 		return 0, 0, 0, fmt.Errorf("获取集群信息失败: %v", err)
 	}
 
-	// 连接到 Kafka 集群
-	conn, err := s.getKafkaConn(cluster, topicName)
-	if err != nil {
-		return 0, 0, 0, fmt.Errorf("连接 Kafka 失败: %v", err)
+	// 获取broker地址
+	brokers := strings.Split(cluster.BrokerServers, ",")
+	if len(brokers) == 0 {
+		return 0, 0, 0, fmt.Errorf("未配置 Kafka broker 地址")
 	}
-	defer conn.Close()
 
-	// 获取主题分区
-	partitions, err := conn.ReadPartitions(topicName)
+	// 确保broker地址包含主机名和端口号
+	brokerAddr := brokers[0]
+	if !strings.Contains(brokerAddr, ":") {
+		return 0, 0, 0, fmt.Errorf("broker地址格式错误，应为host:port格式")
+	}
+
+	// 创建 dialer
+	dialer := &kafka.Dialer{
+		Timeout:   3 * time.Second, // 增加连接超时时间
+		DualStack: false,           // 禁用 IPv6
+	}
+
+	// 添加认证信息
+	if cluster.SecurityProtocol != "" {
+		switch cluster.SecurityProtocol {
+		case "SASL_PLAINTEXT":
+			mechanism := plain.Mechanism{
+				Username: cluster.Username,
+				Password: cluster.Password,
+			}
+			dialer.SASLMechanism = mechanism
+		case "SASL_SSL":
+			mechanism := plain.Mechanism{
+				Username: cluster.Username,
+				Password: cluster.Password,
+			}
+			dialer.SASLMechanism = mechanism
+			dialer.TLS = &tls.Config{
+				InsecureSkipVerify: true,
+			}
+		}
+	}
+
+	// 创建上下文
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 使用LookupPartitions获取所有分区信息
+	partitions, err := dialer.LookupPartitions(ctx, "tcp", brokerAddr, topicName)
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("获取主题分区失败: %v", err)
+		return 0, 0, 0, fmt.Errorf("查找分区信息失败: %v", err)
 	}
 
 	var beginningOffset, endOffset, size int64
@@ -672,32 +760,39 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 	// 遍历所有分区，获取起始偏移量和结束偏移量
 	for _, p := range partitions {
 		// 创建分区连接
-		partConn, err := kafka.DialPartition(context.Background(), "tcp", brokerAddress(cluster), p)
+		conn, err := dialer.DialPartition(ctx, "tcp", brokerAddr, p)
 		if err != nil {
+			fmt.Printf("连接分区 %d 失败: %v\n", p.ID, err)
 			continue
 		}
-		defer partConn.Close()
 
 		// 获取最早偏移量
-		oldest, err := partConn.ReadFirstOffset()
+		oldest, err := conn.ReadFirstOffset()
 		if err != nil {
+			conn.Close()
+			fmt.Printf("获取分区 %d 最早偏移量失败: %v\n", p.ID, err)
 			continue
 		}
 
 		// 获取最新偏移量
-		newest, err := partConn.ReadLastOffset()
+		newest, err := conn.ReadLastOffset()
 		if err != nil {
+			conn.Close()
+			fmt.Printf("获取分区 %d 最新偏移量失败: %v\n", p.ID, err)
 			continue
 		}
 
 		// 累加所有分区的偏移量
-		if p.ID == 0 || oldest < beginningOffset {
+		if p.ID == 0 || oldest < beginningOffset || beginningOffset == 0 {
 			beginningOffset = oldest
 		}
 		if newest > endOffset {
 			endOffset = newest
 		}
 		size += newest - oldest
+
+		// 关闭连接
+		conn.Close()
 	}
 
 	return beginningOffset, endOffset, size, nil
@@ -709,5 +804,102 @@ func brokerAddress(cluster *models.KafkaCluster) string {
 	if len(brokers) == 0 {
 		return ""
 	}
-	return brokers[0]
+
+	brokerAddr := brokers[0]
+	// 确保地址包含端口号
+	if !strings.Contains(brokerAddr, ":") {
+		fmt.Printf("警告: broker地址 %s 不包含端口号，可能导致连接失败\n", brokerAddr)
+	}
+
+	return brokerAddr
+}
+
+// GetPartitionOffset 获取特定分区特定类型的偏移量
+func (s *KafkaService) GetPartitionOffset(clusterID uint, topicName string, partition int32, offsetType string) (int64, error) {
+	// 获取集群信息
+	cluster, err := s.GetKafkaCluster(clusterID)
+	if err != nil {
+		return 0, fmt.Errorf("获取集群信息失败: %v", err)
+	}
+
+	// 创建 Kafka 读取器配置
+	brokers := strings.Split(cluster.BrokerServers, ",")
+	if len(brokers) == 0 {
+		return 0, fmt.Errorf("未配置 Kafka broker 地址")
+	}
+
+	// 确保broker地址包含主机名和端口号
+	brokerAddr := brokers[0]
+	if !strings.Contains(brokerAddr, ":") {
+		return 0, fmt.Errorf("broker地址格式错误，应为host:port格式")
+	}
+
+	fmt.Printf("获取偏移量，连接 Kafka broker: %s, topic: %s, partition: %d, type: %s\n",
+		brokerAddr, topicName, partition, offsetType)
+
+	// 创建 dialer
+	dialer := &kafka.Dialer{
+		Timeout:   3 * time.Second, // 增加连接超时时间
+		DualStack: false,           // 禁用 IPv6
+	}
+
+	// 添加认证信息
+	if cluster.SecurityProtocol != "" {
+		switch cluster.SecurityProtocol {
+		case "SASL_PLAINTEXT":
+			mechanism := plain.Mechanism{
+				Username: cluster.Username,
+				Password: cluster.Password,
+			}
+			dialer.SASLMechanism = mechanism
+		case "SASL_SSL":
+			mechanism := plain.Mechanism{
+				Username: cluster.Username,
+				Password: cluster.Password,
+			}
+			dialer.SASLMechanism = mechanism
+			dialer.TLS = &tls.Config{
+				InsecureSkipVerify: true,
+			}
+		}
+	}
+
+	// 创建上下文
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 使用LookupPartition获取分区信息
+	partitionInfo, err := dialer.LookupPartition(ctx, "tcp", brokerAddr, topicName, int(partition))
+	if err != nil {
+		return 0, fmt.Errorf("查找分区信息失败: %v", err)
+	}
+
+	// 连接到特定分区
+	conn, err := dialer.DialPartition(ctx, "tcp", brokerAddr, partitionInfo)
+	if err != nil {
+		return 0, fmt.Errorf("连接分区失败: %v", err)
+	}
+	defer conn.Close()
+
+	var offset int64
+	var offsetErr error
+
+	// 根据类型获取偏移量
+	if offsetType == "earliest" {
+		offset, offsetErr = conn.ReadFirstOffset()
+		if offsetErr != nil {
+			return 0, fmt.Errorf("获取最早偏移量失败: %v", offsetErr)
+		}
+		fmt.Printf("获取到最早偏移量: %d\n", offset)
+	} else if offsetType == "latest" {
+		offset, offsetErr = conn.ReadLastOffset()
+		if offsetErr != nil {
+			return 0, fmt.Errorf("获取最新偏移量失败: %v", offsetErr)
+		}
+		fmt.Printf("获取到最新偏移量: %d\n", offset)
+	} else {
+		return 0, fmt.Errorf("无效的偏移量类型: %s", offsetType)
+	}
+
+	return offset, nil
 }
