@@ -171,9 +171,22 @@
             <span class="meta-item">timestamp: <b>{{ formatDateTime(String(message.timestamp)) }}</b></span>
           </div>
           <div class="message-content">
-            <a-typography-paragraph :ellipsis="{rows: 3, expandable: true, showTooltip: true}">
-              <pre>{{ formatValue(message.value) }}</pre>
-            </a-typography-paragraph>
+            <div v-if="!expandedMessages[index]" class="message-preview">
+              <div class="toggle-button" @click="toggleMessageExpand(index)">
+                <icon-expand />
+              </div>
+              <div class="content-container">
+                <pre class="preview-content">{{ getPreviewContent(message.value) }}</pre>
+              </div>
+            </div>
+            <div v-else class="message-full">
+              <div class="toggle-button" @click="toggleMessageExpand(index)">
+                <icon-shrink />
+              </div>
+              <div class="content-container">
+                <pre>{{ formatValue(message.value) }}</pre>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -202,6 +215,8 @@ import {
   IconFilter,
   IconQuestionCircle,
   IconApps,
+  IconExpand,
+  IconShrink,
 } from '@arco-design/web-vue/es/icon';
 
 const route = useRoute();
@@ -210,6 +225,7 @@ const loading = ref(false);
 const messages = ref<KafkaMessage[]>([]);
 const partitions = ref<number[]>([]);
 const offsetReset = ref('latest');
+const expandedMessages = ref<boolean[]>([]);
 
 // 从路由参数中获取信息
 const clusterId = parseInt(route.params.clusterId as string, 10);
@@ -297,6 +313,7 @@ const fetchTopicInfo = async () => {
 const fetchMessages = async () => {
   loading.value = true;
   messages.value = []; // 清空之前的消息
+  expandedMessages.value = []; // 清空展开状态
 
   try {
     console.log('开始获取消息，参数:', {
@@ -327,6 +344,9 @@ const fetchMessages = async () => {
 
     if (res.data.code === 0) {
       messages.value = res.data.data || [] as KafkaMessage[];
+      // 初始化所有消息为未展开状态
+      expandedMessages.value = new Array(messages.value.length).fill(false);
+
       if (messages.value.length === 0) {
         Message.info('没有找到符合条件的消息');
       } else {
@@ -380,6 +400,38 @@ const handleBack = () => {
     params: { clusterId },
     query: { clusterName: route.query.clusterName as string }
   });
+};
+
+// 获取消息预览内容
+const getPreviewContent = (value: string) => {
+  try {
+    // 尝试解析 JSON
+    const parsed = JSON.parse(value);
+    const formatted = JSON.stringify(parsed, null, 2);
+
+    // 只返回第一行，不添加省略号
+    const lines = formatted.split('\n');
+    if (lines.length > 1) {
+      return lines[0];
+    }
+    return formatted;
+  } catch {
+    // 非 JSON 内容，返回前 50 个字符，不添加省略号
+    if (value.length > 50) {
+      return value.slice(0, 50);
+    }
+    return value;
+  }
+};
+
+// 展开或收起消息内容
+const toggleMessageExpand = (index: number) => {
+  // 确保expandedMessages数组已初始化
+  if (!expandedMessages.value) {
+    expandedMessages.value = new Array(messages.value.length).fill(false);
+  }
+  // 切换指定索引的消息展开状态
+  expandedMessages.value[index] = !expandedMessages.value[index];
 };
 
 onMounted(() => {
@@ -646,9 +698,7 @@ onMounted(() => {
 }
 
 .message-container {
-  margin-top: 20px;
-  position: relative;
-  min-height: 200px;
+  margin-top: 16px;
 }
 
 .message-item {
@@ -658,73 +708,128 @@ onMounted(() => {
   border-radius: 4px;
   border-left: 3px solid var(--color-primary-light-4);
   transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-
-  &:hover {
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
-    transform: translateY(-1px);
-  }
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .message-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px dashed var(--color-border-2);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+  color: var(--color-text-3);
 }
 
 .meta-item {
-  font-size: 12px;
-  color: var(--color-text-3);
+  white-space: nowrap;
+}
 
-  b {
-    color: var(--color-text-1);
-    font-weight: 500;
-  }
+.meta-item b {
+  color: var(--color-text-1);
+  font-weight: 500;
 }
 
 .message-content {
-  :deep(.arco-typography) {
-    margin-bottom: 0;
-  }
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  align-items: flex-start;
+}
 
-  pre {
-    margin: 0;
-    padding: 8px;
-    background-color: var(--color-fill-1);
-    border-radius: 2px;
-    font-size: 13px;
-    white-space: pre-wrap;
-    word-break: break-all;
-    max-height: 500px;
-    overflow-y: auto;
-  }
+.message-preview, .message-full {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+}
 
-  :deep(.arco-typography-operation-expand) {
-    margin-left: 8px;
-    color: var(--color-primary);
-    font-size: 12px;
-  }
+.toggle-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-primary);
+  font-size: 16px;
+  transition: color 0.2s ease;
+  margin-right: 8px;
+  margin-top: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  background-color: var(--color-fill-2);
+  flex-shrink: 0;
+}
+
+.toggle-button:hover {
+  color: var(--color-primary-light-3);
+  background-color: var(--color-fill-3);
+}
+
+.content-container {
+  position: relative;
+  background-color: var(--color-fill-1);
+  border-radius: 2px;
+  padding: 8px;
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--color-border-2);
+  margin-top: 4px;
+}
+
+.preview-content {
+  max-height: 40px;
+  overflow-y: hidden;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  position: relative;
+  line-height: 1.4;
+}
+
+.preview-content::after {
+  display: none;
+}
+
+.message-full {
+  width: 100%;
+  max-width: 100%;
+}
+
+.message-full pre {
+  max-height: 500px;
+  overflow-y: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  width: 100%;
 }
 
 .empty-message {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 40px 0;
   color: var(--color-text-3);
 }
 
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: var(--color-text-4);
+}
+
 .loading-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
   display: flex;
-  align-items: center;
   justify-content: center;
-  background-color: rgba(255, 255, 255, 0.5);
+  padding: 40px 0;
 }
 
 .card-title {
