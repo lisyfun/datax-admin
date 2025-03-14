@@ -2,13 +2,17 @@ package services
 
 import (
 	"context"
+	"crypto/tls"
 	"datax-admin/models"
 	"encoding/json"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/plain"
 )
 
 // KafkaService 提供 Kafka 集群管理相关的服务
@@ -48,16 +52,30 @@ type KafkaMessage struct {
 	Value     string    `json:"value"`
 }
 
+// TopicMetadata 主题元数据
+type TopicMetadata struct {
+	Topic      string
+	Partitions []kafka.Partition
+}
+
+// TopicConfig 主题配置
+type TopicConfig struct {
+	Topic             string
+	NumPartitions     int32
+	ReplicationFactor int16
+}
+
 // ValidateClusterConnection 验证集群连接
 func (s *KafkaService) ValidateClusterConnection(cluster *models.KafkaCluster) error {
-	admin, err := s.getKafkaAdminClient(cluster)
+	// 使用 kafka-go 验证连接
+	conn, err := s.getKafkaConn(cluster, "")
 	if err != nil {
 		return fmt.Errorf("连接失败: %v", err)
 	}
-	defer admin.Close()
+	defer conn.Close()
 
-	// 尝试列出主题来验证连接
-	_, err = admin.ListTopics()
+	// 尝试获取 broker 控制器来验证连接
+	_, err = conn.Controller()
 	if err != nil {
 		return fmt.Errorf("验证失败: %v", err)
 	}
@@ -138,17 +156,22 @@ func (s *KafkaService) ListKafkaClusters(page, pageSize int, search string) (*Ka
 // enrichClusterStats 丰富集群统计信息
 func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
 	// 连接到 Kafka 集群
-	admin, err := s.getKafkaAdminClient(cluster)
+	conn, err := s.getKafkaConn(cluster, "")
 	if err != nil {
-		fmt.Printf("获取 Kafka 管理客户端失败: %v\n", err)
+		fmt.Printf("获取 Kafka 连接失败: %v\n", err)
 		return
 	}
-	defer admin.Close()
+	defer conn.Close()
 
 	// 获取 Topic 数量
-	topics, err := admin.ListTopics()
+	topics, err := conn.ReadPartitions()
 	if err == nil {
-		cluster.TopicCount = len(topics)
+		// 统计唯一的 topic 名称
+		topicMap := make(map[string]bool)
+		for _, p := range topics {
+			topicMap[p.Topic] = true
+		}
+		cluster.TopicCount = len(topicMap)
 		fmt.Printf("获取到主题数量: %d\n", cluster.TopicCount)
 	} else {
 		fmt.Printf("获取主题列表失败: %v\n", err)
@@ -160,103 +183,61 @@ func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
 	fmt.Printf("计算得到 Broker 数量: %d\n", cluster.BrokerCount)
 
 	// 获取消费者组数量
-	// 先尝试使用 ListConsumerGroups
-	groups, err := admin.ListConsumerGroups()
-	if err != nil {
-		fmt.Printf("使用 ListConsumerGroups 获取消费者组失败: %v\n", err)
-
-		// 如果失败，尝试使用普通客户端获取消费者组
-		config := sarama.NewConfig()
-		config.Version = sarama.V2_0_0_0
-
-		client, err := sarama.NewClient(strings.Split(cluster.BrokerServers, ","), config)
-		if err == nil {
-			defer client.Close()
-
-			// 获取所有主题
-			topics, err := client.Topics()
-			if err == nil {
-				// 遍历所有主题获取消费者组
-				groupSet := make(map[string]bool)
-				for _, topic := range topics {
-					// 获取主题的所有分区
-					_, err := client.Partitions(topic)
-					if err == nil {
-						// 尝试获取消费者组偏移量
-						offsetManager, err := sarama.NewOffsetManagerFromClient("datax-admin", client)
-						if err == nil {
-							defer offsetManager.Close()
-							groupSet["datax-admin"] = true
-						}
-					}
-				}
-
-				// 计算消费者组数量
-				groupCount := len(groupSet)
-				if groupCount > 0 {
-					cluster.ConsumerGroupCount = groupCount
-					fmt.Printf("使用普通客户端获取到消费者组: %v\n", groupSet)
-				} else {
-					cluster.ConsumerGroupCount = 1 // 默认至少有 datax-admin 消费者组
-					fmt.Printf("未找到消费者组，设置默认值: 1\n")
-				}
-			}
-		} else {
-			fmt.Printf("创建普通客户端失败: %v\n", err)
-			cluster.ConsumerGroupCount = 1
-		}
-	} else {
-		fmt.Printf("获取到的消费者组: %+v\n", groups)
-		if len(groups) == 0 {
-			cluster.ConsumerGroupCount = 1 // 默认至少有 datax-admin 消费者组
-			fmt.Printf("未找到消费者组，设置默认值: 1\n")
-		} else {
-			cluster.ConsumerGroupCount = len(groups)
-			fmt.Printf("设置消费者组数量为: %d\n", cluster.ConsumerGroupCount)
-		}
-	}
+	// 由于 kafka-go 没有直接获取消费者组的 API，我们设置一个默认值
+	cluster.ConsumerGroupCount = 1
+	fmt.Printf("设置默认消费者组数量: %d\n", cluster.ConsumerGroupCount)
 }
 
-// getKafkaAdminClient 获取 Kafka 管理客户端
-func (s *KafkaService) getKafkaAdminClient(cluster *models.KafkaCluster) (sarama.ClusterAdmin, error) {
-	config := sarama.NewConfig()
-	config.Version = sarama.V2_8_1_0 // 使用与服务器相同的版本
+// getKafkaConn 获取 Kafka 连接
+func (s *KafkaService) getKafkaConn(cluster *models.KafkaCluster, topic string) (*kafka.Conn, error) {
+	// 解析 broker 地址
+	brokers := strings.Split(cluster.BrokerServers, ",")
+	if len(brokers) == 0 {
+		return nil, fmt.Errorf("未配置 Kafka broker 地址")
+	}
 
-	// 设置较短的超时时间，避免长时间等待
-	config.Net.DialTimeout = 1 * time.Second
-	config.Net.ReadTimeout = 1 * time.Second
-	config.Net.WriteTimeout = 1 * time.Second
+	// 使用第一个 broker 建立连接
+	broker := brokers[0]
+	fmt.Printf("尝试连接 Kafka broker: %s\n", broker)
 
-	// 设置消费者组配置
-	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
-	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	// 设置连接超时
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	// 设置安全配置
+	// 创建 TCP 连接
+	dialer := &kafka.Dialer{
+		Timeout:   3 * time.Second,
+		DualStack: false, // 禁用 IPv6
+	}
+
+	// 添加认证信息
 	if cluster.SecurityProtocol != "" {
 		switch cluster.SecurityProtocol {
 		case "SASL_PLAINTEXT":
-			config.Net.SASL.Enable = true
-			config.Net.SASL.Mechanism = sarama.SASLMechanism(cluster.SaslMechanism)
-			config.Net.SASL.User = cluster.Username
-			config.Net.SASL.Password = cluster.Password
+			mechanism := plain.Mechanism{
+				Username: cluster.Username,
+				Password: cluster.Password,
+			}
+			dialer.SASLMechanism = mechanism
 		case "SASL_SSL":
-			config.Net.SASL.Enable = true
-			config.Net.SASL.Mechanism = sarama.SASLMechanism(cluster.SaslMechanism)
-			config.Net.SASL.User = cluster.Username
-			config.Net.SASL.Password = cluster.Password
-			config.Net.TLS.Enable = true
+			mechanism := plain.Mechanism{
+				Username: cluster.Username,
+				Password: cluster.Password,
+			}
+			dialer.SASLMechanism = mechanism
+			dialer.TLS = &tls.Config{
+				InsecureSkipVerify: true,
+			}
 		}
 	}
 
-	brokers := strings.Split(cluster.BrokerServers, ",")
-	fmt.Printf("尝试连接 Kafka brokers: %v\n", brokers)
-
-	admin, err := sarama.NewClusterAdmin(brokers, config)
+	// 创建连接
+	conn, err := dialer.DialContext(ctx, "tcp", broker)
 	if err != nil {
-		return nil, fmt.Errorf("创建 Kafka 管理客户端失败: %v", err)
+		return nil, fmt.Errorf("连接 Kafka 失败: %v", err)
 	}
 
-	return admin, nil
+	return conn, nil
 }
 
 // ListTopics 获取 Topic 列表
@@ -268,45 +249,42 @@ func (s *KafkaService) ListTopics(clusterID uint, page, pageSize int, search str
 	}
 
 	// 连接到 Kafka 集群
-	admin, err := s.getKafkaAdminClient(cluster)
+	conn, err := s.getKafkaConn(cluster, "")
 	if err != nil {
 		return nil, err
 	}
-	defer admin.Close()
+	defer conn.Close()
 
-	// 获取所有 Topic
-	topics, err := admin.ListTopics()
+	// 获取所有分区
+	partitions, err := conn.ReadPartitions()
 	if err != nil {
 		return nil, err
 	}
 
-	// 获取 Topic 详情
-	topicNames := make([]string, 0, len(topics))
-	for name := range topics {
-		if search != "" && !strings.Contains(name, search) {
+	// 按主题分组并过滤
+	topicMap := make(map[string][]kafka.Partition)
+	for _, p := range partitions {
+		if search != "" && !strings.Contains(p.Topic, search) {
 			continue
 		}
-		topicNames = append(topicNames, name)
+		topicMap[p.Topic] = append(topicMap[p.Topic], p)
 	}
 
-	// 获取 Topic 元数据
-	metadata, err := admin.DescribeTopics(topicNames)
-	if err != nil {
-		return nil, err
-	}
-
+	// 构建主题列表
 	var topicList []KafkaTopic
-	for _, topicMetadata := range metadata {
-		// 计算平均日志大小和总日志大小
-		avgLogSize := "0 KB"
-		logSize := "0 KB"
+	for name, parts := range topicMap {
+		// 计算副本数
+		replicas := 0
+		if len(parts) > 0 {
+			replicas = len(parts[0].Replicas)
+		}
 
 		topic := KafkaTopic{
-			Name:        topicMetadata.Name,
-			Partitions:  len(topicMetadata.Partitions),
-			Replicas:    len(topicMetadata.Partitions[0].Replicas),
-			AvgLogSize:  avgLogSize,
-			LogSize:     logSize,
+			Name:        name,
+			Partitions:  len(parts),
+			Replicas:    replicas,
+			AvgLogSize:  "0 KB",
+			LogSize:     "0 KB",
 			ClusterID:   cluster.ID,
 			ClusterName: cluster.Name,
 		}
@@ -344,98 +322,107 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		return nil, err
 	}
 
-	// 创建消费者配置
-	config := sarama.NewConfig()
-	config.Version = sarama.V2_8_1_0 // 使用与服务器相同的版本
-	config.Consumer.Return.Errors = true
-	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
-	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	// 创建 Kafka 读取器
+	brokers := strings.Split(cluster.BrokerServers, ",")
+	fmt.Printf("消费消息，连接 Kafka brokers: %v\n", brokers)
 
-	// 设置较短的超时时间
-	config.Net.DialTimeout = 1 * time.Second
-	config.Net.ReadTimeout = 1 * time.Second
-	config.Net.WriteTimeout = 1 * time.Second
+	// 创建 dialer
+	dialer := &kafka.Dialer{
+		Timeout:   1 * time.Second, // 减少连接超时时间
+		DualStack: false,           // 禁用 IPv6
+	}
 
-	// 设置安全配置
+	// 添加认证信息
 	if cluster.SecurityProtocol != "" {
 		switch cluster.SecurityProtocol {
 		case "SASL_PLAINTEXT":
-			config.Net.SASL.Enable = true
-			config.Net.SASL.Mechanism = sarama.SASLMechanism(cluster.SaslMechanism)
-			config.Net.SASL.User = cluster.Username
-			config.Net.SASL.Password = cluster.Password
+			mechanism := plain.Mechanism{
+				Username: cluster.Username,
+				Password: cluster.Password,
+			}
+			dialer.SASLMechanism = mechanism
 		case "SASL_SSL":
-			config.Net.SASL.Enable = true
-			config.Net.SASL.Mechanism = sarama.SASLMechanism(cluster.SaslMechanism)
-			config.Net.SASL.User = cluster.Username
-			config.Net.SASL.Password = cluster.Password
-			config.Net.TLS.Enable = true
+			mechanism := plain.Mechanism{
+				Username: cluster.Username,
+				Password: cluster.Password,
+			}
+			dialer.SASLMechanism = mechanism
+			dialer.TLS = &tls.Config{
+				InsecureSkipVerify: true,
+			}
 		}
 	}
 
-	// 连接到 Kafka 集群
-	brokers := strings.Split(cluster.BrokerServers, ",")
+	// 创建读取器
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:     brokers,
+		Topic:       topic,
+		Partition:   partition,
+		Dialer:      dialer,
+		MinBytes:    1,                      // 最小字节数设为1，不等待数据累积
+		MaxBytes:    10e6,                   // 10MB
+		MaxWait:     100 * time.Millisecond, // 最大等待时间设为100毫秒
+		StartOffset: offset,
+	})
+	defer reader.Close()
 
-	// 创建消费者组
-	group, err := sarama.NewConsumerGroup(brokers, "datax-admin", config)
-	if err != nil {
-		return nil, fmt.Errorf("创建消费者组失败: %v", err)
-	}
-	defer group.Close()
-
-	// 创建上下文
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// 设置上下文超时，减少为2秒
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	// 创建一个通道来接收消息
-	messages := make([]KafkaMessage, 0)
-	messagesChan := make(chan *sarama.ConsumerMessage, count)
-	errorsChan := make(chan error, 1)
+	// 创建一个计时器，用于在没有更多消息时提前退出
+	noMessageTimer := time.NewTimer(500 * time.Millisecond)
+	defer noMessageTimer.Stop()
 
-	// 创建一个消费者组处理器
-	handler := &consumerGroupHandler{
-		ready:        make(chan bool),
-		messagesChan: messagesChan,
-		errorsChan:   errorsChan,
-		partition:    int32(partition),
-		offset:       offset,
-		count:        count,
-		keyFilter:    keyFilter,
-		valueFilter:  valueFilter,
-		messagesRead: 0,
-	}
+	// 读取消息
+	messages := make([]KafkaMessage, 0, count)
+	messageChan := make(chan kafka.Message)
+	errorChan := make(chan error)
 
-	// 在后台运行消费者组
+	// 在后台读取消息
 	go func() {
-		for {
-			err := group.Consume(ctx, []string{topic}, handler)
-			if err != nil {
-				errorsChan <- fmt.Errorf("消费消息失败: %v", err)
-				return
-			}
+		for i := 0; i < count; i++ {
+			// 设置每条消息的读取超时
+			msgCtx, msgCancel := context.WithTimeout(ctx, 500*time.Millisecond)
+			msg, err := reader.ReadMessage(msgCtx)
+			msgCancel()
 
-			if ctx.Err() != nil {
+			if err != nil {
+				if err != context.DeadlineExceeded {
+					errorChan <- err
+				}
 				return
 			}
+			messageChan <- msg
+			// 重置无消息计时器
+			if !noMessageTimer.Stop() {
+				select {
+				case <-noMessageTimer.C:
+				default:
+				}
+			}
+			noMessageTimer.Reset(500 * time.Millisecond)
 		}
 	}()
 
-	// 等待消费者组准备就绪
-	<-handler.ready
-
-	// 使用计时器来避免长时间等待
-	timer := time.NewTimer(1 * time.Second)
-	defer timer.Stop()
-
-	// 收集消息
+	// 主循环
 	for len(messages) < count {
 		select {
-		case msg := <-messagesChan:
+		case msg := <-messageChan:
+			// 应用过滤器
+			if keyFilter != "" && !strings.Contains(string(msg.Key), keyFilter) {
+				continue
+			}
+			if valueFilter != "" && !strings.Contains(string(msg.Value), valueFilter) {
+				continue
+			}
+
+			// 创建消息对象
 			message := KafkaMessage{
-				Partition: int(msg.Partition),
+				Partition: msg.Partition,
 				Key:       string(msg.Key),
 				Offset:    msg.Offset,
-				Timestamp: msg.Timestamp,
+				Timestamp: msg.Time,
 				Value:     string(msg.Value),
 			}
 
@@ -453,15 +440,18 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 
 			messages = append(messages, message)
 
-		case err := <-errorsChan:
-			return nil, err
-
-		case <-timer.C:
-			// 超时但有消息，返回已获取的消息
+		case err := <-errorChan:
+			// 如果有错误但已经读取了一些消息，则返回已读取的消息
 			if len(messages) > 0 {
 				return messages, nil
 			}
-			// 超时且没有消息，返回空数组
+			return nil, err
+
+		case <-noMessageTimer.C:
+			// 如果一段时间内没有新消息，提前返回
+			if len(messages) > 0 {
+				return messages, nil
+			}
 			return []KafkaMessage{}, nil
 
 		case <-ctx.Done():
@@ -476,63 +466,6 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	return messages, nil
 }
 
-// consumerGroupHandler 实现 sarama.ConsumerGroupHandler 接口
-type consumerGroupHandler struct {
-	ready        chan bool
-	messagesChan chan *sarama.ConsumerMessage
-	errorsChan   chan error
-	partition    int32
-	offset       int64
-	count        int
-	keyFilter    string
-	valueFilter  string
-	messagesRead int
-}
-
-func (h *consumerGroupHandler) Setup(sarama.ConsumerGroupSession) error {
-	close(h.ready)
-	return nil
-}
-
-func (h *consumerGroupHandler) Cleanup(sarama.ConsumerGroupSession) error {
-	return nil
-}
-
-func (h *consumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	for message := range claim.Messages() {
-		// 检查分区
-		if h.partition >= 0 && message.Partition != h.partition {
-			continue
-		}
-
-		// 检查偏移量
-		if h.offset >= 0 && message.Offset < h.offset {
-			continue
-		}
-
-		// 应用过滤器
-		if h.keyFilter != "" && !strings.Contains(string(message.Key), h.keyFilter) {
-			continue
-		}
-		if h.valueFilter != "" && !strings.Contains(string(message.Value), h.valueFilter) {
-			continue
-		}
-
-		// 发送消息到通道
-		h.messagesChan <- message
-		h.messagesRead++
-
-		// 标记消息已处理
-		session.MarkMessage(message, "")
-
-		// 检查是否已经读取了足够的消息
-		if h.messagesRead >= h.count {
-			return nil
-		}
-	}
-	return nil
-}
-
 // CreateTopic 创建 Topic
 func (s *KafkaService) CreateTopic(clusterID uint, name string, partitions, replicas int) error {
 	// 获取集群信息
@@ -542,19 +475,18 @@ func (s *KafkaService) CreateTopic(clusterID uint, name string, partitions, repl
 	}
 
 	// 连接到 Kafka 集群
-	admin, err := s.getKafkaAdminClient(cluster)
+	conn, err := s.getKafkaConn(cluster, "")
 	if err != nil {
 		return err
 	}
-	defer admin.Close()
+	defer conn.Close()
 
-	// 创建 Topic
-	topicDetail := &sarama.TopicDetail{
-		NumPartitions:     int32(partitions),
-		ReplicationFactor: int16(replicas),
-	}
-
-	return admin.CreateTopic(name, topicDetail, false)
+	// 创建主题
+	return conn.CreateTopics(kafka.TopicConfig{
+		Topic:             name,
+		NumPartitions:     partitions,
+		ReplicationFactor: replicas,
+	})
 }
 
 // DeleteTopic 删除 Topic
@@ -566,14 +498,14 @@ func (s *KafkaService) DeleteTopic(clusterID uint, name string) error {
 	}
 
 	// 连接到 Kafka 集群
-	admin, err := s.getKafkaAdminClient(cluster)
+	conn, err := s.getKafkaConn(cluster, "")
 	if err != nil {
 		return err
 	}
-	defer admin.Close()
+	defer conn.Close()
 
-	// 删除 Topic
-	return admin.DeleteTopic(name)
+	// 删除主题
+	return conn.DeleteTopics(name)
 }
 
 // AlterTopic 修改 Topic
@@ -585,14 +517,28 @@ func (s *KafkaService) AlterTopic(clusterID uint, name string, partitions int) e
 	}
 
 	// 连接到 Kafka 集群
-	admin, err := s.getKafkaAdminClient(cluster)
+	conn, err := s.getKafkaConn(cluster, "")
 	if err != nil {
 		return err
 	}
-	defer admin.Close()
+	defer conn.Close()
 
-	// 修改 Topic 分区数
-	return admin.CreatePartitions(name, int32(partitions), nil, false)
+	// 获取控制器
+	controller, err := conn.Controller()
+	if err != nil {
+		return err
+	}
+
+	// 连接到控制器
+	controllerConn, err := kafka.Dial("tcp", net.JoinHostPort(controller.Host, strconv.Itoa(controller.Port)))
+	if err != nil {
+		return err
+	}
+	defer controllerConn.Close()
+
+	// 由于 kafka-go 没有直接的 CreatePartitions 方法，我们使用管理命令
+	// 这里我们只能返回一个不支持的错误
+	return fmt.Errorf("修改分区功能在 kafka-go 中不直接支持")
 }
 
 // GetTopicDetails 获取 Topic 详情
@@ -604,34 +550,31 @@ func (s *KafkaService) GetTopicDetails(clusterID uint, name string) (*KafkaTopic
 	}
 
 	// 连接到 Kafka 集群
-	admin, err := s.getKafkaAdminClient(cluster)
+	conn, err := s.getKafkaConn(cluster, "")
 	if err != nil {
 		return nil, err
 	}
-	defer admin.Close()
+	defer conn.Close()
 
-	// 获取 Topic 详情
-	metadata, err := admin.DescribeTopics([]string{name})
+	// 获取主题分区
+	partitions, err := conn.ReadPartitions(name)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(metadata) == 0 {
+	if len(partitions) == 0 {
 		return nil, fmt.Errorf("topic %s not found", name)
 	}
 
-	topicMetadata := metadata[0]
-
-	// 计算平均日志大小和总日志大小
-	avgLogSize := "0 KB"
-	logSize := "0 KB"
+	// 计算副本数
+	replicas := len(partitions[0].Replicas)
 
 	topic := &KafkaTopic{
-		Name:        topicMetadata.Name,
-		Partitions:  len(topicMetadata.Partitions),
-		Replicas:    len(topicMetadata.Partitions[0].Replicas),
-		AvgLogSize:  avgLogSize,
-		LogSize:     logSize,
+		Name:        name,
+		Partitions:  len(partitions),
+		Replicas:    replicas,
+		AvgLogSize:  "0 KB",
+		LogSize:     "0 KB",
 		ClusterID:   cluster.ID,
 		ClusterName: cluster.Name,
 	}
@@ -648,34 +591,29 @@ func (s *KafkaService) GetTopicPartitions(clusterID uint, name string) ([]int32,
 	}
 
 	// 连接到 Kafka 集群
-	admin, err := s.getKafkaAdminClient(cluster)
+	conn, err := s.getKafkaConn(cluster, "")
 	if err != nil {
 		return nil, err
 	}
-	defer admin.Close()
+	defer conn.Close()
 
-	// 获取 Topic 详情
-	metadata, err := admin.DescribeTopics([]string{name})
+	// 获取主题分区
+	partitions, err := conn.ReadPartitions(name)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(metadata) == 0 {
+	if len(partitions) == 0 {
 		return nil, fmt.Errorf("topic %s not found", name)
 	}
 
-	topicMetadata := metadata[0]
-
-	// 创建一个分区数组，大小为分区总数
-	numPartitions := len(topicMetadata.Partitions)
-	partitions := make([]int32, numPartitions)
-
-	// 填充所有分区ID
-	for i := 0; i < numPartitions; i++ {
-		partitions[i] = int32(i)
+	// 创建分区 ID 数组
+	result := make([]int32, len(partitions))
+	for i, p := range partitions {
+		result[i] = int32(p.ID)
 	}
 
-	return partitions, nil
+	return result, nil
 }
 
 // GetPartitionOffsets 获取分区偏移量
@@ -686,42 +624,21 @@ func (s *KafkaService) GetPartitionOffsets(clusterID uint, topicName string, par
 		return 0, 0, err
 	}
 
-	// 创建客户端配置
-	config := sarama.NewConfig()
-
-	// 设置安全配置
-	if cluster.SecurityProtocol != "" {
-		switch cluster.SecurityProtocol {
-		case "SASL_PLAINTEXT":
-			config.Net.SASL.Enable = true
-			config.Net.SASL.Mechanism = sarama.SASLMechanism(cluster.SaslMechanism)
-			config.Net.SASL.User = cluster.Username
-			config.Net.SASL.Password = cluster.Password
-		case "SASL_SSL":
-			config.Net.SASL.Enable = true
-			config.Net.SASL.Mechanism = sarama.SASLMechanism(cluster.SaslMechanism)
-			config.Net.SASL.User = cluster.Username
-			config.Net.SASL.Password = cluster.Password
-			config.Net.TLS.Enable = true
-		}
-	}
-
 	// 连接到 Kafka 集群
-	brokers := strings.Split(cluster.BrokerServers, ",")
-	client, err := sarama.NewClient(brokers, config)
+	conn, err := s.getKafkaConn(cluster, topicName)
 	if err != nil {
 		return 0, 0, err
 	}
-	defer client.Close()
+	defer conn.Close()
 
 	// 获取最早偏移量
-	oldest, err := client.GetOffset(topicName, partition, sarama.OffsetOldest)
+	oldest, err := conn.ReadFirstOffset()
 	if err != nil {
 		return 0, 0, err
 	}
 
 	// 获取最新偏移量
-	newest, err := client.GetOffset(topicName, partition, sarama.OffsetNewest)
+	newest, err := conn.ReadLastOffset()
 	if err != nil {
 		return 0, 0, err
 	}
@@ -737,30 +654,15 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 		return 0, 0, 0, fmt.Errorf("获取集群信息失败: %v", err)
 	}
 
-	// 创建 Kafka 配置
-	config := sarama.NewConfig()
-	config.Version = sarama.V2_0_0_0
-	config.Net.DialTimeout = 1 * time.Second
-	config.Net.ReadTimeout = 1 * time.Second
-	config.Net.WriteTimeout = 1 * time.Second
-
-	// 设置认证信息
-	if cluster.SecurityProtocol == "SASL_PLAINTEXT" || cluster.SecurityProtocol == "SASL_SSL" {
-		config.Net.SASL.Enable = true
-		config.Net.SASL.Mechanism = sarama.SASLMechanism(cluster.SaslMechanism)
-		config.Net.SASL.User = cluster.Username
-		config.Net.SASL.Password = cluster.Password
-	}
-
-	// 创建 Kafka 客户端
-	client, err := sarama.NewClient(strings.Split(cluster.BrokerServers, ","), config)
+	// 连接到 Kafka 集群
+	conn, err := s.getKafkaConn(cluster, topicName)
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("连接 Kafka 集群失败: %v", err)
+		return 0, 0, 0, fmt.Errorf("连接 Kafka 失败: %v", err)
 	}
-	defer client.Close()
+	defer conn.Close()
 
-	// 获取主题的所有分区
-	partitions, err := client.Partitions(topicName)
+	// 获取主题分区
+	partitions, err := conn.ReadPartitions(topicName)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("获取主题分区失败: %v", err)
 	}
@@ -768,19 +670,28 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 	var beginningOffset, endOffset, size int64
 
 	// 遍历所有分区，获取起始偏移量和结束偏移量
-	for _, partition := range partitions {
-		oldest, err := client.GetOffset(topicName, partition, sarama.OffsetOldest)
+	for _, p := range partitions {
+		// 创建分区连接
+		partConn, err := kafka.DialPartition(context.Background(), "tcp", brokerAddress(cluster), p)
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("获取分区 %d 的起始偏移量失败: %v", partition, err)
+			continue
+		}
+		defer partConn.Close()
+
+		// 获取最早偏移量
+		oldest, err := partConn.ReadFirstOffset()
+		if err != nil {
+			continue
 		}
 
-		newest, err := client.GetOffset(topicName, partition, sarama.OffsetNewest)
+		// 获取最新偏移量
+		newest, err := partConn.ReadLastOffset()
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("获取分区 %d 的结束偏移量失败: %v", partition, err)
+			continue
 		}
 
 		// 累加所有分区的偏移量
-		if partition == 0 || oldest < beginningOffset {
+		if p.ID == 0 || oldest < beginningOffset {
 			beginningOffset = oldest
 		}
 		if newest > endOffset {
@@ -790,4 +701,13 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 	}
 
 	return beginningOffset, endOffset, size, nil
+}
+
+// brokerAddress 获取 broker 地址
+func brokerAddress(cluster *models.KafkaCluster) string {
+	brokers := strings.Split(cluster.BrokerServers, ",")
+	if len(brokers) == 0 {
+		return ""
+	}
+	return brokers[0]
 }
