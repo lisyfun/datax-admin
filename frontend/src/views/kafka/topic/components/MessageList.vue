@@ -70,14 +70,23 @@
 
             <div class="filter-group">
               <div class="filter-label">偏移量模式:</div>
-              <a-select
-                v-model="offsetReset"
-                style="width: 120px"
-                @change="handleOffsetResetChange"
-              >
-                <a-option value="latest">最新</a-option>
-                <a-option value="earliest">最早</a-option>
-              </a-select>
+              <div class="offset-mode-switch">
+                <span
+                  class="mode-label"
+                  :class="{ active: offsetReset === 'earliest' }"
+                  @click="handleOffsetSwitchChange(false)"
+                >最早</span>
+                <a-switch
+                  :model-value="offsetReset === 'latest'"
+                  @change="handleOffsetSwitchChange"
+                  type="round"
+                />
+                <span
+                  class="mode-label"
+                  :class="{ active: offsetReset === 'latest' }"
+                  @click="handleOffsetSwitchChange(true)"
+                >最新</span>
+              </div>
             </div>
 
             <div class="filter-group">
@@ -344,12 +353,9 @@ const handlePartitionChange = () => {
 };
 
 // 偏移量重置选项变更
-const handleOffsetResetChange = () => {
-  if (offsetReset.value === 'latest') {
-    searchForm.offset = -1;
-  } else if (offsetReset.value === 'earliest') {
-    searchForm.offset = 0;
-  }
+const handleOffsetSwitchChange = (checked: boolean) => {
+  offsetReset.value = checked ? 'latest' : 'earliest';
+  searchForm.offset = checked ? -1 : 0;
 };
 
 // 搜索
@@ -359,11 +365,11 @@ const handleSearch = () => {
 
 // 重置
 const handleReset = () => {
+  offsetReset.value = 'latest';
   searchForm.offset = -1;
   searchForm.count = 10;
   searchForm.keyFilter = '';
   searchForm.valueFilter = '';
-  offsetReset.value = 'latest';
   fetchMessages();
 };
 
@@ -516,6 +522,56 @@ onMounted(() => {
   &:hover {
     .filter-label {
       color: var(--color-text-1);
+    }
+  }
+
+  .offset-mode-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .mode-label {
+      font-size: 13px;
+      color: var(--color-text-3);
+      transition: color 0.2s ease;
+      user-select: none;
+      cursor: pointer;
+
+      &.active {
+        color: var(--color-primary);
+        font-weight: 500;
+      }
+    }
+
+    :deep(.arco-switch) {
+      min-width: 44px;
+      height: 22px;
+      background-color: var(--color-fill-4);
+      transition: all 0.2s ease-in-out;
+
+      &:hover {
+        background-color: var(--color-fill-3);
+      }
+
+      .arco-switch-handle {
+        width: 18px;
+        height: 18px;
+        top: 2px;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+
+      &.arco-switch-checked {
+        background-color: var(--color-primary-light-1);
+
+        &:hover {
+          background-color: var(--color-primary-light-2);
+        }
+
+        .arco-switch-handle {
+          left: calc(100% - 18px - 2px);
+        }
+      }
     }
   }
 
