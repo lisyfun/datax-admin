@@ -4,7 +4,10 @@
       <template #title>
         <div class="card-title">
           <div class="title-left">
-            <span class="topic-name">{{ topicName }}</span>
+            <div class="topic-name">
+              <icon-message class="topic-icon" />
+              <span>{{ topicName }}</span>
+            </div>
             <a-space class="topic-stats">
               <span class="stat-item">
                 <span class="stat-label">起始偏移量:</span>
@@ -30,81 +33,122 @@
       </template>
 
       <!-- 筛选条件 -->
-      <div class="filter-bar">
-        <div class="filter-group">
-          <div class="filter-label">分区:</div>
-          <a-select
-            v-model="searchForm.partition"
-            placeholder="请选择分区"
-            allow-clear
-            @change="handlePartitionChange"
-            style="width: 120px"
-          >
-            <a-option v-for="p in partitions" :key="p" :value="p">{{ p }}</a-option>
-          </a-select>
+      <div class="search-container">
+        <div class="search-header">
+          <div class="search-title">
+            <icon-filter />
+            <span>消息筛选</span>
+          </div>
+          <a-tooltip position="left">
+            <template #content>
+              <div class="tooltip-content">
+                <p>- 分区：选择要查询的Kafka分区</p>
+                <p>- 偏移量模式：选择从最新或最早的消息开始</p>
+                <p>- 偏移量：指定具体的偏移量位置</p>
+                <p>- 消息数量：限制返回的消息数量（最大100条）</p>
+                <p>- 消息键/值：根据关键字过滤消息</p>
+              </div>
+            </template>
+            <icon-question-circle style="cursor: pointer; color: var(--color-text-3);" />
+          </a-tooltip>
         </div>
 
-        <div class="filter-group">
-          <div class="filter-label">自动偏移量重置:</div>
-          <a-select
-            v-model="offsetReset"
-            style="width: 120px"
-            @change="handleOffsetResetChange"
-          >
-            <a-option value="latest">最新</a-option>
-            <a-option value="earliest">最早</a-option>
-          </a-select>
-        </div>
+        <div class="search-content">
+          <div class="search-row">
+            <div class="filter-group">
+              <div class="filter-label">分区:</div>
+              <a-select
+                v-model="searchForm.partition"
+                placeholder="请选择分区"
+                allow-clear
+                @change="handlePartitionChange"
+                style="width: 120px"
+              >
+                <a-option v-for="p in partitions" :key="p" :value="p">{{ p }}</a-option>
+              </a-select>
+            </div>
 
-        <div class="filter-group">
-          <div class="filter-label">偏移量:</div>
-          <a-input-number
-            v-model="searchForm.offset"
-            placeholder="偏移量"
-            style="width: 150px"
-          />
-        </div>
+            <div class="filter-group">
+              <div class="filter-label">偏移量模式:</div>
+              <a-select
+                v-model="offsetReset"
+                style="width: 120px"
+                @change="handleOffsetResetChange"
+              >
+                <a-option value="latest">最新</a-option>
+                <a-option value="earliest">最早</a-option>
+              </a-select>
+            </div>
 
-        <div class="filter-group">
-          <div class="filter-label">数量:</div>
-          <a-input-number
-            v-model="searchForm.count"
-            :min="1"
-            :max="100"
-            placeholder="消息数量"
-            style="width: 120px"
-          />
-        </div>
-      </div>
+            <div class="filter-group">
+              <div class="filter-label">偏移量:</div>
+              <a-input-number
+                v-model="searchForm.offset"
+                placeholder="偏移量"
+                style="width: 150px"
+              />
+            </div>
 
-      <div class="filter-bar">
-        <div class="filter-group">
-          <div class="filter-label">key:</div>
-          <a-input
-            v-model="searchForm.keyFilter"
-            placeholder="filter key"
-            style="width: 220px"
-            allow-clear
-          />
-        </div>
+            <div class="filter-group">
+              <div class="filter-label">消息数量:</div>
+              <a-input-number
+                v-model="searchForm.count"
+                :min="1"
+                :max="100"
+                placeholder="消息数量"
+                style="width: 120px"
+              />
+            </div>
+          </div>
 
-        <div class="filter-group">
-          <div class="filter-label">value:</div>
-          <a-input
-            v-model="searchForm.valueFilter"
-            placeholder="filter value"
-            style="width: 220px"
-            allow-clear
-          />
-        </div>
+          <div class="search-row">
+            <div class="filter-group">
+              <div class="filter-label">消息键:</div>
+              <a-input
+                v-model="searchForm.keyFilter"
+                placeholder="输入关键字过滤消息键"
+                style="width: 220px"
+                allow-clear
+              >
+                <template #prefix>
+                  <icon-search />
+                </template>
+              </a-input>
+            </div>
 
-        <div class="filter-group">
-          <a-button type="primary" @click="handleSearch">
-            拉取
-          </a-button>
-          <a-button @click="handleReset" style="margin-left: 8px">
-            重置
-          </a-button>
+            <div class="filter-group">
+              <div class="filter-label">消息值:</div>
+              <a-input
+                v-model="searchForm.valueFilter"
+                placeholder="输入关键字过滤消息内容"
+                style="width: 220px"
+                allow-clear
+              >
+                <template #prefix>
+                  <icon-search />
+                </template>
+              </a-input>
+            </div>
+
+            <div class="filter-actions">
+              <a-tooltip content="拉取符合条件的消息">
+                <a-button type="primary" @click="handleSearch" status="normal">
+                  <template #icon>
+                    <icon-search />
+                  </template>
+                  拉取消息
+                </a-button>
+              </a-tooltip>
+              <a-tooltip content="重置筛选条件">
+                <a-button @click="handleReset">
+                  <template #icon>
+                    <icon-refresh />
+                  </template>
+                  重置
+                </a-button>
+              </a-tooltip>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -146,6 +190,9 @@ import {
   IconLeft,
   IconSearch,
   IconRefresh,
+  IconFilter,
+  IconQuestionCircle,
+  IconApps,
 } from '@arco-design/web-vue/es/icon';
 
 const route = useRoute();
@@ -390,20 +437,120 @@ onMounted(() => {
   color: var(--color-text-1);
 }
 
-.filter-bar {
+.search-container {
+  margin-bottom: 20px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  border: 1px solid var(--color-border-2);
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+}
+
+.search-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--color-fill-2);
+  border-bottom: 1px solid var(--color-border-2);
+}
+
+.search-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-1);
+
+  .arco-icon {
+    color: var(--color-primary);
+    font-size: 16px;
+  }
+}
+
+.search-content {
+  padding: 16px;
+  background-color: var(--color-bg-1);
+}
+
+.search-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   margin-bottom: 16px;
-  padding: 12px 16px;
-  background-color: var(--color-bg-2);
-  border-radius: 4px;
+
+  &:last-child {
+    margin-bottom: 0;
+    padding-top: 16px;
+    border-top: 1px dashed var(--color-border-2);
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+
+    .filter-group {
+      width: 100%;
+    }
+
+    .filter-actions {
+      width: 100%;
+      margin-top: 8px;
+      justify-content: flex-end;
+    }
+  }
 }
 
 .filter-group {
   display: flex;
   align-items: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    .filter-label {
+      color: var(--color-text-1);
+    }
+  }
+
+  :deep(.arco-select) {
+    .arco-select-view {
+      border-radius: 4px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        border-color: var(--color-primary-light-3);
+      }
+    }
+  }
+
+  :deep(.arco-input-wrapper) {
+    border-radius: 4px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: var(--color-primary-light-3);
+    }
+
+    .arco-input-prefix {
+      color: var(--color-text-3);
+    }
+  }
+
+  :deep(.arco-input-number) {
+    border-radius: 4px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: var(--color-primary-light-3);
+    }
+  }
 }
 
 .filter-label {
@@ -411,6 +558,35 @@ onMounted(() => {
   font-size: 13px;
   color: var(--color-text-2);
   white-space: nowrap;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+
+  :deep(.arco-btn) {
+    border-radius: 4px;
+    padding: 0 16px;
+    height: 32px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+
+    .arco-icon {
+      margin-right: 4px;
+    }
+
+    &:hover {
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
 }
 
 .message-container {
@@ -425,6 +601,13 @@ onMounted(() => {
   background-color: var(--color-bg-2);
   border-radius: 4px;
   border-left: 3px solid var(--color-primary-light-4);
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+
+  &:hover {
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+  }
 }
 
 .message-meta {
@@ -492,18 +675,80 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
 
   .title-left {
     display: flex;
     align-items: center;
     gap: 24px;
+    flex-wrap: wrap;
 
     .topic-name {
-      font-size: 16px;
-      font-weight: 500;
+      display: flex;
+      align-items: center;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--color-primary);
+      background: linear-gradient(to right, var(--color-primary-light-4), var(--color-primary-light-3));
+      padding: 3px 9px;
+      border-radius: 6px;
+      position: relative;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      border: 1px solid var(--color-primary-light-2);
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      .topic-icon {
+        margin-right: 10px;
+        font-size: 20px;
+        color: var(--color-primary);
+      }
+
+      span {
+        position: relative;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 4px;
+        background-color: var(--color-primary);
+        border-radius: 6px 0 0 6px;
+      }
+
+      @media (max-width: 768px) {
+        font-size: 16px;
+        padding: 6px 12px;
+
+        .topic-icon {
+          font-size: 18px;
+          margin-right: 8px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        width: 100%;
+      }
     }
 
     .topic-stats {
+      @media (max-width: 768px) {
+        margin-top: 8px;
+      }
+
+      @media (max-width: 480px) {
+        width: 100%;
+        justify-content: space-between;
+      }
+
       .stat-item {
         font-size: 14px;
 
@@ -516,7 +761,29 @@ onMounted(() => {
           color: var(--color-text-1);
           font-weight: 500;
         }
+
+        @media (max-width: 480px) {
+          font-size: 12px;
+        }
       }
+    }
+  }
+}
+
+:deep(.tooltip-content) {
+  max-width: 300px;
+
+  p {
+    margin: 4px 0;
+    font-size: 12px;
+    line-height: 1.5;
+
+    &:first-child {
+      margin-top: 0;
+    }
+
+    &:last-child {
+      margin-bottom: 0;
     }
   }
 }
