@@ -434,18 +434,19 @@ const getPreviewContent = (value: string) => {
   try {
     // 尝试解析 JSON
     const parsed = JSON.parse(value);
+
     // 压缩JSON，不添加空格和换行
     const compressed = JSON.stringify(parsed);
 
-    // 如果压缩后的内容过长，截取更长的前缀以确保时间戳等信息完整显示
-    if (compressed.length > 100) {
-      return compressed.slice(0, 100);
+    // 如果压缩后的内容过长，添加省略号
+    if (compressed.length > 200) {
+      return compressed.slice(0, 200) + '...';
     }
     return compressed;
   } catch {
-    // 非 JSON 内容，返回前 100 个字符
-    if (value.length > 100) {
-      return value.slice(0, 100);
+    // 非 JSON 内容，返回前 200 个字符
+    if (value.length > 200) {
+      return value.slice(0, 200) + '...';
     }
     return value;
   }
@@ -932,7 +933,7 @@ onMounted(() => {
   overflow-y: hidden;
   margin: 0;
   white-space: nowrap;
-  overflow-x: hidden;
+  overflow-x: auto;
   text-overflow: ellipsis;
   font-family: 'Courier New', monospace;
   font-size: 12px;
@@ -940,6 +941,7 @@ onMounted(() => {
   line-height: 1.3;
   color: var(--color-text-1);
   max-width: 100%;
+  padding-right: 8px;
 }
 
 .preview-content::after {
