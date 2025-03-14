@@ -399,7 +399,8 @@ const handlePartitionChange = () => {
 };
 
 // 偏移量重置选项变更
-const handleOffsetSwitchChange = (checked: boolean) => {
+const handleOffsetSwitchChange = (value: string | number | boolean) => {
+  const checked = Boolean(value);
   offsetReset.value = checked ? 'latest' : 'earliest';
   searchForm.offset = checked ? -1 : 0;
 };
@@ -785,28 +786,28 @@ onMounted(() => {
 }
 
 .message-item {
-  margin-bottom: 16px;
-  padding: 16px;
+  margin-bottom: 12px;
+  padding: 12px;
   background-color: var(--color-bg-2);
-  border-radius: 6px;
+  border-radius: 4px;
   border-left: 3px solid var(--color-primary-light-4);
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .message-item:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
   transform: translateY(-1px);
 }
 
 .message-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 12px;
-  padding: 8px 0;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 4px 0;
   border-bottom: 1px solid var(--color-border-2);
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text-2);
   align-items: center;
 }
@@ -816,13 +817,13 @@ onMounted(() => {
   align-items: center;
   white-space: nowrap;
   background-color: var(--color-fill-2);
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 3px;
   transition: all 0.2s ease;
 
   :deep(.arco-icon) {
-    margin-right: 6px;
-    font-size: 16px;
+    margin-right: 4px;
+    font-size: 14px;
     color: var(--color-primary-light-3);
   }
 }
@@ -857,13 +858,13 @@ onMounted(() => {
   justify-content: center;
   cursor: pointer;
   color: var(--color-primary);
-  font-size: 16px;
+  font-size: 14px;
   transition: all 0.2s ease;
-  margin-right: 10px;
-  margin-top: 10px;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
+  margin-right: 8px;
+  margin-top: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
   background-color: var(--color-fill-2);
   flex-shrink: 0;
   border: 1px solid var(--color-border-2);
@@ -874,25 +875,25 @@ onMounted(() => {
   color: var(--color-primary-light-3);
   background-color: var(--color-fill-3);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .content-container {
   position: relative;
   background-color: var(--color-fill-1);
-  border-radius: 4px;
-  padding: 12px;
+  border-radius: 3px;
+  padding: 8px 28px 8px 8px;
   width: 100%;
   overflow-x: auto;
   border: 1px solid var(--color-border-2);
-  margin-top: 4px;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-top: 2px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .content-actions {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 4px;
+  right: 6px;
   display: flex;
   gap: 8px;
   z-index: 2;
@@ -902,9 +903,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
   background-color: var(--color-fill-2);
   color: var(--color-text-2);
   cursor: pointer;
@@ -912,6 +913,10 @@ onMounted(() => {
   border: 1px solid var(--color-border-2);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   opacity: 0.7;
+
+  :deep(.arco-icon) {
+    font-size: 14px;
+  }
 }
 
 .copy-button:hover {
@@ -919,19 +924,19 @@ onMounted(() => {
   color: var(--color-primary);
   background-color: var(--color-fill-3);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .preview-content {
-  max-height: 40px;
+  max-height: 30px;
   overflow-y: hidden;
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
   font-family: 'Courier New', monospace;
-  font-size: 13px;
+  font-size: 12px;
   position: relative;
-  line-height: 1.4;
+  line-height: 1.3;
   color: var(--color-text-1);
 }
 
@@ -951,8 +956,8 @@ onMounted(() => {
   white-space: pre-wrap;
   word-break: break-word;
   font-family: 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 1.3;
   width: 100%;
 }
 
