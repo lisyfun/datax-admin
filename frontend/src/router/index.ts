@@ -158,7 +158,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
             name: 'Kafka',
             component: () => import('@/views/kafka/index.vue'),
             meta: {
-              title: 'Kafka 管理',
+              title: 'KAFKA 管理',
               requiresAuth: true,
               icon: 'icon-apps',
             },
