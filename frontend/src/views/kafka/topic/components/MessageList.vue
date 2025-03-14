@@ -165,10 +165,22 @@
       <div class="message-container">
         <div v-for="(message, index) in messages" :key="index" class="message-item">
           <div class="message-meta">
-            <span class="meta-item">partition: <b>{{ message.partition }}</b></span>
-            <span class="meta-item">key: <b>{{ message.key || '-' }}</b></span>
-            <span class="meta-item">offset: <b>{{ message.offset }}</b></span>
-            <span class="meta-item">timestamp: <b>{{ formatDateTime(String(message.timestamp)) }}</b></span>
+            <span class="meta-item">
+              <icon-apps class="meta-icon" />
+              partition: <b>{{ message.partition }}</b>
+            </span>
+            <span class="meta-item">
+              <icon-file class="meta-icon" />
+              key: <b>{{ message.key || '-' }}</b>
+            </span>
+            <span class="meta-item">
+              <icon-code class="meta-icon" />
+              offset: <b>{{ message.offset }}</b>
+            </span>
+            <span class="meta-item">
+              <icon-calendar class="meta-icon" />
+              timestamp: <b>{{ formatDateTime(String(message.timestamp)) }}</b>
+            </span>
           </div>
           <div class="message-content">
             <div v-if="!expandedMessages[index]" class="message-preview">
@@ -176,6 +188,11 @@
                 <icon-expand />
               </div>
               <div class="content-container">
+                <div class="content-actions">
+                  <div class="copy-button" @click="copyMessageContent(message.value)" title="复制内容">
+                    <icon-copy />
+                  </div>
+                </div>
                 <pre class="preview-content">{{ getPreviewContent(message.value) }}</pre>
               </div>
             </div>
@@ -184,6 +201,11 @@
                 <icon-shrink />
               </div>
               <div class="content-container">
+                <div class="content-actions">
+                  <div class="copy-button" @click="copyMessageContent(message.value)" title="复制内容">
+                    <icon-copy />
+                  </div>
+                </div>
                 <pre>{{ formatValue(message.value) }}</pre>
               </div>
             </div>
@@ -217,6 +239,10 @@ import {
   IconApps,
   IconExpand,
   IconShrink,
+  IconFile,
+  IconCode,
+  IconCalendar,
+  IconCopy,
 } from '@arco-design/web-vue/es/icon';
 
 const route = useRoute();
@@ -432,6 +458,63 @@ const toggleMessageExpand = (index: number) => {
   }
   // 切换指定索引的消息展开状态
   expandedMessages.value[index] = !expandedMessages.value[index];
+};
+
+// 复制消息内容（支持不安全环境）
+const copyMessageContent = (content: string) => {
+  // 尝试使用现代Clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(content)
+      .then(() => {
+        Message.success('消息内容已复制到剪贴板');
+      })
+      .catch(() => {
+        // 如果Clipboard API失败，回退到传统方法
+        fallbackCopyTextToClipboard(content);
+      });
+  } else {
+    // 在不安全上下文中使用传统方法
+    fallbackCopyTextToClipboard(content);
+  }
+};
+
+// 传统复制方法（兼容性支持）
+const fallbackCopyTextToClipboard = (text: string) => {
+  try {
+    // 创建临时文本区域
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+
+    // 设置样式使其不可见
+    textArea.style.position = 'fixed';
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.width = '2em';
+    textArea.style.height = '2em';
+    textArea.style.padding = '0';
+    textArea.style.border = 'none';
+    textArea.style.outline = 'none';
+    textArea.style.boxShadow = 'none';
+    textArea.style.background = 'transparent';
+
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    // 尝试执行复制命令
+    const successful = document.execCommand('copy');
+    if (successful) {
+      Message.success('消息内容已复制到剪贴板');
+    } else {
+      Message.error('复制失败，请手动复制');
+    }
+
+    // 清理
+    document.body.removeChild(textArea);
+  } catch (err) {
+    Message.error('复制失败，请手动复制');
+    console.error('复制失败:', err);
+  }
 };
 
 onMounted(() => {
@@ -703,32 +786,55 @@ onMounted(() => {
 
 .message-item {
   margin-bottom: 16px;
-  padding: 12px 16px;
+  padding: 16px;
   background-color: var(--color-bg-2);
-  border-radius: 4px;
+  border-radius: 6px;
   border-left: 3px solid var(--color-primary-light-4);
   transition: all 0.2s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.message-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
 }
 
 .message-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 13px;
-  color: var(--color-text-3);
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border-2);
+  font-size: 14px;
+  color: var(--color-text-2);
+  align-items: center;
 }
 
 .meta-item {
+  display: flex;
+  align-items: center;
   white-space: nowrap;
+  background-color: var(--color-fill-2);
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+
+  :deep(.arco-icon) {
+    margin-right: 6px;
+    font-size: 16px;
+    color: var(--color-primary-light-3);
+  }
+}
+
+.meta-item:hover {
+  background-color: var(--color-fill-3);
 }
 
 .meta-item b {
   color: var(--color-text-1);
   font-weight: 500;
+  margin-left: 4px;
 }
 
 .message-content {
@@ -752,30 +858,68 @@ onMounted(() => {
   cursor: pointer;
   color: var(--color-primary);
   font-size: 16px;
-  transition: color 0.2s ease;
-  margin-right: 8px;
-  margin-top: 8px;
-  width: 24px;
-  height: 24px;
-  border-radius: 3px;
+  transition: all 0.2s ease;
+  margin-right: 10px;
+  margin-top: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
   background-color: var(--color-fill-2);
   flex-shrink: 0;
+  border: 1px solid var(--color-border-2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .toggle-button:hover {
   color: var(--color-primary-light-3);
   background-color: var(--color-fill-3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .content-container {
   position: relative;
   background-color: var(--color-fill-1);
-  border-radius: 2px;
-  padding: 8px;
+  border-radius: 4px;
+  padding: 12px;
   width: 100%;
   overflow-x: auto;
   border: 1px solid var(--color-border-2);
   margin-top: 4px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.content-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+.copy-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background-color: var(--color-fill-2);
+  color: var(--color-text-2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--color-border-2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  opacity: 0.7;
+}
+
+.copy-button:hover {
+  opacity: 1;
+  color: var(--color-primary);
+  background-color: var(--color-fill-3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .preview-content {
@@ -788,6 +932,7 @@ onMounted(() => {
   font-size: 13px;
   position: relative;
   line-height: 1.4;
+  color: var(--color-text-1);
 }
 
 .preview-content::after {
