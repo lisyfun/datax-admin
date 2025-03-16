@@ -243,11 +243,17 @@ const handleConnect = async () => {
       socket.close();
     }
 
-    // 创建WebSocket连接
-    const wsUrl = `${backendConfig.wsBaseUrl}/datax/ws/terminals/${terminalId.value}`;
+    // 动态构建WebSocket URL
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.host;
+    // 获取基础路径，例如 /datax
+    const basePath = window.location.pathname.split('/')[1] || '';
+    const wsUrl = `${wsProtocol}//${wsHost}/${basePath ? basePath + '/' : ''}ws/terminals/${terminalId.value}`;
+
+    console.log('当前页面 URL:', window.location.href);
+    console.log('基础路径:', basePath);
     console.log('WebSocket连接URL:', wsUrl);
     console.log('终端ID:', terminalId.value);
-    console.log('后端服务器:', backendConfig.wsBaseUrl);
 
     socket = new WebSocket(wsUrl);
     console.log('WebSocket实例已创建');
@@ -320,9 +326,16 @@ const testWebSocket = async () => {
       return;
     }
 
-    const wsUrl = `${backendConfig.wsBaseUrl}/datax/ws/terminals/${terminalId.value}`;
+    // 动态构建WebSocket URL
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.host;
+    // 获取基础路径，例如 /datax
+    const basePath = window.location.pathname.split('/')[1] || '';
+    const wsUrl = `${wsProtocol}//${wsHost}/${basePath ? basePath + '/' : ''}ws/terminals/${terminalId.value}`;
 
     console.log('开始测试WebSocket连接');
+    console.log('当前页面 URL:', window.location.href);
+    console.log('基础路径:', basePath);
     console.log('终端ID:', terminalId.value);
     console.log('终端信息:', {
       name: terminalInfo.value.name,
@@ -332,7 +345,6 @@ const testWebSocket = async () => {
       status: terminalInfo.value.status
     });
     console.log('WebSocket URL:', wsUrl);
-    console.log('后端服务器:', backendConfig.wsBaseUrl);
 
     // 创建测试连接
     console.log('正在创建WebSocket实例...');
