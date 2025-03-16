@@ -331,12 +331,21 @@ func (s *KafkaService) ListTopics(clusterID uint, page, pageSize int, search str
 			replicas = len(parts[0].Replicas)
 		}
 
+		// 获取主题的日志大小信息
+		_, _, logSize, _ := s.GetTopicInfo(clusterID, name)
+
+		// 计算平均日志大小
+		avgLogSize := int64(0)
+		if len(parts) > 0 {
+			avgLogSize = logSize / int64(len(parts))
+		}
+
 		topic := KafkaTopic{
 			Name:        name,
 			Partitions:  len(parts),
 			Replicas:    replicas,
-			AvgLogSize:  "0 KB",
-			LogSize:     "0 KB",
+			AvgLogSize:  formatBytes(avgLogSize),
+			LogSize:     formatBytes(logSize),
 			ClusterID:   cluster.ID,
 			ClusterName: cluster.Name,
 		}
@@ -621,12 +630,21 @@ func (s *KafkaService) GetTopicDetails(clusterID uint, name string) (*KafkaTopic
 	// 计算副本数
 	replicas := len(partitions[0].Replicas)
 
+	// 获取主题的日志大小信息
+	_, _, logSize, _ := s.GetTopicInfo(clusterID, name)
+
+	// 计算平均日志大小
+	avgLogSize := int64(0)
+	if len(partitions) > 0 {
+		avgLogSize = logSize / int64(len(partitions))
+	}
+
 	topic := &KafkaTopic{
 		Name:        name,
 		Partitions:  len(partitions),
 		Replicas:    replicas,
-		AvgLogSize:  "0 KB",
-		LogSize:     "0 KB",
+		AvgLogSize:  formatBytes(avgLogSize),
+		LogSize:     formatBytes(logSize),
 		ClusterID:   cluster.ID,
 		ClusterName: cluster.Name,
 	}
@@ -850,21 +868,6 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 	return beginningOffset, endOffset, size, nil
 }
 
-// brokerAddress 获取 broker 地址
-func brokerAddress(cluster *models.KafkaCluster) string {
-	brokers := strings.Split(cluster.BrokerServers, ",")
-	if len(brokers) == 0 {
-		return ""
-	}
-
-	brokerAddr := brokers[0]
-	// 确保地址包含端口号
-	if !strings.Contains(brokerAddr, ":") {
-		fmt.Printf("警告: broker地址 %s 不包含端口号，可能导致连接失败\n", brokerAddr)
-	}
-
-	return brokerAddr
-}
 
 // GetPartitionOffset 获取特定分区特定类型的偏移量
 func (s *KafkaService) GetPartitionOffset(clusterID uint, topicName string, partition int32, offsetType string) (int64, error) {
@@ -954,4 +957,18 @@ func (s *KafkaService) GetPartitionOffset(clusterID uint, topicName string, part
 	}
 
 	return offset, nil
+}
+
+// formatBytes 将字节数格式化为人类可读的字符串
+func formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
