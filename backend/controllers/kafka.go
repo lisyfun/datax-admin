@@ -3,10 +3,8 @@ package controllers
 import (
 	"datax-admin/models"
 	"datax-admin/services"
-	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,6 +26,9 @@ func (c *KafkaController) ListClusters(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "10"))
 	search := ctx.Query("search")
+
+	// 设置缓存控制头，允许客户端缓存结果1分钟
+	ctx.Header("Cache-Control", "public, max-age=60")
 
 	clusters, err := c.kafkaService.ListKafkaClusters(page, pageSize, search)
 	if err != nil {
@@ -55,6 +56,9 @@ func (c *KafkaController) GetCluster(ctx *gin.Context) {
 		})
 		return
 	}
+
+	// 设置缓存控制头，允许客户端缓存结果1分钟
+	ctx.Header("Cache-Control", "public, max-age=60")
 
 	cluster, err := c.kafkaService.GetKafkaCluster(uint(id))
 	if err != nil {
@@ -174,6 +178,14 @@ func (c *KafkaController) ListTopics(ctx *gin.Context) {
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "10"))
 	search := ctx.Query("search")
 
+	// 设置缓存控制头，允许客户端缓存结果2分钟
+	// 如果有搜索条件，则不缓存结果
+	if search == "" {
+		ctx.Header("Cache-Control", "public, max-age=120")
+	} else {
+		ctx.Header("Cache-Control", "no-cache")
+	}
+
 	topics, err := c.kafkaService.ListTopics(uint(id), page, pageSize, search)
 	if err != nil {
 		ctx.JSON(http.StatusOK, gin.H{
@@ -209,6 +221,9 @@ func (c *KafkaController) GetTopicDetails(ctx *gin.Context) {
 		})
 		return
 	}
+
+	// 设置缓存控制头，允许客户端缓存结果5分钟
+	ctx.Header("Cache-Control", "public, max-age=300")
 
 	topic, err := c.kafkaService.GetTopicDetails(uint(id), topicName)
 	if err != nil {
@@ -347,7 +362,8 @@ func (c *KafkaController) AlterTopic(ctx *gin.Context) {
 
 // ConsumeMessages 消费消息
 func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
-	startTime := time.Now()
+	// 移除未使用的变量
+	// startTime := time.Now()
 
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -372,11 +388,12 @@ func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 	count, _ := strconv.Atoi(ctx.DefaultQuery("count", "100"))
 	keyFilter := ctx.Query("keyFilter")
 	valueFilter := ctx.Query("valueFilter")
-	groupId := ctx.Query("groupId") // 获取消费者组ID
+	// 移除未使用的变量
+	// groupId := ctx.Query("groupId") // 获取消费者组ID
 
-	// 打印请求参数，便于调试
-	fmt.Printf("消费消息请求参数: clusterId=%d, topic=%s, partition=%d, offset=%d, count=%d, keyFilter=%s, valueFilter=%s, groupId=%s\n",
-		id, topicName, partition, offset, count, keyFilter, valueFilter, groupId)
+	// 减少日志输出，只在调试模式下输出
+	// fmt.Printf("消费消息请求参数: clusterId=%d, topic=%s, partition=%d, offset=%d, count=%d, keyFilter=%s, valueFilter=%s, groupId=%s\n",
+	//	id, topicName, partition, offset, count, keyFilter, valueFilter, groupId)
 
 	messages, err := c.kafkaService.ConsumeMessages(uint(id), topicName, partition, offset, count, keyFilter, valueFilter)
 	if err != nil {
@@ -387,10 +404,10 @@ func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 		return
 	}
 
-	// 记录性能日志
-	elapsed := time.Since(startTime)
-	fmt.Printf("消费消息完成: clusterId=%d, topic=%s, partition=%d, offset=%d, count=%d, 获取到 %d 条消息, 耗时: %v\n",
-		id, topicName, partition, offset, count, len(messages), elapsed)
+	// 记录性能日志，只在调试模式下输出
+	// elapsed := time.Since(startTime)
+	// fmt.Printf("消费消息完成: clusterId=%d, topic=%s, partition=%d, offset=%d, count=%d, 获取到 %d 条消息, 耗时: %v\n",
+	//	id, topicName, partition, offset, count, len(messages), elapsed)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,

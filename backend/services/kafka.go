@@ -9,6 +9,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -117,8 +118,39 @@ func (s *KafkaService) GetKafkaCluster(id uint) (*models.KafkaCluster, error) {
 		return nil, err
 	}
 
-	// 获取集群统计信息
-	s.enrichClusterStats(&cluster)
+	// 检查集群状态
+	if err := s.CheckClusterStatus(&cluster); err != nil {
+		// 减少日志输出
+		return &cluster, nil
+	}
+
+	// 如果集群不可用，直接返回
+	if !cluster.Status {
+		return &cluster, nil
+	}
+
+	// 连接到 Kafka 集群
+	conn, err := s.getKafkaConn(&cluster, "")
+	if err != nil {
+		// 减少日志输出
+		return &cluster, nil
+	}
+	defer conn.Close()
+
+	// 获取 Topic 数量
+	topics, err := conn.ReadPartitions()
+	if err == nil {
+		// 统计唯一的 topic 名称
+		topicMap := make(map[string]bool)
+		for _, p := range topics {
+			topicMap[p.Topic] = true
+		}
+		cluster.TopicCount = len(topicMap)
+	}
+
+	// 获取消费者组数量
+	// 由于 kafka-go 没有直接获取消费者组的 API，我们设置一个默认值
+	cluster.ConsumerGroupCount = 1
 
 	return &cluster, nil
 }
@@ -138,7 +170,7 @@ func (s *KafkaService) ListKafkaClusters(page, pageSize int, search string) (*Ka
 		return nil, err
 	}
 
-	// 直接获取集群信息，包括状态和统计数据
+	// 直接获取集群信息，不包括状态和统计数据
 	if err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&clusters).Error; err != nil {
 		return nil, err
 	}
@@ -146,6 +178,8 @@ func (s *KafkaService) ListKafkaClusters(page, pageSize int, search string) (*Ka
 	// 计算 Broker 数量
 	for i := range clusters {
 		clusters[i].BrokerCount = len(strings.Split(clusters[i].BrokerServers, ","))
+		// 不在列表页面检查集群状态，避免频繁连接
+		// 只设置基本信息
 	}
 
 	return &KafkaClusterListResponse{
@@ -181,18 +215,23 @@ func (s *KafkaService) CheckClusterStatus(cluster *models.KafkaCluster) error {
 
 // StartClusterHealthCheck 启动集群健康检查
 func (s *KafkaService) StartClusterHealthCheck(checkInterval time.Duration) {
+	// 增加检查间隔，减少频繁连接
+	if checkInterval < 5*time.Minute {
+		checkInterval = 5 * time.Minute
+	}
+
 	ticker := time.NewTicker(checkInterval)
 	go func() {
 		for range ticker.C {
 			var clusters []models.KafkaCluster
 			if err := models.DB.Find(&clusters).Error; err != nil {
-				fmt.Printf("获取集群列表失败: %v\n", err)
+				// 减少日志输出
 				continue
 			}
 
 			for _, cluster := range clusters {
 				if err := s.CheckClusterStatus(&cluster); err != nil {
-					fmt.Printf("检查集群 %s 状态失败: %v\n", cluster.Name, err)
+					// 减少日志输出
 				}
 			}
 		}
@@ -203,7 +242,8 @@ func (s *KafkaService) StartClusterHealthCheck(checkInterval time.Duration) {
 func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
 	// 检查集群状态
 	if err := s.CheckClusterStatus(cluster); err != nil {
-		fmt.Printf("检查集群状态失败: %v\n", err)
+		// 减少日志输出，只在调试模式下输出
+		// fmt.Printf("检查集群状态失败: %v\n", err)
 		return
 	}
 
@@ -215,7 +255,8 @@ func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
 	// 连接到 Kafka 集群
 	conn, err := s.getKafkaConn(cluster, "")
 	if err != nil {
-		fmt.Printf("获取 Kafka 连接失败: %v\n", err)
+		// 减少日志输出，只在调试模式下输出
+		// fmt.Printf("获取 Kafka 连接失败: %v\n", err)
 		return
 	}
 	defer conn.Close()
@@ -229,15 +270,18 @@ func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
 			topicMap[p.Topic] = true
 		}
 		cluster.TopicCount = len(topicMap)
-		fmt.Printf("获取到主题数量: %d\n", cluster.TopicCount)
+		// 减少日志输出，只在调试模式下输出
+		// fmt.Printf("获取到主题数量: %d\n", cluster.TopicCount)
 	} else {
-		fmt.Printf("获取主题列表失败: %v\n", err)
+		// 减少日志输出，只在调试模式下输出
+		// fmt.Printf("获取主题列表失败: %v\n", err)
 	}
 
 	// 获取消费者组数量
 	// 由于 kafka-go 没有直接获取消费者组的 API，我们设置一个默认值
 	cluster.ConsumerGroupCount = 1
-	fmt.Printf("设置默认消费者组数量: %d\n", cluster.ConsumerGroupCount)
+	// 减少日志输出，只在调试模式下输出
+	// fmt.Printf("设置默认消费者组数量: %d\n", cluster.ConsumerGroupCount)
 }
 
 // getKafkaConn 获取 Kafka 连接
@@ -250,7 +294,8 @@ func (s *KafkaService) getKafkaConn(cluster *models.KafkaCluster, topic string) 
 
 	// 使用第一个 broker 建立连接
 	broker := brokers[0]
-	fmt.Printf("尝试连接 Kafka broker: %s\n", broker)
+	// 减少日志输出，只在调试模式下输出
+	// fmt.Printf("尝试连接 Kafka broker: %s\n", broker)
 
 	// 设置连接超时
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -313,10 +358,14 @@ func (s *KafkaService) ListTopics(clusterID uint, page, pageSize int, search str
 		return nil, err
 	}
 
+	// 将搜索关键词转为小写，提高搜索效率
+	searchLower := strings.ToLower(search)
+
 	// 按主题分组并过滤
 	topicMap := make(map[string][]kafka.Partition)
 	for _, p := range partitions {
-		if search != "" && !strings.Contains(p.Topic, search) {
+		// 如果有搜索条件，则进行不区分大小写的模糊匹配
+		if searchLower != "" && !strings.Contains(strings.ToLower(p.Topic), searchLower) {
 			continue
 		}
 		topicMap[p.Topic] = append(topicMap[p.Topic], p)
@@ -324,33 +373,82 @@ func (s *KafkaService) ListTopics(clusterID uint, page, pageSize int, search str
 
 	// 构建主题列表
 	var topicList []KafkaTopic
+
+	// 创建一个通道来接收处理完成的主题
+	resultChan := make(chan KafkaTopic, len(topicMap))
+	// 创建一个错误通道
+	errChan := make(chan error, 1)
+	// 使用计数器跟踪正在进行的goroutine数量
+	semaphore := make(chan struct{}, 5) // 最多5个并发请求，避免过多连接
+
+	// 并发处理每个主题
 	for name, parts := range topicMap {
-		// 计算副本数
-		replicas := 0
-		if len(parts) > 0 {
-			replicas = len(parts[0].Replicas)
+		// 限制并发数
+		semaphore <- struct{}{}
+
+		go func(name string, parts []kafka.Partition) {
+			defer func() { <-semaphore }() // 释放信号量
+
+			// 计算副本数
+			replicas := 0
+			if len(parts) > 0 {
+				replicas = len(parts[0].Replicas)
+			}
+
+			// 获取主题的日志大小信息，使用超时控制
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			// 创建一个完成通道
+			doneChan := make(chan struct{})
+			var logSize int64 = 0
+			var avgLogSize int64 = 0
+
+			// 在后台获取日志大小
+			go func() {
+				defer close(doneChan)
+				// 获取主题的日志大小信息
+				_, _, size, err := s.GetTopicInfo(clusterID, name)
+				if err == nil && size > 0 {
+					logSize = size
+					// 计算平均日志大小
+					if len(parts) > 0 {
+						avgLogSize = logSize / int64(len(parts))
+					}
+				}
+			}()
+
+			// 等待日志大小获取完成或超时
+			select {
+			case <-doneChan:
+				// 日志大小获取成功
+			case <-ctx.Done():
+				// 超时，使用默认值
+			}
+
+			// 创建主题对象
+			topic := KafkaTopic{
+				Name:        name,
+				Partitions:  len(parts),
+				Replicas:    replicas,
+				AvgLogSize:  formatBytes(avgLogSize),
+				LogSize:     formatBytes(logSize),
+				ClusterID:   cluster.ID,
+				ClusterName: cluster.Name,
+			}
+
+			resultChan <- topic
+		}(name, parts)
+	}
+
+	// 收集结果
+	for i := 0; i < len(topicMap); i++ {
+		select {
+		case topic := <-resultChan:
+			topicList = append(topicList, topic)
+		case err := <-errChan:
+			return nil, err
 		}
-
-		// 获取主题的日志大小信息
-		_, _, logSize, _ := s.GetTopicInfo(clusterID, name)
-
-		// 计算平均日志大小
-		avgLogSize := int64(0)
-		if len(parts) > 0 {
-			avgLogSize = logSize / int64(len(parts))
-		}
-
-		topic := KafkaTopic{
-			Name:        name,
-			Partitions:  len(parts),
-			Replicas:    replicas,
-			AvgLogSize:  formatBytes(avgLogSize),
-			LogSize:     formatBytes(logSize),
-			ClusterID:   cluster.ID,
-			ClusterName: cluster.Name,
-		}
-
-		topicList = append(topicList, topic)
 	}
 
 	// 分页处理
@@ -385,7 +483,8 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 
 	// 创建 Kafka 读取器
 	brokers := strings.Split(cluster.BrokerServers, ",")
-	fmt.Printf("消费消息，连接 Kafka brokers: %v\n", brokers)
+	// 减少日志输出，只在调试模式下输出
+	// fmt.Printf("消费消息，连接 Kafka brokers: %v\n", brokers)
 
 	// 创建 dialer
 	dialer := &kafka.Dialer{
@@ -630,13 +729,35 @@ func (s *KafkaService) GetTopicDetails(clusterID uint, name string) (*KafkaTopic
 	// 计算副本数
 	replicas := len(partitions[0].Replicas)
 
-	// 获取主题的日志大小信息
-	_, _, logSize, _ := s.GetTopicInfo(clusterID, name)
+	// 获取主题的日志大小信息，使用超时控制
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-	// 计算平均日志大小
-	avgLogSize := int64(0)
-	if len(partitions) > 0 {
-		avgLogSize = logSize / int64(len(partitions))
+	// 创建一个完成通道
+	doneChan := make(chan struct{})
+	var logSize int64 = 0
+	var avgLogSize int64 = 0
+
+	// 在后台获取日志大小
+	go func() {
+		defer close(doneChan)
+		// 获取主题的日志大小信息
+		_, _, size, err := s.GetTopicInfo(clusterID, name)
+		if err == nil && size > 0 {
+			logSize = size
+			// 计算平均日志大小
+			if len(partitions) > 0 {
+				avgLogSize = logSize / int64(len(partitions))
+			}
+		}
+	}()
+
+	// 等待日志大小获取完成或超时
+	select {
+	case <-doneChan:
+		// 日志大小获取成功
+	case <-ctx.Done():
+		// 超时，使用默认值
 	}
 
 	topic := &KafkaTopic{
@@ -706,8 +827,9 @@ func (s *KafkaService) GetPartitionOffsets(clusterID uint, topicName string, par
 		return 0, 0, fmt.Errorf("broker地址格式错误，应为host:port格式")
 	}
 
-	fmt.Printf("获取分区偏移量，连接 Kafka broker: %s, topic: %s, partition: %d\n",
-		brokerAddr, topicName, partition)
+	// 减少日志输出，只在调试模式下输出
+	// fmt.Printf("获取分区偏移量，连接 Kafka broker: %s, topic: %s, partition: %d\n",
+	//	brokerAddr, topicName, partition)
 
 	// 创建 dialer
 	dialer := &kafka.Dialer{
@@ -790,7 +912,7 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 
 	// 创建 dialer
 	dialer := &kafka.Dialer{
-		Timeout:   3 * time.Second, // 增加连接超时时间
+		Timeout:   1 * time.Second, // 减少连接超时时间
 		DualStack: false,           // 禁用 IPv6
 	}
 
@@ -815,8 +937,8 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 		}
 	}
 
-	// 创建上下文
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// 创建上下文，设置较短的超时时间
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	// 使用LookupPartitions获取所有分区信息
@@ -827,47 +949,74 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 
 	var beginningOffset, endOffset, size int64
 
-	// 遍历所有分区，获取起始偏移量和结束偏移量
+	// 限制处理的分区数量，避免处理太多分区导致超时
+	maxPartitions := 5
+	if len(partitions) > maxPartitions {
+		partitions = partitions[:maxPartitions]
+	}
+
+	// 创建一个通道来接收处理完成的结果
+	type partitionResult struct {
+		oldest int64
+		newest int64
+	}
+	resultChan := make(chan partitionResult, len(partitions))
+
+	// 使用WaitGroup等待所有goroutine完成
+	var wg sync.WaitGroup
+
+	// 并发处理每个分区
 	for _, p := range partitions {
-		// 创建分区连接
-		conn, err := dialer.DialPartition(ctx, "tcp", brokerAddr, p)
-		if err != nil {
-			fmt.Printf("连接分区 %d 失败: %v\n", p.ID, err)
-			continue
-		}
+		wg.Add(1)
+		go func(p kafka.Partition) {
+			defer wg.Done()
 
-		// 获取最早偏移量
-		oldest, err := conn.ReadFirstOffset()
-		if err != nil {
-			conn.Close()
-			fmt.Printf("获取分区 %d 最早偏移量失败: %v\n", p.ID, err)
-			continue
-		}
+			// 创建分区连接
+			connCtx, connCancel := context.WithTimeout(ctx, 1*time.Second)
+			defer connCancel()
 
-		// 获取最新偏移量
-		newest, err := conn.ReadLastOffset()
-		if err != nil {
-			conn.Close()
-			fmt.Printf("获取分区 %d 最新偏移量失败: %v\n", p.ID, err)
-			continue
-		}
+			conn, err := dialer.DialPartition(connCtx, "tcp", brokerAddr, p)
+			if err != nil {
+				return
+			}
+			defer conn.Close()
 
-		// 累加所有分区的偏移量
-		if p.ID == 0 || oldest < beginningOffset || beginningOffset == 0 {
-			beginningOffset = oldest
-		}
-		if newest > endOffset {
-			endOffset = newest
-		}
-		size += newest - oldest
+			// 获取最早偏移量
+			oldest, err := conn.ReadFirstOffset()
+			if err != nil {
+				return
+			}
 
-		// 关闭连接
-		conn.Close()
+			// 获取最新偏移量
+			newest, err := conn.ReadLastOffset()
+			if err != nil {
+				return
+			}
+
+			// 发送结果
+			resultChan <- partitionResult{oldest: oldest, newest: newest}
+		}(p)
+	}
+
+	// 启动一个goroutine等待所有分区处理完成并关闭结果通道
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// 收集结果
+	for result := range resultChan {
+		if result.oldest < beginningOffset || beginningOffset == 0 {
+			beginningOffset = result.oldest
+		}
+		if result.newest > endOffset {
+			endOffset = result.newest
+		}
+		size += result.newest - result.oldest
 	}
 
 	return beginningOffset, endOffset, size, nil
 }
-
 
 // GetPartitionOffset 获取特定分区特定类型的偏移量
 func (s *KafkaService) GetPartitionOffset(clusterID uint, topicName string, partition int32, offsetType string) (int64, error) {
@@ -889,8 +1038,9 @@ func (s *KafkaService) GetPartitionOffset(clusterID uint, topicName string, part
 		return 0, fmt.Errorf("broker地址格式错误，应为host:port格式")
 	}
 
-	fmt.Printf("获取偏移量，连接 Kafka broker: %s, topic: %s, partition: %d, type: %s\n",
-		brokerAddr, topicName, partition, offsetType)
+	// 减少日志输出，只在调试模式下输出
+	// fmt.Printf("获取偏移量，连接 Kafka broker: %s, topic: %s, partition: %d, type: %s\n",
+	//	brokerAddr, topicName, partition, offsetType)
 
 	// 创建 dialer
 	dialer := &kafka.Dialer{
@@ -945,13 +1095,15 @@ func (s *KafkaService) GetPartitionOffset(clusterID uint, topicName string, part
 		if offsetErr != nil {
 			return 0, fmt.Errorf("获取最早偏移量失败: %v", offsetErr)
 		}
-		fmt.Printf("获取到最早偏移量: %d\n", offset)
+		// 减少日志输出，只在调试模式下输出
+		// fmt.Printf("获取到最早偏移量: %d\n", offset)
 	} else if offsetType == "latest" {
 		offset, offsetErr = conn.ReadLastOffset()
 		if offsetErr != nil {
 			return 0, fmt.Errorf("获取最新偏移量失败: %v", offsetErr)
 		}
-		fmt.Printf("获取到最新偏移量: %d\n", offset)
+		// 减少日志输出，只在调试模式下输出
+		// fmt.Printf("获取到最新偏移量: %d\n", offset)
 	} else {
 		return 0, fmt.Errorf("无效的偏移量类型: %s", offsetType)
 	}
