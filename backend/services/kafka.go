@@ -578,6 +578,12 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	})
 	defer reader.Close()
 
+	// 设置读取器的偏移量
+	err = reader.SetOffset(offset)
+	if err != nil {
+		return nil, fmt.Errorf("设置读取器偏移量失败: %v", err)
+	}
+
 	// 设置上下文超时，增加为5秒给足够的时间读取消息
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

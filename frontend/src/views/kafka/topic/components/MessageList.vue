@@ -501,7 +501,19 @@ const handleOffsetSwitchChange = async (value: string | number | boolean) => {
   searchForm.offsetReset = newMode;
 
   // 通过API获取实际偏移量
-  await fetchPartitionOffset(newMode);
+  const res = await getPartitionOffset(clusterId, topicName, searchForm.partition, newMode);
+  if (res.data.code === 0) {
+    const actualOffset = res.data.data;
+    console.log(`获取到${newMode}偏移量: ${actualOffset}`);
+
+    // 直接使用API返回的偏移量值
+    searchForm.offset = actualOffset;
+
+    // 获取消息
+    fetchMessages();
+  } else {
+    Message.error(res.data.message || `获取${newMode}偏移量失败`);
+  }
 };
 
 // 搜索
