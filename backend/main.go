@@ -23,9 +23,17 @@ func main() {
 	// 初始化数据库
 	models.InitDB()
 
-	// 启动集群健康检查，每1分钟检查一次
+	// 初始化任务调度器并加载运行中的任务
+	jobService := services.GetJobService()
+	if err := jobService.InitJobScheduler(); err != nil {
+		logger.Error("初始化任务调度器失败: %v", err)
+	} else {
+		logger.Info("任务调度器初始化成功")
+	}
+
+	// 启动集群健康检查，修改为10分钟检查一次，减少资源占用
 	kafkaService := &services.KafkaService{}
-	kafkaService.StartClusterHealthCheck(1 * time.Minute)
+	kafkaService.StartClusterHealthCheck(10 * time.Minute)
 
 	// 设置gin模式
 	gin.SetMode(config.GlobalConfig.Server.Mode)

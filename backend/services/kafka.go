@@ -216,23 +216,54 @@ func (s *KafkaService) CheckClusterStatus(cluster *models.KafkaCluster) error {
 // StartClusterHealthCheck 启动集群健康检查
 func (s *KafkaService) StartClusterHealthCheck(checkInterval time.Duration) {
 	// 增加检查间隔，减少频繁连接
-	if checkInterval < 5*time.Minute {
-		checkInterval = 5 * time.Minute
+	if checkInterval < 10*time.Minute {
+		checkInterval = 10 * time.Minute // 将最小间隔增加到10分钟
 	}
+
+	fmt.Printf("Kafka集群健康检查已启动，检查间隔: %v\n", checkInterval)
 
 	ticker := time.NewTicker(checkInterval)
 	go func() {
 		for range ticker.C {
 			var clusters []models.KafkaCluster
 			if err := models.DB.Find(&clusters).Error; err != nil {
-				// 减少日志输出
+				fmt.Printf("获取Kafka集群列表失败: %v\n", err)
 				continue
 			}
 
+			// 限制并发检查数量
+			semaphore := make(chan struct{}, 2) // 最多2个并发检查
+
 			for _, cluster := range clusters {
-				if err := s.CheckClusterStatus(&cluster); err != nil {
-					// 减少日志输出
-				}
+				clusterCopy := cluster // 创建副本避免闭包问题
+
+				semaphore <- struct{}{} // 获取信号量
+				go func() {
+					defer func() {
+						<-semaphore // 释放信号量
+					}()
+
+					// 使用超时上下文控制检查时间
+					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancel()
+
+					// 在独立的goroutine中执行检查，避免阻塞主goroutine
+					done := make(chan error, 1)
+					go func() {
+						err := s.CheckClusterStatus(&clusterCopy)
+						done <- err
+					}()
+
+					// 等待检查完成或超时
+					select {
+					case err := <-done:
+						if err != nil {
+							fmt.Printf("检查Kafka集群 [%s] 状态失败: %v\n", clusterCopy.Name, err)
+						}
+					case <-ctx.Done():
+						fmt.Printf("检查Kafka集群 [%s] 状态超时\n", clusterCopy.Name)
+					}
+				}()
 			}
 		}
 	}()
@@ -294,17 +325,15 @@ func (s *KafkaService) getKafkaConn(cluster *models.KafkaCluster, topic string) 
 
 	// 使用第一个 broker 建立连接
 	broker := brokers[0]
-	// 减少日志输出，只在调试模式下输出
-	// fmt.Printf("尝试连接 Kafka broker: %s\n", broker)
 
-	// 设置连接超时
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// 设置连接超时（减少为3秒）
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	// 创建 TCP 连接
 	dialer := &kafka.Dialer{
-		Timeout:   3 * time.Second,
-		DualStack: false, // 禁用 IPv6
+		Timeout:   2 * time.Second, // 减少连接超时
+		DualStack: false,           // 禁用 IPv6
 	}
 
 	// 添加认证信息
