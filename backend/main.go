@@ -31,9 +31,15 @@ func main() {
 		logger.Info("任务调度器初始化成功")
 	}
 
-	// 启动集群健康检查，修改为10分钟检查一次，减少资源占用
-	kafkaService := &services.KafkaService{}
+	// 初始化服务
+	kafkaService := services.NewKafkaService()
+	kafkaTopicService := services.NewKafkaTopicService(kafkaService)
+
+	// 启动Kafka集群健康检查
 	kafkaService.StartClusterHealthCheck(10 * time.Minute)
+
+	// 启动主题同步任务
+	kafkaTopicService.StartTopicSyncTask(5 * time.Minute)
 
 	// 设置gin模式
 	gin.SetMode(config.GlobalConfig.Server.Mode)

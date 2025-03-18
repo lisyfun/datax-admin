@@ -52,7 +52,5 @@ func InitDB() {
 	sqlDB.SetMaxOpenConns(config.GlobalConfig.Database.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(time.Hour * time.Duration(config.GlobalConfig.Database.MaxLifetime))
 
-
 	customLogger.Info("数据库连接成功")
 }
-

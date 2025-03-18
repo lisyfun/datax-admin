@@ -19,6 +19,11 @@ import (
 // KafkaService 提供 Kafka 集群管理相关的服务
 type KafkaService struct{}
 
+// NewKafkaService 创建 KafkaService 实例
+func NewKafkaService() *KafkaService {
+	return &KafkaService{}
+}
+
 // KafkaClusterListResponse 集群列表响应
 type KafkaClusterListResponse struct {
 	Total int64                 `json:"total"`
@@ -368,138 +373,11 @@ func (s *KafkaService) getKafkaConn(cluster *models.KafkaCluster, topic string) 
 
 // ListTopics 获取 Topic 列表
 func (s *KafkaService) ListTopics(clusterID uint, page, pageSize int, search string) (*KafkaTopicListResponse, error) {
-	// 获取集群信息
-	cluster, err := s.GetKafkaCluster(clusterID)
-	if err != nil {
-		return nil, err
-	}
+	// 创建主题服务实例
+	topicService := NewKafkaTopicService(s)
 
-	// 连接到 Kafka 集群
-	conn, err := s.getKafkaConn(cluster, "")
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-
-	// 获取所有分区
-	partitions, err := conn.ReadPartitions()
-	if err != nil {
-		return nil, err
-	}
-
-	// 将搜索关键词转为小写，提高搜索效率
-	searchLower := strings.ToLower(search)
-
-	// 按主题分组并过滤
-	topicMap := make(map[string][]kafka.Partition)
-	for _, p := range partitions {
-		// 如果有搜索条件，则进行不区分大小写的模糊匹配
-		if searchLower != "" && !strings.Contains(strings.ToLower(p.Topic), searchLower) {
-			continue
-		}
-		topicMap[p.Topic] = append(topicMap[p.Topic], p)
-	}
-
-	// 构建主题列表
-	var topicList []KafkaTopic
-
-	// 创建一个通道来接收处理完成的主题
-	resultChan := make(chan KafkaTopic, len(topicMap))
-	// 创建一个错误通道
-	errChan := make(chan error, 1)
-	// 使用计数器跟踪正在进行的goroutine数量
-	semaphore := make(chan struct{}, 5) // 最多5个并发请求，避免过多连接
-
-	// 并发处理每个主题
-	for name, parts := range topicMap {
-		// 限制并发数
-		semaphore <- struct{}{}
-
-		go func(name string, parts []kafka.Partition) {
-			defer func() { <-semaphore }() // 释放信号量
-
-			// 计算副本数
-			replicas := 0
-			if len(parts) > 0 {
-				replicas = len(parts[0].Replicas)
-			}
-
-			// 获取主题的日志大小信息，使用超时控制
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-
-			// 创建一个完成通道
-			doneChan := make(chan struct{})
-			var logSize int64 = 0
-			var avgLogSize int64 = 0
-
-			// 在后台获取日志大小
-			go func() {
-				defer close(doneChan)
-				// 获取主题的日志大小信息
-				_, _, size, err := s.GetTopicInfo(clusterID, name)
-				if err == nil && size > 0 {
-					logSize = size
-					// 计算平均日志大小
-					if len(parts) > 0 {
-						avgLogSize = logSize / int64(len(parts))
-					}
-				}
-			}()
-
-			// 等待日志大小获取完成或超时
-			select {
-			case <-doneChan:
-				// 日志大小获取成功
-			case <-ctx.Done():
-				// 超时，使用默认值
-			}
-
-			// 创建主题对象
-			topic := KafkaTopic{
-				Name:        name,
-				Partitions:  len(parts),
-				Replicas:    replicas,
-				AvgLogSize:  formatBytes(avgLogSize),
-				LogSize:     formatBytes(logSize),
-				ClusterID:   cluster.ID,
-				ClusterName: cluster.Name,
-			}
-
-			resultChan <- topic
-		}(name, parts)
-	}
-
-	// 收集结果
-	for i := 0; i < len(topicMap); i++ {
-		select {
-		case topic := <-resultChan:
-			topicList = append(topicList, topic)
-		case err := <-errChan:
-			return nil, err
-		}
-	}
-
-	// 分页处理
-	total := int64(len(topicList))
-	start := (page - 1) * pageSize
-	end := start + pageSize
-
-	if start >= int(total) {
-		return &KafkaTopicListResponse{
-			Total: total,
-			Items: []KafkaTopic{},
-		}, nil
-	}
-
-	if end > int(total) {
-		end = int(total)
-	}
-
-	return &KafkaTopicListResponse{
-		Total: total,
-		Items: topicList[start:end],
-	}, nil
+	// 直接使用 GetTopics 方法从数据库获取主题列表
+	return topicService.GetTopics(clusterID, page, pageSize, search)
 }
 
 // ConsumeMessages 消费消息
