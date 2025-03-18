@@ -319,8 +319,21 @@ const fetchPartitions = async () => {
       // 获取主题信息
       await fetchTopicInfo();
 
-      // 获取偏移量并加载消息
-      await fetchPartitionOffset(searchForm.offsetReset);
+      // 初始化时获取最新偏移量
+      const offsetRes = await getPartitionOffset(clusterId, topicName, searchForm.partition, 'latest');
+      if (offsetRes.data.code === 0) {
+        const latestOffset = offsetRes.data.data;
+        console.log('初始化获取到最新偏移量:', latestOffset);
+
+        // 计算起始偏移量，确保能获取到最新的消息
+        const startOffset = Math.max(0, latestOffset - searchForm.count);
+        searchForm.offset = startOffset;
+
+        // 获取消息
+        fetchMessages();
+      } else {
+        Message.error(offsetRes.data.message || '获取最新偏移量失败');
+      }
     } else {
       Message.error(res.data.message || '获取分区信息失败');
     }
@@ -346,56 +359,6 @@ const fetchTopicInfo = async () => {
   } catch (err: any) {
     console.error('获取主题信息失败:', err);
     Message.error(err.response?.data?.message || '获取主题信息失败');
-  }
-};
-
-// 获取特定类型的偏移量（earliest或latest）
-const fetchPartitionOffset = async (offsetType: string) => {
-  try {
-    loading.value = true;
-    console.log(`正在获取分区 ${searchForm.partition} 的 ${offsetType} 偏移量...`);
-
-    const res = await getPartitionOffset(clusterId, topicName, searchForm.partition, offsetType);
-
-    if (res.data.code === 0) {
-      const offset = res.data.data;
-      console.log(`获取到 ${offsetType} 偏移量: ${offset}`);
-
-      // 更新表单中的偏移量
-      if (offsetType === 'latest') {
-        // 对于最新偏移量，有两种处理方式:
-        // 1. 如果用户希望查看最新的消息，应该使用(newest-count)作为起始偏移量
-        // 2. 如果用户希望从某个特定偏移量开始获取，则直接使用该偏移量
-
-        // 当搜索表单中的偏移量为undefined或null时，表示用户希望查看最新的消息
-        if (searchForm.offset === undefined || searchForm.offset === null) {
-          // 计算调整后的偏移量，确保不会出现负值
-          const adjustedOffset = Math.max(0, offset - searchForm.count);
-          console.log(`调整后的最新偏移量: ${adjustedOffset} (原始: ${offset}, 减去: ${searchForm.count})`);
-          searchForm.offset = adjustedOffset;
-        } else {
-          // 用户指定了偏移量，保持不变
-          console.log(`使用用户指定的偏移量: ${searchForm.offset}`);
-        }
-      } else if (offsetType === 'earliest') {
-        // 对于最早偏移量，直接使用该偏移量
-        searchForm.offset = offset;
-      }
-
-      // 获取消息
-      fetchMessages();
-
-      return offset;
-    } else {
-      Message.error(res.data.message || `获取${offsetType}偏移量失败`);
-      return null;
-    }
-  } catch (err: any) {
-    console.error(`获取${offsetType}偏移量失败:`, err);
-    Message.error(err.response?.data?.message || `获取${offsetType}偏移量失败`);
-    return null;
-  } finally {
-    loading.value = false;
   }
 };
 
@@ -488,7 +451,24 @@ const handlePartitionChange = async () => {
   console.log('分区变更，重新获取偏移量');
 
   // 根据当前的offsetReset模式获取相应的偏移量
-  await fetchPartitionOffset(searchForm.offsetReset);
+  const res = await getPartitionOffset(clusterId, topicName, searchForm.partition, searchForm.offsetReset);
+  if (res.data.code === 0) {
+    const actualOffset = res.data.data;
+    console.log(`分区变更后获取到${searchForm.offsetReset}偏移量: ${actualOffset}`);
+
+    if (searchForm.offsetReset === 'latest') {
+      // 如果是最新模式，计算起始偏移量以获取最新的消息
+      searchForm.offset = Math.max(0, actualOffset - searchForm.count);
+    } else {
+      // 如果是最早模式，直接使用返回的偏移量
+      searchForm.offset = actualOffset;
+    }
+
+    // 获取消息
+    fetchMessages();
+  } else {
+    Message.error(res.data.message || `获取${searchForm.offsetReset}偏移量失败`);
+  }
 };
 
 // 偏移量重置选项变更
@@ -506,8 +486,14 @@ const handleOffsetSwitchChange = async (value: string | number | boolean) => {
     const actualOffset = res.data.data;
     console.log(`获取到${newMode}偏移量: ${actualOffset}`);
 
-    // 直接使用API返回的偏移量值
-    searchForm.offset = actualOffset;
+    if (newMode === 'latest') {
+      // 如果是最新模式，计算起始偏移量以获取最新的消息
+      searchForm.offset = Math.max(0, actualOffset - searchForm.count);
+      console.log(`计算最新模式的起始偏移量: ${searchForm.offset} (最新偏移量: ${actualOffset} - 消息数量: ${searchForm.count})`);
+    } else {
+      // 如果是最早模式，直接使用返回的偏移量
+      searchForm.offset = actualOffset;
+    }
 
     // 获取消息
     fetchMessages();
