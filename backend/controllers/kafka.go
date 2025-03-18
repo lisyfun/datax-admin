@@ -3,8 +3,10 @@ package controllers
 import (
 	"datax-admin/models"
 	"datax-admin/services"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -362,8 +364,7 @@ func (c *KafkaController) AlterTopic(ctx *gin.Context) {
 
 // ConsumeMessages 消费消息
 func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
-	// 移除未使用的变量
-	// startTime := time.Now()
+	startTime := time.Now()
 
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -383,18 +384,43 @@ func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 		return
 	}
 
+	// 获取并解析请求参数
 	partition, _ := strconv.Atoi(ctx.DefaultQuery("partition", "0"))
-	offset, _ := strconv.ParseInt(ctx.DefaultQuery("offset", "-1"), 10, 64)
-	count, _ := strconv.Atoi(ctx.DefaultQuery("count", "100"))
+
+	// 明确处理offset参数
+	offsetParam := ctx.DefaultQuery("offset", "-1")
+	var offset int64
+	if offsetParam == "" || offsetParam == "-1" {
+		// 如果没有提供offset或为-1，则表示使用默认值
+		// 在这种情况下，我们将在服务层确定是使用最早还是最新偏移量
+		offset = -1
+		fmt.Printf("未指定具体偏移量，使用默认值: %d\n", offset)
+	} else {
+		// 解析指定的偏移量
+		offset, err = strconv.ParseInt(offsetParam, 10, 64)
+		if err != nil {
+			fmt.Printf("偏移量参数格式错误: %s, 将使用默认值 -1\n", offsetParam)
+			offset = -1
+		} else {
+			fmt.Printf("使用指定的偏移量: %d\n", offset)
+		}
+	}
+
+	// 解析其他参数
+	count, _ := strconv.Atoi(ctx.DefaultQuery("count", "10"))
+	if count > 100 {
+		count = 100 // 限制最大消息数量
+		fmt.Printf("请求的消息数量超过限制，已调整为最大值: %d\n", count)
+	}
+
 	keyFilter := ctx.Query("keyFilter")
 	valueFilter := ctx.Query("valueFilter")
-	// 移除未使用的变量
-	// groupId := ctx.Query("groupId") // 获取消费者组ID
+	groupId := ctx.Query("groupId") // 获取消费者组ID，目前未使用
 
-	// 减少日志输出，只在调试模式下输出
-	// fmt.Printf("消费消息请求参数: clusterId=%d, topic=%s, partition=%d, offset=%d, count=%d, keyFilter=%s, valueFilter=%s, groupId=%s\n",
-	//	id, topicName, partition, offset, count, keyFilter, valueFilter, groupId)
+	fmt.Printf("接收到消费消息请求: 集群=%d, 主题=%s, 分区=%d, 偏移量=%d, 数量=%d, 键过滤=%s, 值过滤=%s, 消费组=%s\n",
+		id, topicName, partition, offset, count, keyFilter, valueFilter, groupId)
 
+	// 调用服务层方法获取消息
 	messages, err := c.kafkaService.ConsumeMessages(uint(id), topicName, partition, offset, count, keyFilter, valueFilter)
 	if err != nil {
 		ctx.JSON(http.StatusOK, gin.H{
@@ -404,10 +430,10 @@ func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 		return
 	}
 
-	// 记录性能日志，只在调试模式下输出
-	// elapsed := time.Since(startTime)
-	// fmt.Printf("消费消息完成: clusterId=%d, topic=%s, partition=%d, offset=%d, count=%d, 获取到 %d 条消息, 耗时: %v\n",
-	//	id, topicName, partition, offset, count, len(messages), elapsed)
+	// 记录性能日志
+	elapsed := time.Since(startTime)
+	fmt.Printf("消费消息完成: 集群=%d, 主题=%s, 分区=%d, 偏移量=%d, 数量=%d, 获取到 %d 条消息, 耗时: %v\n",
+		id, topicName, partition, offset, count, len(messages), elapsed)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,

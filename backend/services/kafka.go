@@ -510,14 +510,37 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		return nil, err
 	}
 
+	// 记录请求参数
+	fmt.Printf("Kafka消费请求 - 集群: %d, 主题: %s, 分区: %d, 偏移量: %d, 数量: %d\n",
+		clusterID, topic, partition, offset, count)
+
+	// 获取分区最早和最新偏移量，用于校验
+	earliestOffset, latestOffset, err := s.GetPartitionOffsets(clusterID, topic, int32(partition))
+	if err != nil {
+		fmt.Printf("获取分区偏移量范围失败: %v\n", err)
+	} else {
+		fmt.Printf("分区偏移量范围 - 最早: %d, 最新: %d\n", earliestOffset, latestOffset)
+
+		// 如果请求的偏移量小于最早可用偏移量，则使用最早偏移量
+		if offset < earliestOffset {
+			fmt.Printf("请求的偏移量(%d)小于最早可用偏移量(%d)，将使用最早偏移量\n", offset, earliestOffset)
+			offset = earliestOffset
+		}
+
+		// 如果请求的偏移量大于最新偏移量，则使用最新偏移量
+		if offset > latestOffset {
+			fmt.Printf("请求的偏移量(%d)大于最新偏移量(%d)，将使用最新偏移量\n", offset, latestOffset)
+			offset = latestOffset
+		}
+	}
+
 	// 创建 Kafka 读取器
 	brokers := strings.Split(cluster.BrokerServers, ",")
-	// 减少日志输出，只在调试模式下输出
-	// fmt.Printf("消费消息，连接 Kafka brokers: %v\n", brokers)
+	fmt.Printf("连接Kafka brokers: %v\n", brokers)
 
 	// 创建 dialer
 	dialer := &kafka.Dialer{
-		Timeout:   1 * time.Second, // 减少连接超时时间
+		Timeout:   3 * time.Second, // 增加连接超时时间，确保有足够时间连接
 		DualStack: false,           // 禁用 IPv6
 	}
 
@@ -542,7 +565,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		}
 	}
 
-	// 创建读取器
+	// 创建读取器，确保使用指定的起始偏移量
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     brokers,
 		Topic:       topic,
@@ -551,12 +574,12 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		MinBytes:    1,                      // 最小字节数设为1，不等待数据累积
 		MaxBytes:    10e6,                   // 10MB
 		MaxWait:     100 * time.Millisecond, // 最大等待时间设为100毫秒
-		StartOffset: offset,
+		StartOffset: offset,                 // 使用经过校验后的偏移量
 	})
 	defer reader.Close()
 
-	// 设置上下文超时，减少为2秒
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	// 设置上下文超时，增加为5秒给足够的时间读取消息
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// 创建一个计时器，用于在没有更多消息时提前退出
@@ -570,19 +593,33 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 
 	// 在后台读取消息
 	go func() {
+		// 记录开始读取消息的时间
+		startTime := time.Now()
+
 		for i := 0; i < count; i++ {
 			// 设置每条消息的读取超时
-			msgCtx, msgCancel := context.WithTimeout(ctx, 500*time.Millisecond)
+			msgCtx, msgCancel := context.WithTimeout(ctx, 1*time.Second) // 增加单条消息读取超时
 			msg, err := reader.ReadMessage(msgCtx)
 			msgCancel()
 
 			if err != nil {
 				if err != context.DeadlineExceeded {
+					fmt.Printf("读取Kafka消息失败: %v\n", err)
 					errorChan <- err
+				} else {
+					fmt.Printf("读取Kafka消息超时，已读取 %d 条消息\n", i)
 				}
 				return
 			}
+
+			// 记录消息偏移量与请求的起始偏移量的差值
+			offsetDiff := msg.Offset - offset
+			if i == 0 {
+				fmt.Printf("首条消息的偏移量: %d (与请求偏移量相差: %d)\n", msg.Offset, offsetDiff)
+			}
+
 			messageChan <- msg
+
 			// 重置无消息计时器
 			if !noMessageTimer.Stop() {
 				select {
@@ -592,6 +629,9 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 			}
 			noMessageTimer.Reset(500 * time.Millisecond)
 		}
+
+		// 记录消息读取完成的时间
+		fmt.Printf("Kafka消息读取完成，耗时: %v\n", time.Since(startTime))
 	}()
 
 	// 主循环
@@ -632,6 +672,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		case err := <-errorChan:
 			// 如果有错误但已经读取了一些消息，则返回已读取的消息
 			if len(messages) > 0 {
+				fmt.Printf("遇到错误但已读取 %d 条消息，返回已读取消息: %v\n", len(messages), err)
 				return messages, nil
 			}
 			return nil, err
@@ -639,17 +680,28 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		case <-noMessageTimer.C:
 			// 如果一段时间内没有新消息，提前返回
 			if len(messages) > 0 {
+				fmt.Printf("一段时间内没有新消息，提前返回 %d 条消息\n", len(messages))
 				return messages, nil
 			}
+			fmt.Printf("未找到符合条件的消息\n")
 			return []KafkaMessage{}, nil
 
 		case <-ctx.Done():
 			// 上下文超时
 			if len(messages) > 0 {
+				fmt.Printf("请求超时，返回已读取的 %d 条消息\n", len(messages))
 				return messages, nil
 			}
+			fmt.Printf("请求超时，未读取到任何消息\n")
 			return []KafkaMessage{}, nil
 		}
+	}
+
+	// 记录最终的消息偏移量范围
+	if len(messages) > 0 {
+		firstOffset := messages[0].Offset
+		lastOffset := messages[len(messages)-1].Offset
+		fmt.Printf("返回消息偏移量范围: %d - %d, 总条数: %d\n", firstOffset, lastOffset, len(messages))
 	}
 
 	return messages, nil

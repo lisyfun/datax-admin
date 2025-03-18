@@ -362,13 +362,24 @@ const fetchPartitionOffset = async (offsetType: string) => {
       console.log(`获取到 ${offsetType} 偏移量: ${offset}`);
 
       // 更新表单中的偏移量
-      searchForm.offset = offset;
+      if (offsetType === 'latest') {
+        // 对于最新偏移量，有两种处理方式:
+        // 1. 如果用户希望查看最新的消息，应该使用(newest-count)作为起始偏移量
+        // 2. 如果用户希望从某个特定偏移量开始获取，则直接使用该偏移量
 
-      // 如果是最新偏移量，可能需要减去count来获取最近的几条消息
-      if (offsetType === 'latest' && offset > searchForm.count) {
-        const adjustedOffset = Math.max(0, offset - searchForm.count);
-        console.log(`调整后的最新偏移量: ${adjustedOffset} (原始: ${offset}, 减去: ${searchForm.count})`);
-        searchForm.offset = adjustedOffset;
+        // 当搜索表单中的偏移量为undefined或null时，表示用户希望查看最新的消息
+        if (searchForm.offset === undefined || searchForm.offset === null) {
+          // 计算调整后的偏移量，确保不会出现负值
+          const adjustedOffset = Math.max(0, offset - searchForm.count);
+          console.log(`调整后的最新偏移量: ${adjustedOffset} (原始: ${offset}, 减去: ${searchForm.count})`);
+          searchForm.offset = adjustedOffset;
+        } else {
+          // 用户指定了偏移量，保持不变
+          console.log(`使用用户指定的偏移量: ${searchForm.offset}`);
+        }
+      } else if (offsetType === 'earliest') {
+        // 对于最早偏移量，直接使用该偏移量
+        searchForm.offset = offset;
       }
 
       // 获取消息
@@ -395,8 +406,23 @@ const fetchMessages = async () => {
   expandedMessages.value = []; // 清空展开状态
 
   try {
-    // 使用当前表单中的偏移量，这个偏移量可能是通过fetchPartitionOffset获取的
-    const actualOffset: number = searchForm.offset !== undefined ? searchForm.offset : 0;
+    // 确保偏移量有效
+    let actualOffset: number;
+    if (searchForm.offset !== undefined && searchForm.offset !== null) {
+      actualOffset = searchForm.offset;
+    } else if (offsetReset.value === 'latest') {
+      // 如果没有指定偏移量，但选择了"最新"模式，先获取最新偏移量
+      const latestOffset = await getPartitionOffset(clusterId, topicName, searchForm.partition, 'latest');
+      if (latestOffset.data && latestOffset.data.code === 0) {
+        // 调整偏移量以获取最新的消息
+        actualOffset = Math.max(0, latestOffset.data.data - searchForm.count);
+      } else {
+        actualOffset = 0;
+      }
+    } else {
+      // 如果是"最早"模式且没有指定偏移量，使用0
+      actualOffset = 0;
+    }
 
     console.log('开始获取消息，参数:', {
       clusterId,
@@ -435,10 +461,11 @@ const fetchMessages = async () => {
       } else {
         Message.success(`成功获取 ${messages.value.length} 条消息`);
 
-        // 如果获取到消息，可以更新偏移量为第一条消息的偏移量
+        // 如果获取到消息，记录获取到的消息偏移量范围
         if (messages.value.length > 0) {
           const firstMessageOffset = messages.value[0].offset;
-          console.log(`获取到的第一条消息偏移量: ${firstMessageOffset}`);
+          const lastMessageOffset = messages.value[messages.value.length - 1].offset;
+          console.log(`获取到的消息偏移量范围: ${firstMessageOffset} - ${lastMessageOffset}`);
         }
       }
     } else {
