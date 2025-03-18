@@ -175,17 +175,87 @@ func (s *KafkaService) ListKafkaClusters(page, pageSize int, search string) (*Ka
 		return nil, err
 	}
 
-	// 直接获取集群信息，不包括状态和统计数据
+	// 直接获取集群信息
 	if err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&clusters).Error; err != nil {
 		return nil, err
 	}
 
-	// 计算 Broker 数量
+	// 使用wg并发获取每个集群的详细信息
+	var wg sync.WaitGroup
+	// 限制并发请求数量
+	semaphore := make(chan struct{}, 3)
+
 	for i := range clusters {
-		clusters[i].BrokerCount = len(strings.Split(clusters[i].BrokerServers, ","))
-		// 不在列表页面检查集群状态，避免频繁连接
-		// 只设置基本信息
+		wg.Add(1)
+		semaphore <- struct{}{} // 获取信号量
+
+		go func(index int) {
+			defer func() {
+				<-semaphore // 释放信号量
+				wg.Done()
+			}()
+
+			// 计算 Broker 数量
+			clusters[index].BrokerCount = len(strings.Split(clusters[index].BrokerServers, ","))
+
+			// 尝试获取Topic数量和消费者组数量
+			// 为避免影响列表页面加载速度，设置较短的超时时间
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			// 创建完成通道
+			done := make(chan struct{})
+
+			// 在后台获取Topic和消费者组数量
+			go func() {
+				defer close(done)
+
+				// 尝试连接集群
+				conn, err := s.getKafkaConn(&clusters[index], "")
+				if err != nil {
+					// 连接失败，状态设为不可用
+					clusters[index].Status = false
+					return
+				}
+				defer conn.Close()
+
+				// 尝试获取主题数量
+				topics, err := conn.ReadPartitions()
+				if err == nil {
+					// 统计唯一的 topic 名称
+					topicMap := make(map[string]bool)
+					for _, p := range topics {
+						topicMap[p.Topic] = true
+					}
+					clusters[index].TopicCount = len(topicMap)
+				}
+
+				// 查询数据库获取主题数量作为备选
+				var topicCount int64
+				if err := models.DB.Model(&models.KafkaTopic{}).
+					Where("cluster_id = ?", clusters[index].ID).
+					Count(&topicCount).Error; err == nil && topicCount > 0 &&
+					(clusters[index].TopicCount == 0 || topicCount > int64(clusters[index].TopicCount)) {
+					clusters[index].TopicCount = int(topicCount)
+				}
+
+				// 集群可用
+				clusters[index].Status = true
+			}()
+
+			// 等待完成或超时
+			select {
+			case <-done:
+				// 获取信息成功
+			case <-ctx.Done():
+				// 超时，使用默认值或部分结果
+				fmt.Printf("获取集群 [%s] 详情超时\n", clusters[index].Name)
+			}
+		}(i)
 	}
+
+	// 等待所有goroutine完成
+	wg.Wait()
 
 	return &KafkaClusterListResponse{
 		Total: total,
@@ -405,10 +475,16 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 			offset = earliestOffset
 		}
 
-		// 如果请求的偏移量大于最新偏移量，则使用最新偏移量
-		if offset > latestOffset {
-			fmt.Printf("请求的偏移量(%d)大于最新偏移量(%d)，将使用最新偏移量\n", offset, latestOffset)
-			offset = latestOffset
+		// 如果请求的偏移量大于或等于最新偏移量，并且偏移量非零，则调整为能够读取到消息的偏移量
+		if offset >= latestOffset && latestOffset > 0 {
+			// 计算适当的起始偏移量，确保能看到最近的消息
+			adjustedOffset := latestOffset - int64(count)
+			if adjustedOffset < earliestOffset {
+				adjustedOffset = earliestOffset
+			}
+			fmt.Printf("请求的偏移量(%d)大于或等于最新偏移量(%d)，调整为偏移量(%d)以获取最近的消息\n",
+				offset, latestOffset, adjustedOffset)
+			offset = adjustedOffset
 		}
 	}
 
@@ -451,7 +527,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		Dialer:      dialer,
 		MinBytes:    1,                      // 最小字节数设为1，不等待数据累积
 		MaxBytes:    10e6,                   // 10MB
-		MaxWait:     100 * time.Millisecond, // 最大等待时间设为100毫秒
+		MaxWait:     200 * time.Millisecond, // 最大等待时间增加到200毫秒
 		StartOffset: offset,                 // 使用经过校验后的偏移量
 	})
 	defer reader.Close()
@@ -462,12 +538,12 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		return nil, fmt.Errorf("设置读取器偏移量失败: %v", err)
 	}
 
-	// 设置上下文超时，增加为5秒给足够的时间读取消息
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// 设置上下文超时，增加为10秒给足够的时间读取消息
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// 创建一个计时器，用于在没有更多消息时提前退出
-	noMessageTimer := time.NewTimer(500 * time.Millisecond)
+	noMessageTimer := time.NewTimer(1000 * time.Millisecond) // 增加到1秒
 	defer noMessageTimer.Stop()
 
 	// 读取消息
@@ -482,7 +558,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 
 		for i := 0; i < count; i++ {
 			// 设置每条消息的读取超时
-			msgCtx, msgCancel := context.WithTimeout(ctx, 1*time.Second) // 增加单条消息读取超时
+			msgCtx, msgCancel := context.WithTimeout(ctx, 2*time.Second) // 增加单条消息读取超时到2秒
 			msg, err := reader.ReadMessage(msgCtx)
 			msgCancel()
 
@@ -511,7 +587,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 				default:
 				}
 			}
-			noMessageTimer.Reset(500 * time.Millisecond)
+			noMessageTimer.Reset(1000 * time.Millisecond) // 增加到1秒
 		}
 
 		// 记录消息读取完成的时间
