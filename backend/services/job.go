@@ -4,6 +4,7 @@ import (
 	"datax-admin/models"
 	"datax-admin/types"
 	"datax-admin/utils/cron"
+	"datax-admin/utils/logger"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,7 +31,7 @@ func GetJobService() *JobService {
 		jobServiceInstance.scheduler.Start() // 启动调度器
 
 		// 记录调度器启动
-		fmt.Println("任务调度器已启动")
+		logger.Info("任务调度器已启动")
 	})
 	return jobServiceInstance
 }
@@ -49,7 +50,7 @@ func (s *JobService) InitJobScheduler() error {
 		return fmt.Errorf("加载运行中的任务失败: %v", err)
 	}
 
-	fmt.Printf("正在加载 %d 个运行中的任务...\n", len(jobs))
+	logger.Info("正在加载 %d 个运行中的任务...", len(jobs))
 
 	// 将所有运行中的任务添加到调度器
 	for _, job := range jobs {
@@ -63,13 +64,13 @@ func (s *JobService) InitJobScheduler() error {
 				s.executeJob(&jobCopy)
 			},
 		); err != nil {
-			fmt.Printf("添加任务 [%s] (ID: %d) 到调度器失败: %v\n", job.Name, job.ID, err)
+			logger.Info("添加任务 [%s] (ID: %d) 到调度器失败: %v", job.Name, job.ID, err)
 			// 如果添加失败，将任务状态更新为停止
 			if updateErr := models.DB.Model(&jobCopy).Update("status", models.JobStatusStop).Error; updateErr != nil {
-				fmt.Printf("更新任务状态失败: %v\n", updateErr)
+				logger.Info("更新任务状态失败: %v", updateErr)
 			}
 		} else {
-			fmt.Printf("成功加载任务 [%s] (ID: %d), Cron表达式: %s\n", job.Name, job.ID, job.CronExpr)
+			logger.Info("成功加载任务 [%s] (ID: %d), Cron表达式: %s", job.Name, job.ID, job.CronExpr)
 		}
 	}
 
@@ -193,7 +194,7 @@ func (s *JobService) StartJob(jobID uint) error {
 		return err
 	}
 
-	fmt.Printf("任务 [%s] (ID: %d) 已添加到调度器, Cron表达式: %s\n", job.Name, job.ID, job.CronExpr)
+	logger.Info("任务 [%s] (ID: %d) 已添加到调度器, Cron表达式: %s\n", job.Name, job.ID, job.CronExpr)
 
 	// 更新状态
 	return models.DB.Model(&job).Update("status", models.JobStatusRunning).Error
@@ -361,7 +362,7 @@ func (s *JobService) validateAndSerializeParams(jobType string, params any) (str
 
 // executeJob 执行任务
 func (s *JobService) executeJob(job *models.Job) {
-	fmt.Printf("开始执行任务: [%s] (ID: %d)\n", job.Name, job.ID)
+	logger.Info("开始执行任务: [%s] (ID: %d)", job.Name, job.ID)
 
 	history := &models.JobHistory{
 		JobID:     job.ID,
@@ -374,23 +375,23 @@ func (s *JobService) executeJob(job *models.Job) {
 		if r := recover(); r != nil {
 			history.Status = 0
 			history.Error = fmt.Sprintf("任务执行panic: %v", r)
-			fmt.Printf("任务执行panic: [%s] (ID: %d): %v\n", job.Name, job.ID, r)
+			logger.Info("任务执行panic: [%s] (ID: %d): %v\n", job.Name, job.ID, r)
 		}
 
 		history.EndTime = time.Now()
 		history.Duration = history.EndTime.Sub(history.StartTime).Milliseconds()
 
-		fmt.Printf("任务执行完成: [%s] (ID: %d), 状态: %d, 耗时: %dms\n",
+		logger.Info("任务执行完成: [%s] (ID: %d), 状态: %d, 耗时: %dms",
 			job.Name, job.ID, history.Status, history.Duration)
 
 		// 如果任务执行失败，更新任务状态为停止
 		if history.Status == 0 {
 			if err := models.DB.Model(job).Update("status", models.JobStatusStop).Error; err != nil {
-				fmt.Printf("更新任务状态失败: %v\n", err)
+				logger.Info("更新任务状态失败: %v\n", err)
 			}
 			// 从调度器中移除任务
 			s.scheduler.Remove(fmt.Sprintf("job_%d", job.ID))
-			fmt.Printf("由于执行失败，任务 [%s] (ID: %d) 已从调度器中移除\n", job.Name, job.ID)
+			logger.Info("由于执行失败，任务 [%s] (ID: %d) 已从调度器中移除\n", job.Name, job.ID)
 		}
 
 		// 添加错误处理和重试逻辑
@@ -399,7 +400,7 @@ func (s *JobService) executeJob(job *models.Job) {
 			if err := models.DB.Create(history).Error; err != nil {
 				if i == maxRetries-1 {
 					// 如果是最后一次重试，记录错误
-					fmt.Printf("保存任务历史记录失败 [%s] (ID: %d): %v\n", job.Name, job.ID, err)
+					logger.Info("保存任务历史记录失败 [%s] (ID: %d): %v\n", job.Name, job.ID, err)
 				}
 				// 等待一小段时间后重试
 				time.Sleep(time.Second * time.Duration(i+1))

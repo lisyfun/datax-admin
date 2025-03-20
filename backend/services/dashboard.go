@@ -4,6 +4,7 @@ import (
 	"datax-admin/models"
 	"datax-admin/types"
 	"datax-admin/utils/cache"
+	"datax-admin/utils/logger"
 	"fmt"
 	"runtime"
 	"sync"
@@ -160,7 +161,7 @@ func (s *DashboardService) updateDashboardData() {
 	// 检查是否有错误
 	for err := range errChan {
 		// 只记录错误，不中断更新
-		fmt.Printf("Dashboard update error: %v\n", err)
+		logger.Info("Dashboard update error: %v\n", err)
 		return
 	}
 

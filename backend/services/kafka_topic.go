@@ -2,6 +2,7 @@ package services
 
 import (
 	"datax-admin/models"
+	"datax-admin/utils/logger"
 	"fmt"
 	"sync"
 	"time"
@@ -127,7 +128,7 @@ func (s *KafkaTopicService) StartTopicSyncTask(syncInterval time.Duration) {
 		syncInterval = 5 * time.Minute // 最小同步间隔5分钟
 	}
 
-	fmt.Printf("主题同步任务已启动，同步间隔: %v\n", syncInterval)
+	logger.Info("主题同步任务已启动，同步间隔: %v", syncInterval)
 
 	ticker := time.NewTicker(syncInterval)
 	go func() {
@@ -135,16 +136,16 @@ func (s *KafkaTopicService) StartTopicSyncTask(syncInterval time.Duration) {
 			// 获取所有集群
 			var clusters []models.KafkaCluster
 			if err := models.DB.Find(&clusters).Error; err != nil {
-				fmt.Printf("获取集群列表失败: %v\n", err)
+				logger.Info("获取集群列表失败: %v\n", err)
 				continue
 			}
 
 			// 为每个集群同步主题信息
 			for _, cluster := range clusters {
 				if err := s.SyncTopics(cluster.ID); err != nil {
-					fmt.Printf("同步集群[%s]主题信息失败: %v\n", cluster.Name, err)
+					logger.Info("同步集群[%s]主题信息失败: %v\n", cluster.Name, err)
 				} else {
-					fmt.Printf("成功同步集群[%s]主题信息\n", cluster.Name)
+					logger.Info("成功同步集群[%s]主题信息\n", cluster.Name)
 				}
 			}
 		}

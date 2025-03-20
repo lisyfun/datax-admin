@@ -45,7 +45,12 @@ func main() {
 	gin.SetMode(config.GlobalConfig.Server.Mode)
 
 	// 创建路由
-	r := gin.Default()
+	r := gin.New()
+
+	r.Use(
+		gin.Logger(),
+		gin.Recovery(),
+	)
 
 	// 注册路由
 	routes.SetupRoutes(r)
