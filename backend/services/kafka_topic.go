@@ -136,16 +136,16 @@ func (s *KafkaTopicService) StartTopicSyncTask(syncInterval time.Duration) {
 			// 获取所有集群
 			var clusters []models.KafkaCluster
 			if err := models.DB.Find(&clusters).Error; err != nil {
-				logger.Info("获取集群列表失败: %v\n", err)
+				logger.Info("获取集群列表失败: %v", err)
 				continue
 			}
 
 			// 为每个集群同步主题信息
 			for _, cluster := range clusters {
 				if err := s.SyncTopics(cluster.ID); err != nil {
-					logger.Info("同步集群[%s]主题信息失败: %v\n", cluster.Name, err)
+					logger.Info("同步集群[%s]主题信息失败: %v", cluster.Name, err)
 				} else {
-					logger.Info("成功同步集群[%s]主题信息\n", cluster.Name)
+					logger.Info("成功同步集群[%s]主题信息", cluster.Name)
 				}
 			}
 		}
