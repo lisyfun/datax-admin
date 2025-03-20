@@ -2,6 +2,7 @@ package main
 
 import (
 	"datax-admin/config"
+	"datax-admin/middleware"
 	"datax-admin/models"
 	"datax-admin/routes"
 	"datax-admin/services"
@@ -48,7 +49,7 @@ func main() {
 	r := gin.New()
 
 	r.Use(
-		gin.Logger(),
+		middleware.CustomLogger(),
 		gin.Recovery(),
 	)
 
