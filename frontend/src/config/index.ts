@@ -3,7 +3,7 @@ export const backendConfig = {
   // API 基础路径
   apiBaseUrl: '/datax/api',
   // WebSocket 基础路径
-  wsBaseUrl: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`,
+  wsBaseUrl: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/datax`,
 };
 
 // 其他配置
