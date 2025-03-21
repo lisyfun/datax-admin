@@ -330,6 +330,14 @@ onUnmounted(() => {
   background-color: var(--color-fill-2);
 }
 
+/* 禁用菜单文字选中 */
+:deep(.arco-menu) {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
 .header {
   display: flex;
   justify-content: space-between;
