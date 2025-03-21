@@ -265,7 +265,6 @@ const handleConnect = async () => {
     console.log('WebSocket实例已创建');
 
     socket.onopen = () => {
-      console.log('WebSocket连接已建立');
       connected.value = true;
       Message.success('终端连接成功');
       terminal?.focus();
@@ -285,12 +284,10 @@ const handleConnect = async () => {
     };
 
     socket.onmessage = (event) => {
-      console.log('收到WebSocket消息:', event.data);
       try {
         const data = JSON.parse(event.data);
         switch (data.type) {
           case 'output':
-            console.log('收到终端输出:', data.data);
             terminal?.write(data.data);
             break;
           case 'error':
@@ -339,48 +336,26 @@ const testWebSocket = async () => {
     const basePath = window.location.pathname.split('/')[1] || '';
     const wsUrl = `${wsProtocol}//${wsHost}/${basePath ? basePath + '/' : ''}ws/terminals/${terminalId.value}`;
 
-    console.log('开始测试WebSocket连接');
-    console.log('当前页面 URL:', window.location.href);
-    console.log('基础路径:', basePath);
-    console.log('终端ID:', terminalId.value);
-    console.log('终端信息:', {
-      name: terminalInfo.value.name,
-      host: terminalInfo.value.host,
-      port: terminalInfo.value.port,
-      username: terminalInfo.value.username,
-      status: terminalInfo.value.status
-    });
-    console.log('WebSocket URL:', wsUrl);
-
     // 创建测试连接
-    console.log('正在创建WebSocket实例...');
     const testSocket = new WebSocket(wsUrl);
 
     testSocket.onopen = () => {
-      console.log('WebSocket连接已建立');
       Message.success('WebSocket连接测试成功');
       canConnect.value = true;
       // 发送一个测试消息
       testSocket.send(JSON.stringify({ type: 'test', data: 'test connection' }));
       setTimeout(() => {
-        console.log('正在关闭测试连接...');
         testSocket.close(1000, '测试完成');
       }, 1000);
     };
 
     testSocket.onerror = (event: Event) => {
-      console.error('WebSocket连接失败:', event);
       canConnect.value = false;
       const wsEvent = event as WebSocketEventMap['error'];
       Message.error('WebSocket连接测试失败');
     };
 
     testSocket.onclose = (event: CloseEvent) => {
-      console.log('WebSocket连接已关闭:', {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean
-      });
       if (event.code !== 1000) {
         canConnect.value = false;
         Message.warning(`WebSocket连接已关闭: ${event.code}`);
@@ -399,7 +374,6 @@ const testWebSocket = async () => {
       }
     };
   } catch (error) {
-    console.error('测试连接出错:', error);
     canConnect.value = false;
     Message.error(`WebSocket连接测试出错: ${error instanceof Error ? error.message : String(error)}`);
   }

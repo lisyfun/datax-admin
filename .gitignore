@@ -6,6 +6,14 @@ backend/logs/*
 ./.DS_Store
 *.tar
 *.tar.gz
+
+# 前端忽略规则
+node_modules/
+dist/
+.env
+.env.*
+*.log
+
 backend/bin/*
 bin/*
 */bin/*
