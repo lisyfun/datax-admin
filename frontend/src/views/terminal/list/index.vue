@@ -550,7 +550,7 @@ const handleConnect = (record: TerminalInfo) => {
 
 // 打开上传对话框
 const handleUpload = (record: TerminalInfo) => {
-  currentTerminal.value = record;
+  selectedKeys.value = [record.id];
   uploadPath.value = '/tmp';
   fileList.value = [];
   uploadVisible.value = true;
