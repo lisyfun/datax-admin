@@ -26,6 +26,10 @@
             <template #icon><icon-bug /></template>
             测试连接
           </a-button>
+          <a-button @click="toggleFullscreen">
+            <template #icon><icon-fullscreen /></template>
+            {{ isFullscreen ? '退出全屏' : '全屏' }}
+          </a-button>
           <a-button @click="handleBack">
             <template #icon><icon-arrow-left /></template>
             返回列表
@@ -62,6 +66,7 @@ import {
   IconArrowLeft,
   IconRobot,
   IconBug,
+  IconFullscreen,
 } from '@arco-design/web-vue/es/icon';
 import type { TerminalInfo } from '@/types/terminal';
 import terminalApi from '@/api/terminal';
@@ -78,6 +83,7 @@ const terminalId = computed(() => Number(route.params.id));
 const terminalInfo = ref<TerminalInfo>();
 const connecting = ref(false);
 const connected = ref(false);
+const isFullscreen = ref(false);
 const canConnect = ref(false);
 const terminalContainer = ref<HTMLElement>();
 let terminal: Terminal | null = null;
@@ -158,11 +164,11 @@ const initTerminal = () => {
       foreground: '#ffffff',
     },
     fontSize: 14,
-    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    fontFamily: 'Consolas, JetBrains Mono, Menlo, Monaco, "Courier New", monospace',
     scrollback: 1000,
     convertEol: true,
-    lineHeight: 1.3,
-    letterSpacing: 0.5,
+    lineHeight: 1.5,
+    letterSpacing: 0.8,
   });
 
   // 添加插件
@@ -399,6 +405,18 @@ const testWebSocket = async () => {
   }
 };
 
+// 切换全屏
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value;
+  nextTick(() => {
+    if (terminal) {
+      const fitAddon = new FitAddon();
+      terminal.loadAddon(fitAddon);
+      fitAddon.fit();
+    }
+  });
+};
+
 // 返回列表
 const handleBack = () => {
   router.push('/terminal/list');
@@ -454,10 +472,11 @@ onBeforeUnmount(() => {
   }
 
   .terminal-container {
-    height: 500px;
+    height: v-bind('isFullscreen ? "calc(100vh - 200px)" : "500px"');
     background-color: #1e1e1e;
     border-radius: 4px;
     overflow: hidden;
+    transition: height 0.3s ease;
 
     &.connected {
       padding: 8px;
