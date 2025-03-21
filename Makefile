@@ -149,7 +149,7 @@ docker-arm64: build-arm64
 		--build-arg CONFIG_FILE=./backend/config.yaml \
 		-t $(DOCKER_IMAGE):$(VERSION)-arm64 .
 	@echo -e "$(GREEN)ARM64 Docker 镜像构建完成: $(DOCKER_IMAGE):$(VERSION)-arm64$(NC)"
-	 docker run -it -p 28080:80 $(DOCKER_IMAGE):$(VERSION)-arm64
+	# docker run -it -p 28080:80 $(DOCKER_IMAGE):$(VERSION)-arm64
 	@echo -e "$(GREEN)Docker 容器已启动: $(DOCKER_IMAGE):$(VERSION)-arm64$(NC)"
 	@echo "访问地址: http://localhost:28080/datax/"
 
@@ -192,7 +192,7 @@ docker-push: docker-all
 	docker push $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64
 
 	# 创建并推送多架构清单
-	docker manifest create $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest \
+	docker manifest create $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest --amend\
 		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-amd64 \
 		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64
 
@@ -204,18 +204,6 @@ docker-push: docker-all
 
 	# 推送清单
 	docker manifest push $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest
-
-	# 同样为当前版本创建多架构清单
-	docker manifest create $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION) \
-		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-amd64 \
-		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64
-
-	docker manifest annotate $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION) \
-		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-amd64 --os linux --arch amd64
-	docker manifest annotate $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION) \
-		$(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64 --os linux --arch arm64
-
-	docker manifest push $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)
 
 	@echo -e "$(GREEN)多架构 Docker 镜像推送完成$(NC)"
 	@echo -e "$(GREEN)镜像可通过以下方式拉取:$(NC)"
