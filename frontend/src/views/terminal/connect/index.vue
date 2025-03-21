@@ -460,11 +460,6 @@ const toggleFullscreen = () => {
     document.body.classList.remove('terminal-fullscreen-body');
   }
 
-  // 设置页面标题
-  document.title = isFullscreen.value
-    ? `终端全屏 - ${terminalInfo.value?.name || '终端'}`
-    : `终端连接 - ${terminalInfo.value?.name || '终端'}`;
-
   nextTick(() => {
     if (terminal) {
       // 调整字体大小
@@ -512,7 +507,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   // 退出全屏状态
   if (isFullscreen.value) {
-    document.title = '终端连接';
     // 确保移除全屏样式
     document.documentElement.classList.remove('terminal-fullscreen');
     document.body.classList.remove('terminal-fullscreen-body');
