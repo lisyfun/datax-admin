@@ -1,5 +1,5 @@
 <template>
-  <div class="terminal-connect">
+  <div class="terminal-connect" :class="{ 'fullscreen-mode': isFullscreen }">
     <a-card class="terminal-card">
       <template #title>
         <div class="card-title">
@@ -26,6 +26,13 @@
             <template #icon><icon-bug /></template>
             测试连接
           </a-button>
+          <a-button @click="toggleInfoPanel" v-if="connected">
+            <template #icon>
+              <icon-up v-if="showInfoPanel" />
+              <icon-down v-else />
+            </template>
+            {{ showInfoPanel ? '收起信息' : '展开信息' }}
+          </a-button>
           <a-button @click="toggleFullscreen">
             <template #icon><icon-fullscreen /></template>
             {{ isFullscreen ? '退出全屏' : '全屏' }}
@@ -37,7 +44,7 @@
         </a-space>
       </template>
 
-      <div class="terminal-info" v-if="terminalInfo">
+      <div class="terminal-info" v-if="terminalInfo && showInfoPanel" :class="{ 'fullscreen-info': isFullscreen }">
         <a-descriptions :column="2" :data="terminalInfoData" />
       </div>
 
@@ -67,6 +74,8 @@ import {
   IconRobot,
   IconBug,
   IconFullscreen,
+  IconUp,
+  IconDown,
 } from '@arco-design/web-vue/es/icon';
 import type { TerminalInfo } from '@/types/terminal';
 import terminalApi from '@/api/terminal';
@@ -83,11 +92,21 @@ const terminalId = computed(() => Number(route.params.id));
 const terminalInfo = ref<TerminalInfo>();
 const connecting = ref(false);
 const connected = ref(false);
-const isFullscreen = ref(false);
 const canConnect = ref(false);
+const isFullscreen = ref(false);
+const showInfoPanel = ref(true);
 const terminalContainer = ref<HTMLElement>();
 let terminal: Terminal | null = null;
 let socket: WebSocket | null = null;
+let resizeTimer: number | null = null;
+
+// 处理F11键全屏切换
+const handleF11KeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'F11') {
+    e.preventDefault();
+    toggleFullscreen();
+  }
+};
 
 // 终端信息展示数据
 const terminalInfoData = computed(() => {
@@ -163,7 +182,7 @@ const initTerminal = () => {
       background: '#1e1e1e',
       foreground: '#ffffff',
     },
-    fontSize: 14,
+    fontSize: isFullscreen.value ? 16 : 14,
     fontFamily: 'Consolas, JetBrains Mono, Menlo, Monaco, "Courier New", monospace',
     scrollback: 1000,
     convertEol: true,
@@ -178,21 +197,41 @@ const initTerminal = () => {
 
   // 挂载终端
   terminal.open(terminalElement);
+
+  // 调整终端大小
   fitAddon.fit();
+
+  // 全屏模式下调整xterm元素样式
+  if (isFullscreen.value) {
+    const xtermElement = terminalElement.querySelector('.xterm');
+    if (xtermElement) {
+      (xtermElement as HTMLElement).style.height = '100%';
+    }
+  }
 
   // 监听窗口大小变化
   const resizeObserver = new ResizeObserver(() => {
-    fitAddon.fit();
-    // 发送新的终端大小到服务器
-    if (socket?.readyState === WebSocket.OPEN && terminal) {
-      socket.send(JSON.stringify({
-        type: 'resize',
-        data: JSON.stringify({
-          cols: terminal.cols,
-          rows: terminal.rows,
-        }),
-      }));
+    // 防抖动处理
+    if (resizeTimer) {
+      clearTimeout(resizeTimer);
     }
+
+    resizeTimer = window.setTimeout(() => {
+      if (fitAddon) {
+        fitAddon.fit();
+      }
+
+      // 发送新的终端大小到服务器
+      if (socket?.readyState === WebSocket.OPEN && terminal) {
+        socket.send(JSON.stringify({
+          type: 'resize',
+          data: JSON.stringify({
+            cols: terminal.cols,
+            rows: terminal.rows,
+          }),
+        }));
+      }
+    }, 100);
   });
   resizeObserver.observe(terminalContainer.value);
 
@@ -215,6 +254,18 @@ const initTerminal = () => {
       }));
     }
   });
+
+  // 聚焦终端
+  terminal.focus();
+
+  // 全屏模式下需要额外调整布局
+  if (isFullscreen.value && terminal) {
+    setTimeout(() => {
+      const fitAddon = new FitAddon();
+      terminal?.loadAddon(fitAddon);
+      fitAddon.fit();
+    }, 100);
+  }
 };
 
 // 连接终端
@@ -379,9 +430,10 @@ const testWebSocket = async () => {
   }
 };
 
-// 切换全屏
-const toggleFullscreen = () => {
-  isFullscreen.value = !isFullscreen.value;
+// 切换信息面板显示/隐藏
+const toggleInfoPanel = () => {
+  showInfoPanel.value = !showInfoPanel.value;
+
   nextTick(() => {
     if (terminal) {
       const fitAddon = new FitAddon();
@@ -391,18 +443,84 @@ const toggleFullscreen = () => {
   });
 };
 
+// 切换全屏
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value;
+
+  // 全屏模式下默认隐藏信息面板
+  if (isFullscreen.value) {
+    showInfoPanel.value = false;
+    // 添加全屏样式到body和html
+    document.documentElement.classList.add('terminal-fullscreen');
+    document.body.classList.add('terminal-fullscreen-body');
+  } else {
+    showInfoPanel.value = true;
+    // 移除全屏样式
+    document.documentElement.classList.remove('terminal-fullscreen');
+    document.body.classList.remove('terminal-fullscreen-body');
+  }
+
+  // 设置页面标题
+  document.title = isFullscreen.value
+    ? `终端全屏 - ${terminalInfo.value?.name || '终端'}`
+    : `终端连接 - ${terminalInfo.value?.name || '终端'}`;
+
+  nextTick(() => {
+    if (terminal) {
+      // 调整字体大小
+      terminal.options.fontSize = isFullscreen.value ? 16 : 14;
+
+      const fitAddon = new FitAddon();
+      terminal.loadAddon(fitAddon);
+      fitAddon.fit();
+
+      // 全屏模式下调整xterm元素样式
+      const terminalElement = document.getElementById('terminal');
+      if (terminalElement) {
+        const xtermElement = terminalElement.querySelector('.xterm');
+        if (xtermElement) {
+          (xtermElement as HTMLElement).style.height = '100%';
+        }
+      }
+    }
+  });
+};
+
 // 返回列表
 const handleBack = () => {
   router.push('/terminal/list');
 };
 
+// 计算终端容器高度
+const getTerminalHeight = () => {
+  if (isFullscreen.value) {
+    return showInfoPanel.value ? 'calc(100vh - 180px)' : 'calc(100vh - 75px)';
+  } else {
+    return showInfoPanel.value ? '550px' : '650px';
+  }
+};
+
 // 组件挂载
 onMounted(() => {
   fetchTerminalInfo();
+
+  // 监听键盘快捷键 F11 切换全屏
+  window.addEventListener('keydown', handleF11KeyDown);
 });
 
 // 组件卸载前清理
 onBeforeUnmount(() => {
+  // 退出全屏状态
+  if (isFullscreen.value) {
+    document.title = '终端连接';
+    // 确保移除全屏样式
+    document.documentElement.classList.remove('terminal-fullscreen');
+    document.body.classList.remove('terminal-fullscreen-body');
+  }
+
+  // 移除键盘事件监听
+  window.removeEventListener('keydown', handleF11KeyDown);
+
   if (socket) {
     socket.close();
   }
@@ -412,9 +530,130 @@ onBeforeUnmount(() => {
 });
 </script>
 
+<style lang="less">
+// 全局样式
+:global(html.terminal-fullscreen) {
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:global(body.terminal-fullscreen-body) {
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100vh !important;
+  width: 100vw !important;
+
+  .arco-layout {
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .layout-content {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .content-wrapper {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 100vh !important;
+  }
+}
+</style>
+
 <style lang="less" scoped>
 .terminal-connect {
   padding: 16px;
+  transition: padding 0.3s ease;
+
+  :deep(.arco-card) {
+    overflow: hidden;
+  }
+
+  &.fullscreen-mode {
+    padding: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    background-color: var(--color-bg-1);
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+
+    .terminal-card {
+      height: 100vh;
+      border-radius: 0;
+      box-shadow: none;
+      margin: 0;
+      border: none;
+
+      :deep(.arco-card-body) {
+        padding: 0;
+        height: calc(100vh - 45px); // 减去头部高度
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        border: none;
+      }
+
+      :deep(.arco-card-header) {
+        border-bottom-color: var(--color-border-2);
+        background-color: var(--color-bg-2);
+      }
+    }
+
+    .terminal-info {
+      margin: 4px 8px;
+      padding: 8px;
+      flex-shrink: 0;
+    }
+
+    .terminal-container {
+      border-radius: 0;
+      flex: 1;
+      margin: 0;
+      height: auto !important; // 强制使用flex布局的高度
+
+      &.connected {
+        padding: 0;
+      }
+
+      .terminal-content {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background-color: #1e1e1e;
+        padding: 0;
+        margin: 0;
+
+        :deep(.xterm) {
+          height: 100% !important;
+          display: flex;
+          flex-direction: column;
+          padding: 0;
+          margin: 0;
+
+          .xterm-viewport {
+            flex: 1;
+          }
+
+          canvas {
+            padding: 0;
+            margin: 0;
+          }
+        }
+      }
+    }
+  }
 
   .terminal-card {
     :deep(.arco-card-header) {
@@ -443,10 +682,17 @@ onBeforeUnmount(() => {
     padding: 16px;
     background-color: var(--color-fill-2);
     border-radius: 4px;
+    transition: all 0.3s ease;
+
+    &.fullscreen-info {
+      margin-bottom: 8px;
+      padding: 8px 16px;
+      border-radius: 0;
+    }
   }
 
   .terminal-container {
-    height: v-bind('isFullscreen ? "calc(100vh - 200px)" : "500px"');
+    height: v-bind('getTerminalHeight()');
     background-color: #1e1e1e;
     border-radius: 4px;
     overflow: hidden;
@@ -468,6 +714,8 @@ onBeforeUnmount(() => {
     .terminal-content {
       width: 100%;
       height: 100%;
+      display: flex;
+      flex-direction: column;
     }
   }
 }
