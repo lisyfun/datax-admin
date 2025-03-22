@@ -50,8 +50,6 @@ help:
 	@echo "  darwin          构建macOS可执行文件"
 	@echo "  linux-amd64     构建Linux AMD64可执行文件"
 	@echo "  linux-arm64     构建Linux ARM64可执行文件"
-	@echo "  darwin-amd64    构建macOS AMD64可执行文件"
-	@echo "  darwin-arm64    构建macOS ARM64可执行文件"
 	@echo "  run             构建并运行应用"
 	@echo "  help            显示帮助信息"
 	@echo ""
