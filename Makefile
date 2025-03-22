@@ -208,5 +208,4 @@ docker-push: docker-all
 	@echo -e "$(GREEN)多架构 Docker 镜像推送完成$(NC)"
 	@echo -e "$(GREEN)镜像可通过以下方式拉取:$(NC)"
 	@echo "  docker pull $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest"
-	@echo "  docker pull $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)"
 
