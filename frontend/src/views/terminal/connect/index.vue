@@ -26,6 +26,10 @@
             <template #icon><icon-bug /></template>
             测试连接
           </a-button>
+          <a-button type="primary" status="danger" @click="handleDisconnect" v-if="connected">
+            <template #icon><icon-close /></template>
+            关闭连接
+          </a-button>
           <a-button @click="toggleInfoPanel" v-if="connected">
             <template #icon>
               <icon-up v-if="showInfoPanel" />
@@ -76,6 +80,7 @@ import {
   IconFullscreen,
   IconUp,
   IconDown,
+  IconClose,
 } from '@arco-design/web-vue/es/icon';
 import type { TerminalInfo } from '@/types/terminal';
 import terminalApi from '@/api/terminal';
@@ -182,12 +187,12 @@ const initTerminal = () => {
       background: '#1e1e1e',
       foreground: '#ffffff',
     },
-    fontSize: isFullscreen.value ? 16 : 14,
+    fontSize: isFullscreen.value ? 14 : 12,
     fontFamily: 'Consolas, JetBrains Mono, Menlo, Monaco, "Courier New", monospace',
     scrollback: 1000,
     convertEol: true,
-    lineHeight: 1.5,
-    letterSpacing: 0.8,
+    lineHeight: 1.2,
+    letterSpacing: 0.5,
   });
 
   // 添加插件
@@ -353,8 +358,11 @@ const handleConnect = async () => {
 
     socket.onclose = (event) => {
       console.log('WebSocket连接已关闭:', event.code, event.reason);
-      connected.value = false;
-      Message.warning('终端连接已断开');
+      // 只有在非用户主动关闭的情况下才显示断开提示
+      if (event.code !== 1000) {
+        connected.value = false;
+        Message.warning('终端连接已断开');
+      }
     };
 
     socket.onerror = (error) => {
@@ -463,7 +471,7 @@ const toggleFullscreen = () => {
   nextTick(() => {
     if (terminal) {
       // 调整字体大小
-      terminal.options.fontSize = isFullscreen.value ? 16 : 14;
+      terminal.options.fontSize = isFullscreen.value ? 14 : 12;
 
       const fitAddon = new FitAddon();
       terminal.loadAddon(fitAddon);
@@ -493,6 +501,20 @@ const getTerminalHeight = () => {
   } else {
     return showInfoPanel.value ? '550px' : '650px';
   }
+};
+
+// 关闭终端连接
+const handleDisconnect = () => {
+  if (socket) {
+    socket.close(1000, '用户主动关闭连接');
+    socket = null;
+  }
+  if (terminal) {
+    terminal.clear();
+    terminal = null;
+  }
+  connected.value = false;
+  Message.success('终端连接已关闭');
 };
 
 // 组件挂载
