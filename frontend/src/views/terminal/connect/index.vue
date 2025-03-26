@@ -104,6 +104,14 @@ const terminalContainer = ref<HTMLElement>();
 let terminal: Terminal | null = null;
 let socket: WebSocket | null = null;
 let resizeTimer: number | null = null;
+let heartbeatTimer: number | null = null;
+let heartbeatTimeoutTimer: number | null = null;
+let lastHeartbeatTime = 0;
+let reconnectTimer: number | null = null;
+const HEARTBEAT_INTERVAL = 15000; // 15秒发送一次心跳
+const HEARTBEAT_TIMEOUT = 5000; // 5秒没有响应就认为断开
+const RECONNECT_INTERVAL = 3000; // 3秒后尝试重连
+const MAX_RECONNECT_ATTEMPTS = 3; // 最大重连次数
 
 // 处理F11键全屏切换
 const handleF11KeyDown = (e: KeyboardEvent) => {
@@ -321,6 +329,10 @@ const handleConnect = async () => {
     console.log('WebSocket实例已创建');
 
     socket.onopen = () => {
+      console.log('WebSocket连接已建立:', {
+        readyState: socket?.readyState,
+        timestamp: new Date().toISOString()
+      });
       connected.value = true;
       Message.success('终端连接成功');
       terminal?.focus();
@@ -337,11 +349,15 @@ const handleConnect = async () => {
         console.log('发送终端大小数据:', resizeData);
         socket.send(JSON.stringify(resizeData));
       }
+
+      // 启动心跳机制
+      startHeartbeat();
     };
 
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('收到WebSocket消息:', data);
         switch (data.type) {
           case 'output':
             terminal?.write(data.data);
@@ -350,6 +366,13 @@ const handleConnect = async () => {
             console.error('服务器返回错误:', data.data);
             Message.error(data.data);
             break;
+          case 'heartbeat':
+            // 收到心跳响应，更新最后心跳时间
+            lastHeartbeatTime = Date.now();
+            console.log('收到心跳响应，更新时间:', lastHeartbeatTime);
+            break;
+          default:
+            console.log('收到未知类型的消息:', data);
         }
       } catch (error) {
         console.error('解析WebSocket消息失败:', error, event.data);
@@ -357,16 +380,30 @@ const handleConnect = async () => {
     };
 
     socket.onclose = (event) => {
-      console.log('WebSocket连接已关闭:', event.code, event.reason);
-      // 只有在非用户主动关闭的情况下才显示断开提示
+      console.log('WebSocket连接已关闭:', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+        timestamp: new Date().toISOString()
+      });
+
+      // 停止心跳机制
+      stopHeartbeat();
+
+      // 只有在非用户主动关闭的情况下才处理重连
       if (event.code !== 1000) {
         connected.value = false;
-        Message.warning('终端连接已断开');
+        Message.warning('终端连接已断开，正在尝试重新连接...');
+        handleReconnect();
       }
     };
 
     socket.onerror = (error) => {
-      console.error('WebSocket连接错误:', error);
+      console.error('WebSocket连接错误:', {
+        error,
+        readyState: socket?.readyState,
+        timestamp: new Date().toISOString()
+      });
       connected.value = false;
       Message.error('终端连接失败');
     };
@@ -505,6 +542,13 @@ const getTerminalHeight = () => {
 
 // 关闭终端连接
 const handleDisconnect = () => {
+  // 停止心跳机制
+  stopHeartbeat();
+  // 清除重连定时器
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   if (socket) {
     socket.close(1000, '用户主动关闭连接');
     socket = null;
@@ -515,6 +559,115 @@ const handleDisconnect = () => {
   }
   connected.value = false;
   Message.success('终端连接已关闭');
+};
+
+// 发送心跳包
+const sendHeartbeat = () => {
+  if (socket?.readyState === WebSocket.OPEN) {
+    const heartbeatData = {
+      type: 'heartbeat',
+      data: Date.now().toString()
+    };
+    console.log('发送心跳包:', heartbeatData);
+    socket.send(JSON.stringify(heartbeatData));
+    lastHeartbeatTime = Date.now();
+  } else {
+    console.warn('WebSocket未连接，无法发送心跳包');
+  }
+};
+
+// 启动心跳机制
+const startHeartbeat = () => {
+  console.log('启动心跳机制');
+  // 清除可能存在的旧定时器
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+  }
+  if (heartbeatTimeoutTimer) {
+    clearTimeout(heartbeatTimeoutTimer);
+  }
+
+  // 设置心跳定时器
+  heartbeatTimer = window.setInterval(() => {
+    sendHeartbeat();
+  }, HEARTBEAT_INTERVAL);
+
+  // 设置心跳超时检查
+  heartbeatTimeoutTimer = window.setTimeout(() => {
+    const now = Date.now();
+    const timeSinceLastHeartbeat = now - lastHeartbeatTime;
+    console.log('心跳检查:', {
+      now,
+      lastHeartbeatTime,
+      timeSinceLastHeartbeat,
+      timeout: HEARTBEAT_TIMEOUT
+    });
+
+    if (timeSinceLastHeartbeat > HEARTBEAT_TIMEOUT) {
+      console.warn('心跳超时，连接可能已断开');
+      if (socket) {
+        socket.close(1000, '心跳超时');
+      }
+    }
+  }, HEARTBEAT_TIMEOUT);
+};
+
+// 停止心跳机制
+const stopHeartbeat = () => {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+  if (heartbeatTimeoutTimer) {
+    clearTimeout(heartbeatTimeoutTimer);
+    heartbeatTimeoutTimer = null;
+  }
+};
+
+// 添加重连机制
+const handleReconnect = () => {
+  let reconnectAttempts = 0;
+
+  const attemptReconnect = () => {
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      Message.error('重连失败，请手动重新连接');
+      return;
+    }
+
+    reconnectAttempts++;
+    console.log(`尝试重连 (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+
+    // 重新创建WebSocket连接
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.host;
+    const basePath = window.location.pathname.split('/')[1] || '';
+    const wsUrl = `${wsProtocol}//${wsHost}/${basePath ? basePath + '/' : ''}ws/terminals/${terminalId.value}`;
+
+    socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+      console.log('重连成功');
+      connected.value = true;
+      reconnectAttempts = 0;
+      Message.success('终端重新连接成功');
+      terminal?.focus();
+      startHeartbeat();
+    };
+
+    socket.onclose = (event) => {
+      console.log('重连失败:', event.code, event.reason);
+      if (event.code !== 1000) {
+        // 如果不是主动关闭，继续尝试重连
+        setTimeout(attemptReconnect, RECONNECT_INTERVAL);
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error('重连过程中发生错误:', error);
+    };
+  };
+
+  attemptReconnect();
 };
 
 // 组件挂载
@@ -529,13 +682,21 @@ onMounted(() => {
 onBeforeUnmount(() => {
   // 退出全屏状态
   if (isFullscreen.value) {
-    // 确保移除全屏样式
     document.documentElement.classList.remove('terminal-fullscreen');
     document.body.classList.remove('terminal-fullscreen-body');
   }
 
   // 移除键盘事件监听
   window.removeEventListener('keydown', handleF11KeyDown);
+
+  // 停止心跳机制
+  stopHeartbeat();
+
+  // 清除重连定时器
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
 
   if (socket) {
     socket.close();
