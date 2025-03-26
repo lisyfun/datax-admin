@@ -384,16 +384,6 @@ func (s *JobService) executeJob(job *models.Job) {
 		logger.Info("任务执行完成: [%s] (ID: %d), 状态: %d, 耗时: %dms",
 			job.Name, job.ID, history.Status, history.Duration)
 
-		// 如果任务执行失败，更新任务状态为停止
-		if history.Status == 0 {
-			if err := models.DB.Model(job).Update("status", models.JobStatusStop).Error; err != nil {
-				logger.Info("更新任务状态失败: %v\n", err)
-			}
-			// 从调度器中移除任务
-			s.scheduler.Remove(fmt.Sprintf("job_%d", job.ID))
-			logger.Info("由于执行失败，任务 [%s] (ID: %d) 已从调度器中移除\n", job.Name, job.ID)
-		}
-
 		// 添加错误处理和重试逻辑
 		maxRetries := 3
 		for i := 0; i < maxRetries; i++ {
