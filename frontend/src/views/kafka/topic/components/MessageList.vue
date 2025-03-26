@@ -157,14 +157,6 @@
                   重置
                 </a-button>
               </a-tooltip>
-              <a-tooltip content="查看当前偏移量状态">
-                <a-button @click="() => { console.log('当前偏移量状态:', { offset: searchForm.offset, offsetReset: searchForm.offsetReset, topicInfo }) }">
-                  <template #icon>
-                    <icon-info-circle />
-                  </template>
-                  调试
-                </a-button>
-              </a-tooltip>
             </div>
           </div>
         </div>
