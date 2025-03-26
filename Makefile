@@ -58,7 +58,7 @@ help:
 	@echo "  make docker VERSION=v1.0.0"
 	@echo "  make docker-arm64 VERSION=v1.0.0"
 	@echo "  make docker-all VERSION=v1.0.0"
-	@echo "  make docker-push DOCKER_USERNAME=myusername VERSION=v1.0.0"
+	@echo "  make docker-push DOCKER_USERNAME=lisongyu VERSION=v1.0.0"
 	@echo ""
 
 # 创建目录
@@ -188,6 +188,10 @@ docker-push: docker-all
 	# 推送镜像到 Docker Hub
 	docker push $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-amd64
 	docker push $(DOCKER_USERNAME)/$(DOCKER_IMAGE):$(VERSION)-arm64
+
+	# 删除现有的 latest 标签
+	@echo -e "$(YELLOW)删除现有的 latest 标签...$(NC)"
+	docker manifest rm $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest || true
 
 	# 创建并推送多架构清单
 	docker manifest create $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest --amend\
