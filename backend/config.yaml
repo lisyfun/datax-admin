@@ -2,7 +2,7 @@ server:
   port: ":28080"
   mode: release
   base_path: "/"
-  max_file_size: 500 << 20 # 500MB
+  max_file_size: 500  # 500MB
 
 db:
   host: 192.168.228.1

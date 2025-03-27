@@ -49,7 +49,7 @@ func main() {
 	r := gin.New()
 
 	// 设置文件上传大小限制为 500MB
-	r.MaxMultipartMemory = config.GlobalConfig.Server.MaxFileSize
+	r.MaxMultipartMemory = config.GlobalConfig.Server.MaxFileSize << 20
 
 	r.Use(
 		middleware.CustomLogger(),
