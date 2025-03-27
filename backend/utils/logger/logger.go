@@ -66,20 +66,20 @@ func formatLog(level, msg string) string {
 	}
 
 	// 获取项目根目录（go.mod 所在目录）
-    rootDir := getRootDir()
+	rootDir := getRootDir()
 
-    // 将文件路径转换为相对于项目根目录的路径
-    if rootDir != "" && strings.HasPrefix(file, rootDir) {
-        file = strings.TrimPrefix(file, rootDir)
-        file = strings.TrimPrefix(file, "/")
-    } else {
-        file = filepath.Base(file)
-    }
+	// 将文件路径转换为相对于项目根目录的路径
+	if rootDir != "" && strings.HasPrefix(file, rootDir) {
+		file = strings.TrimPrefix(file, rootDir)
+		file = strings.TrimPrefix(file, "/")
+	} else {
+		file = filepath.Base(file)
+	}
 
 	// 格式化日志消息，保持与 Gin 日志格式一致
 	return fmt.Sprintf("%s %s | %+5s | %s:%d | %s ",
 		"[GIN]",
-		time.Now().Format("2006/01/02 - 15:04:05.000"),
+		time.Now().Format("2006/01/02 - 15:04:05"),
 		level,
 		file,
 		line,
@@ -89,24 +89,24 @@ func formatLog(level, msg string) string {
 
 // getRootDir 获取项目根目录
 func getRootDir() string {
-    // 从当前目录开始向上查找 go.mod 文件
-    dir, err := os.Getwd()
-    if err != nil {
-        return ""
-    }
+	// 从当前目录开始向上查找 go.mod 文件
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
 
-    for {
-        if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-            return dir
-        }
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
 
-        parentDir := filepath.Dir(dir)
-        if parentDir == dir {
-            // 已经到达根目录仍未找到 go.mod
-            return ""
-        }
-        dir = parentDir
-    }
+		parentDir := filepath.Dir(dir)
+		if parentDir == dir {
+			// 已经到达根目录仍未找到 go.mod
+			return ""
+		}
+		dir = parentDir
+	}
 }
 
 // Info 记录信息级别的日志

@@ -2,7 +2,6 @@ package main
 
 import (
 	"datax-admin/config"
-	"datax-admin/middleware"
 	"datax-admin/models"
 	"datax-admin/routes"
 	"datax-admin/services"
@@ -46,15 +45,10 @@ func main() {
 	gin.SetMode(config.GlobalConfig.Server.Mode)
 
 	// 创建路由
-	r := gin.New()
+	r := gin.Default()
 
 	// 设置文件上传大小限制为 500MB
 	r.MaxMultipartMemory = config.GlobalConfig.Server.MaxFileSize << 20
-
-	r.Use(
-		middleware.CustomLogger(),
-		gin.Recovery(),
-	)
 
 	// 注册路由
 	routes.SetupRoutes(r)
