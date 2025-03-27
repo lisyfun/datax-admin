@@ -191,11 +191,12 @@ const initTerminal = () => {
       background: '#1e1e1e',
       foreground: '#ffffff',
     },
-    fontSize: isFullscreen.value ? 14 : 12,
-    fontFamily: 'Consolas, JetBrains Mono, Menlo, Monaco, "Courier New", monospace',
+    fontSize: isFullscreen.value ? 16 : 14,
+    fontFamily: 'Consolas, Menlo, Monaco, "Courier New", monospace',
+    fontWeight: 200,
     scrollback: 1000,
     convertEol: true,
-    lineHeight: 1.2,
+    lineHeight: 1.3,
     letterSpacing: 0.5,
   });
 

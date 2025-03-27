@@ -33,6 +33,7 @@
               清理日志
             </a-button>
             <template #content>
+              <a-doption @click="handleClean(7)">清理一周前</a-doption>
               <a-doption @click="handleClean(15)">清理半个月前</a-doption>
               <a-doption @click="handleClean(30)">清理一个月前</a-doption>
               <a-doption @click="handleClean(90)">清理三个月前</a-doption>
