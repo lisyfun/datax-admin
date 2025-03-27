@@ -251,7 +251,11 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 			}
 			err := ws.ReadJSON(&msg)
 			if err != nil {
-				logger.Error("读取WebSocket数据失败: %v", err)
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
+					logger.Error("读取WebSocket数据失败: %v", err)
+				} else {
+					logger.Info("WebSocket连接已关闭: %v", err)
+				}
 				return
 			}
 

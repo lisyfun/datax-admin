@@ -104,12 +104,8 @@ const terminalContainer = ref<HTMLElement>();
 let terminal: Terminal | null = null;
 let socket: WebSocket | null = null;
 let resizeTimer: number | null = null;
-let heartbeatTimer: number | null = null;
-let heartbeatTimeoutTimer: number | null = null;
-let lastHeartbeatTime = 0;
 let reconnectTimer: number | null = null;
-const HEARTBEAT_INTERVAL = 15000; // 15秒发送一次心跳
-const HEARTBEAT_TIMEOUT = 5000; // 5秒没有响应就认为断开
+
 const RECONNECT_INTERVAL = 3000; // 3秒后尝试重连
 const MAX_RECONNECT_ATTEMPTS = 3; // 最大重连次数
 
@@ -349,9 +345,6 @@ const handleConnect = async () => {
         console.log('发送终端大小数据:', resizeData);
         socket.send(JSON.stringify(resizeData));
       }
-
-      // 启动心跳机制
-      startHeartbeat();
     };
 
     socket.onmessage = (event) => {
@@ -365,11 +358,6 @@ const handleConnect = async () => {
           case 'error':
             console.error('服务器返回错误:', data.data);
             Message.error(data.data);
-            break;
-          case 'heartbeat':
-            // 收到心跳响应，更新最后心跳时间
-            lastHeartbeatTime = Date.now();
-            console.log('收到心跳响应，更新时间:', lastHeartbeatTime);
             break;
           default:
             console.log('收到未知类型的消息:', data);
@@ -387,14 +375,16 @@ const handleConnect = async () => {
         timestamp: new Date().toISOString()
       });
 
-      // 停止心跳机制
-      stopHeartbeat();
-
       // 只有在非用户主动关闭的情况下才处理重连
       if (event.code !== 1000) {
         connected.value = false;
         Message.warning('终端连接已断开，正在尝试重新连接...');
         handleReconnect();
+      } else {
+        connected.value = false;
+        if (event.reason !== '用户主动关闭连接') {
+          Message.warning('终端连接已断开');
+        }
       }
     };
 
@@ -542,8 +532,6 @@ const getTerminalHeight = () => {
 
 // 关闭终端连接
 const handleDisconnect = () => {
-  // 停止心跳机制
-  stopHeartbeat();
   // 清除重连定时器
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
@@ -559,69 +547,6 @@ const handleDisconnect = () => {
   }
   connected.value = false;
   Message.success('终端连接已关闭');
-};
-
-// 发送心跳包
-const sendHeartbeat = () => {
-  if (socket?.readyState === WebSocket.OPEN) {
-    const heartbeatData = {
-      type: 'heartbeat',
-      data: Date.now().toString()
-    };
-    console.log('发送心跳包:', heartbeatData);
-    socket.send(JSON.stringify(heartbeatData));
-    lastHeartbeatTime = Date.now();
-  } else {
-    console.warn('WebSocket未连接，无法发送心跳包');
-  }
-};
-
-// 启动心跳机制
-const startHeartbeat = () => {
-  console.log('启动心跳机制');
-  // 清除可能存在的旧定时器
-  if (heartbeatTimer) {
-    clearInterval(heartbeatTimer);
-  }
-  if (heartbeatTimeoutTimer) {
-    clearTimeout(heartbeatTimeoutTimer);
-  }
-
-  // 设置心跳定时器
-  heartbeatTimer = window.setInterval(() => {
-    sendHeartbeat();
-  }, HEARTBEAT_INTERVAL);
-
-  // 设置心跳超时检查
-  heartbeatTimeoutTimer = window.setTimeout(() => {
-    const now = Date.now();
-    const timeSinceLastHeartbeat = now - lastHeartbeatTime;
-    console.log('心跳检查:', {
-      now,
-      lastHeartbeatTime,
-      timeSinceLastHeartbeat,
-      timeout: HEARTBEAT_TIMEOUT
-    });
-
-    if (timeSinceLastHeartbeat > HEARTBEAT_TIMEOUT) {
-      console.warn('心跳超时，连接可能已断开');
-      if (socket) {
-        socket.close(1000, '心跳超时');
-      }
-    }
-  }, HEARTBEAT_TIMEOUT);
-};
-
-// 停止心跳机制
-const stopHeartbeat = () => {
-  if (heartbeatTimer) {
-    clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
-  }
-  if (heartbeatTimeoutTimer) {
-    clearTimeout(heartbeatTimeoutTimer);
-    heartbeatTimeoutTimer = null;
-  }
 };
 
 // 添加重连机制
@@ -651,7 +576,6 @@ const handleReconnect = () => {
       reconnectAttempts = 0;
       Message.success('终端重新连接成功');
       terminal?.focus();
-      startHeartbeat();
     };
 
     socket.onclose = (event) => {
@@ -689,9 +613,6 @@ onBeforeUnmount(() => {
   // 移除键盘事件监听
   window.removeEventListener('keydown', handleF11KeyDown);
 
-  // 停止心跳机制
-  stopHeartbeat();
-
   // 清除重连定时器
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
@@ -699,7 +620,7 @@ onBeforeUnmount(() => {
   }
 
   if (socket) {
-    socket.close();
+    socket.close(1000, '组件卸载');
   }
   if (terminal) {
     terminal.dispose();
