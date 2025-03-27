@@ -1,5 +1,5 @@
 # 第一阶段：最终镜像
-FROM nginx:1.25-alpine
+FROM nginx:1.26-alpine
 
 # 设置工作目录
 WORKDIR /usr/share/nginx/html
