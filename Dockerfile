@@ -9,9 +9,10 @@ ENV TZ=Asia/Shanghai \
     LANG=C.UTF-8
 
 # 安装依赖
-RUN apk add --no-cache tzdata bash curl && \
+RUN apk add --no-cache tzdata bash curl nginx-mod-http-limit-conn nginx-mod-http-limit-req && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    echo "Asia/Shanghai" > /etc/timezone
+    echo "Asia/Shanghai" > /etc/timezone && \
+    mkdir -p /app/logs /app/bin
 
 # 参数定义
 ARG BINARY_NAME=datax-admin
@@ -19,11 +20,13 @@ ARG BINARY_VERSION=linux-amd64
 ARG DATAX_VERSION=linux-amd64
 ARG CONFIG_FILE=./backend/config.yaml
 
-# 创建必要的目录
-RUN mkdir -p /app/logs /app/bin
 
 # 复制前端构建产物
 COPY ./frontend/dist ./
+# 复制错误页面
+COPY ./frontend/404.html ./404.html
+COPY ./frontend/403.html ./403.html
+COPY ./frontend/50x.html ./50x.html
 
 # 复制后端二进制文件和配置
 COPY ./backend/bin/${BINARY_NAME}-${BINARY_VERSION} /app/${BINARY_NAME}
