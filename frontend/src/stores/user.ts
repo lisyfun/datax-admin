@@ -10,7 +10,7 @@ export const useUserStore = defineStore('user', () => {
   async function login(username: string, password: string) {
     const res = await userApi.login({ username, password });
     token.value = res.data.token;
-    localStorage.setItem('token', res.data.token);
+    localStorage.setItem('datax_admin_token', res.data.token);
     await getUserInfo();
   }
 
@@ -35,11 +35,11 @@ export const useUserStore = defineStore('user', () => {
   function logout() {
     token.value = '';
     userInfo.value = null;
-    localStorage.removeItem('token');
+    localStorage.removeItem('datax_admin_token');
   }
 
   // 初始化时从 localStorage 获取 token
-  const storedToken = localStorage.getItem('token');
+  const storedToken = localStorage.getItem('datax_admin_token');
   if (storedToken) {
     token.value = storedToken;
   }

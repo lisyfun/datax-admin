@@ -59,6 +59,6 @@ export function deleteUser(id: number) {
 }
 
 export function logout() {
-  localStorage.removeItem('token');
+  localStorage.removeItem('datax_admin_token');
   return Promise.resolve();
 }

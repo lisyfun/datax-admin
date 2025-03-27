@@ -259,7 +259,7 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('datax_admin_token');
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false);
 
   if (requiresAuth && !token) {

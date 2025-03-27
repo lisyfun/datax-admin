@@ -15,7 +15,7 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('datax_admin_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -37,7 +37,7 @@ request.interceptors.response.use(
       switch (status) {
         case 401:
           Message.error('登录已过期，请重新登录');
-          localStorage.removeItem('token');
+          localStorage.removeItem('datax_admin_token');
           router.push('/login');
           break;
         case 403:

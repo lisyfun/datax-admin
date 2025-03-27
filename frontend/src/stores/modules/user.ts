@@ -8,19 +8,19 @@ interface UserState {
 
 export const useUserStore = defineStore('user', {
   state: (): UserState => ({
-    token: localStorage.getItem('token'),
+    token: localStorage.getItem('datax_admin_token'),
     userInfo: null,
   }),
 
   actions: {
     setToken(token: string) {
       this.token = token;
-      localStorage.setItem('token', token);
+      localStorage.setItem('datax_admin_token', token);
     },
 
     clearToken() {
       this.token = null;
-      localStorage.removeItem('token');
+      localStorage.removeItem('datax_admin_token');
     },
 
     async getUserInfo() {

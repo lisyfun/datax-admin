@@ -138,7 +138,7 @@ const handleSubmit = async () => {
       localStorage.removeItem('username');
     }
 
-    localStorage.setItem('token', res.data.token);
+    localStorage.setItem('datax_admin_token', res.data.token);
     Message.success('登录成功');
     router.push('/');
   } catch (err: any) {
