@@ -4,6 +4,7 @@ import (
 	"datax-admin/services"
 	"datax-admin/types"
 	"datax-admin/utils/logger"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -348,10 +349,9 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 		// 创建目标文件路径
 		destPath := filepath.Join(uploadPath, file.Filename)
 
-		// 通过SFTP上传文件
-		err = sshClient.UploadFile(src, destPath)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "文件上传失败"})
+		// 直接上传文件
+		if err := sshClient.UploadFile(src, destPath); err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("上传文件 %s 失败: %v", file.Filename, err)})
 			return
 		}
 	}
