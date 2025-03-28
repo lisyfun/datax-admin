@@ -671,4 +671,19 @@ onUnmounted(() => {
   letter-spacing: 0.3px;
   line-height: 1.4;
 }
+
+.layout-content {
+  padding: 16px;
+  overflow: auto;
+  background: var(--color-neutral-2);
+  transition: all 0.2s ease;
+  margin-left: v-bind('collapsed ? "64px" : "220px"');
+  margin-top: 64px;
+  height: calc(100vh - 64px);
+}
+
+/* 当侧边栏收起时的样式 */
+.layout-sider.collapsed + .layout-content {
+  margin-left: 64px;
+}
 </style>
