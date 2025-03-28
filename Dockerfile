@@ -9,7 +9,7 @@ ENV TZ=Asia/Shanghai \
     LANG=C.UTF-8
 
 # 安装依赖
-RUN apk add --no-cache tzdata bash curl && \
+RUN apk add --no-cache tzdata bash curl sshpass openssh-client && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo "Asia/Shanghai" > /etc/timezone && \
     mkdir -p /app/logs /app/bin

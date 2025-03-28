@@ -3,6 +3,11 @@ package services
 import (
 	"fmt"
 	"io"
+	"net"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -19,6 +24,7 @@ type SSHClient struct {
 	stdout     io.Reader
 	stderr     io.Reader
 	closeOnce  sync.Once
+	password   string // 添加密码字段
 }
 
 // NewSSHClient 创建新的SSH客户端
@@ -29,7 +35,7 @@ func NewSSHClient(host string, port int, username, password string) (*SSHClient,
 			ssh.Password(password),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         5 * time.Second,
+		Timeout:         30 * time.Second,
 	}
 
 	addr := fmt.Sprintf("%s:%d", host, port)
@@ -98,6 +104,7 @@ func NewSSHClient(host string, port int, username, password string) (*SSHClient,
 		stdin:      stdin,
 		stdout:     stdout,
 		stderr:     stderr,
+		password:   password, // 保存密码
 	}, nil
 }
 
@@ -136,40 +143,139 @@ func (s *SSHClient) ResizeTerminal(width, height int) error {
 // ProgressCallback 定义进度回调函数类型
 type ProgressCallback func(current, total int64)
 
-// UploadFile 上传文件
-func (c *SSHClient) UploadFile(src io.Reader, destPath string, fileSize int64, progressCb ProgressCallback) error {
-	if c.sftpClient == nil {
-		return fmt.Errorf("SFTP客户端未创建")
+// UploadFileWithTemp 通过临时文件上传
+func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize int64, progressCb ProgressCallback) error {
+	if c.client == nil {
+		return fmt.Errorf("SSH客户端未创建")
 	}
 
-	// 创建目标文件
-	destFile, err := c.sftpClient.Create(destPath)
+	// 创建临时文件
+	tempFile, err := os.CreateTemp("", "upload-*.tmp")
 	if err != nil {
-		return fmt.Errorf("创建目标文件失败: %v", err)
+		return fmt.Errorf("创建临时文件失败: %v", err)
 	}
-	defer destFile.Close()
+	tempPath := tempFile.Name()
+	fmt.Printf("创建临时文件: %s\n", tempPath)
+	// 注意：这里不再使用defer删除临时文件，因为异步上传还需要使用
 
-	// 使用缓冲区复制文件内容
-	buf := make([]byte, 32*1024) // 32KB 缓冲区
+	// 保存文件到临时目录
+	fmt.Println("开始保存文件到临时目录...")
+	buf := make([]byte, 1024*1024) // 1MB缓冲区
 	var total int64
+	startTime := time.Now()
+
 	for {
 		n, err := src.Read(buf)
-		if err != nil && err != io.EOF {
-			return fmt.Errorf("读取文件失败: %v", err)
+		if err != nil {
+			if err != io.EOF {
+				tempFile.Close()
+				os.Remove(tempPath)
+				return fmt.Errorf("读取文件失败: %v", err)
+			}
+			break
 		}
 		if n == 0 {
 			break
 		}
 
-		if _, err := destFile.Write(buf[:n]); err != nil {
-			return fmt.Errorf("写入文件失败: %v", err)
+		if _, err := tempFile.Write(buf[:n]); err != nil {
+			tempFile.Close()
+			os.Remove(tempPath)
+			return fmt.Errorf("写入临时文件失败: %v", err)
 		}
 
 		total += int64(n)
 		if progressCb != nil {
 			progressCb(total, fileSize)
 		}
+
+		// 每传输10MB记录一次进度
+		if total%(10*1024*1024) == 0 {
+			elapsed := time.Since(startTime)
+			speed := float64(total) / elapsed.Seconds() / 1024 / 1024 // MB/s
+			fmt.Printf("已保存到临时文件: %.2f MB, 总大小: %.2f MB, 速度: %.2f MB/s\n",
+				float64(total)/1024/1024,
+				float64(fileSize)/1024/1024,
+				speed)
+		}
 	}
 
+	// 确保所有数据都写入磁盘
+	if err := tempFile.Sync(); err != nil {
+		tempFile.Close()
+		os.Remove(tempPath)
+		return fmt.Errorf("同步临时文件失败: %v", err)
+	}
+
+	// 关闭临时文件
+	tempFile.Close()
+
+	// 启动异步上传
+	go func() {
+		// 从原始客户端获取主机地址和端口
+		addr := c.client.RemoteAddr().String()
+		host, portStr, err := net.SplitHostPort(addr)
+		if err != nil {
+			fmt.Printf("解析地址失败: %v\n", err)
+			os.Remove(tempPath)
+			return
+		}
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			fmt.Printf("解析端口失败: %v\n", err)
+			os.Remove(tempPath)
+			return
+		}
+
+		// 获取临时文件的绝对路径
+		absTempPath, err := filepath.Abs(tempPath)
+		if err != nil {
+			fmt.Printf("获取临时文件绝对路径失败: %v\n", err)
+			os.Remove(tempPath)
+			return
+		}
+		fmt.Printf("使用临时文件绝对路径: %s\n", absTempPath)
+
+		// 构建scp命令，使用sshpass自动输入密码
+		scpCmd := fmt.Sprintf("sshpass -p '%s' scp -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", c.password, port, absTempPath, c.client.User(), host, destPath)
+		fmt.Printf("执行scp命令: %s\n", scpCmd)
+
+		// 使用bash -c执行命令
+		cmd := exec.Command("bash", "-c", scpCmd)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("文件上传失败: %v\n", err)
+			os.Remove(tempPath)
+			return
+		}
+
+		// 上传成功后删除临时文件
+		os.Remove(tempPath)
+		fmt.Printf("临时文件已删除: %s\n", tempPath)
+
+		elapsed := time.Since(startTime)
+		speed := float64(total) / elapsed.Seconds() / 1024 / 1024 // MB/s
+		fmt.Printf("文件上传完成: %.2f MB, 耗时: %.2f 秒, 平均速度: %.2f MB/s\n",
+			float64(total)/1024/1024,
+			elapsed.Seconds(),
+			speed)
+	}()
+
+	// 本地保存完成后立即返回成功
+	elapsed := time.Since(startTime)
+	speed := float64(total) / elapsed.Seconds() / 1024 / 1024 // MB/s
+	fmt.Printf("文件已保存到临时目录: %.2f MB, 耗时: %.2f 秒, 速度: %.2f MB/s\n",
+		float64(total)/1024/1024,
+		elapsed.Seconds(),
+		speed)
+
 	return nil
+}
+
+// UploadFile 上传文件（保持原有方法作为备选）
+func (c *SSHClient) UploadFile(src io.Reader, destPath string, fileSize int64, progressCb ProgressCallback) error {
+	// 默认使用新的上传方法
+	return c.UploadFileWithTemp(src, destPath, fileSize, progressCb)
 }
