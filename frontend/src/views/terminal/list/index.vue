@@ -323,7 +323,6 @@
             v-model:file-list="fileList"
             :custom-request="customRequest"
             :drag="true"
-            :auto-upload="false"
             multiple
             @success="handleUploadSuccess"
             @error="handleUploadError"
