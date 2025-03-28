@@ -347,7 +347,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* 菜单整体样式优化 */
+/* 禁用菜单文字选中 */
 :deep(.arco-menu) {
   user-select: none;
   -webkit-user-select: none;
@@ -639,6 +639,30 @@ onUnmounted(() => {
 
 .action-btn:hover .arco-icon {
   transform: rotate(30deg);
+}
+
+/* 菜单项字体优化 */
+:deep(.arco-menu-item) {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+:deep(.arco-menu-item-title) {
+  font-weight: 500;
+}
+
+/* 面包屑字体优化 */
+:deep(.arco-breadcrumb-item) {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* 按钮文字优化 */
+:deep(.arco-btn) {
+  font-weight: 500;
+  letter-spacing: 0.2px;
 }
 
 /* 标题文字优化 */
