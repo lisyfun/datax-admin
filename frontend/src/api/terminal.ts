@@ -6,7 +6,6 @@ import type {
   TerminalListParams,
   TerminalListResponse,
 } from '@/types/terminal';
-import axios from 'axios';
 
 export default {
   // 创建终端
