@@ -7,7 +7,7 @@ DIST_DIR=./bin
 FRONTEND_DIR=./frontend
 DOCKER_IMAGE=datax-admin
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-BUILD_TIME=$(shell date -u '+%Y-%m-%d %H:%M:%S')
+BUILD_TIME=$(shell date '+%Y-%m-%d %H:%M:%S')
 COMMIT_HASH=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 LDFLAGS=-ldflags "-X 'main.Version=$(VERSION)' -X 'main.BuildTime=$(BUILD_TIME)' -X 'main.CommitHash=$(COMMIT_HASH)'"
 # Docker Hub 用户名，可以通过环境变量设置或在命令行传入
