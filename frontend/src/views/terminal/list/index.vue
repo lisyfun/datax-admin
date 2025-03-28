@@ -300,12 +300,11 @@
     <a-modal
       v-model:visible="uploadVisible"
       title="上传文件"
-      @ok="handleUploadSubmit"
       @cancel="handleUploadCancel"
-      :ok-loading="uploadLoading"
       :mask-closable="false"
       :unmount-on-close="true"
-      :width="480"
+      :footer="false"
+      :width="520"
     >
       <a-form :model="{ path: uploadPath }" layout="vertical">
         <a-form-item field="path" label="上传路径">
@@ -322,11 +321,14 @@
         <a-form-item field="files" label="选择文件">
           <a-upload
             v-model:file-list="fileList"
+            :custom-request="customRequest"
             :auto-upload="false"
-            :showUploadButton="true"
+            :drag="true"
             multiple
+            @success="handleUploadSuccess"
+            @error="handleUploadError"
+            @progress="handleUploadProgress"
           >
-
           </a-upload>
         </a-form-item>
       </a-form>
@@ -337,7 +339,7 @@
 <script lang="ts" setup>
 import { ref, reactive, computed } from 'vue';
 import { Message } from '@arco-design/web-vue';
-import type { FileItem, RequestOption } from '@arco-design/web-vue/es/upload/interfaces';
+import type { FileItem, RequestOption, UploadRequest } from '@arco-design/web-vue/es/upload/interfaces';
 import {
   IconPlus,
   IconEdit,
@@ -536,51 +538,57 @@ const handleBatchUpload = () => {
   uploadVisible.value = true;
 };
 
-// 处理文件上传
-const handleUploadSubmit = async () => {
-  if (!selectedKeys.value.length) {
-    Message.warning('请选择要上传的终端');
-    return;
+// 处理文件上传请求
+const customRequest = (option: RequestOption): UploadRequest => {
+  const { fileItem, onProgress, onSuccess, onError } = option;
+  if (!fileItem.file) {
+    onError();
+    return {
+      abort: () => {}
+    };
   }
 
-  if (fileList.value.length === 0) {
-    Message.warning('请选择要上传的文件');
-    return;
-  }
+  const file = fileItem.file;  // 保存一个引用，这样TypeScript就知道file不会是undefined
 
-  try {
-    uploadLoading.value = true;
+  // 准备上传数据
+  const formData = new FormData();
+  formData.append('path', uploadPath.value);
+  formData.append('files', file);
 
-    // 并行上传文件
-    await Promise.all(
-      selectedKeys.value.map(async terminalId => {
-        try {
-          // 准备上传数据
-          const formData = new FormData();
-          formData.append('path', uploadPath.value);
-          fileList.value.forEach(file => {
-            if (file.file) {
-              formData.append('files', file.file);
-            }
-          });
+  // 发送上传请求
+  selectedKeys.value.forEach(async (terminalId) => {
+    try {
+      await terminalApi.uploadFiles(Number(terminalId), formData);
+      onSuccess();
+      Message.success(`文件 ${file.name} 上传成功`);
+    } catch (error) {
+      onError();
+      Message.error(`文件 ${file.name} 上传失败`);
+    }
+  });
 
-          // 发送文件上传请求
-          await terminalApi.uploadFiles(Number(terminalId), formData);
-        } catch (error) {
-          console.error('上传失败:', error);
-          throw error;
-        }
-      })
-    );
+  // 返回一个带有abort方法的对象
+  return {
+    abort: () => {
+      console.log('上传被取消');
+    }
+  };
+};
 
-    Message.success('文件上传成功');
-    uploadVisible.value = false;
-    fileList.value = [];
-  } catch (error) {
-    console.error('上传过程出错:', error);
-    Message.error('文件上传失败');
-  } finally {
-    uploadLoading.value = false;
+// 处理上传成功
+const handleUploadSuccess = (fileItem: FileItem) => {
+  console.log('上传成功:', fileItem);
+};
+
+// 处理上传失败
+const handleUploadError = (fileItem: FileItem) => {
+  console.log('上传失败:', fileItem);
+};
+
+// 处理上传进度
+const handleUploadProgress = (fileItem: FileItem, ev?: ProgressEvent) => {
+  if (ev) {
+    console.log('上传进度:', fileItem, ev);
   }
 };
 
@@ -764,6 +772,39 @@ fetchData();
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+  }
+}
+
+.arco-upload-slide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 150px;
+  border: 2px dashed var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    border-color: rgb(var(--primary-6));
+    background-color: var(--color-fill-2);
+  }
+
+  .arco-upload-slide-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--color-text-3);
+
+    .icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin: 0;
     }
   }
 }

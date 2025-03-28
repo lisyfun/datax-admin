@@ -20,8 +20,4 @@ body {
 #app {
   height: 100%;
 }
-
-.arco-upload-list-item .arco-upload-progress {
-      display: none;
-}
 </style>
