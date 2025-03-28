@@ -322,8 +322,8 @@
           <a-upload
             v-model:file-list="fileList"
             :custom-request="customRequest"
-            :auto-upload="false"
             :drag="true"
+            :auto-upload="false"
             multiple
             @success="handleUploadSuccess"
             @error="handleUploadError"
@@ -331,6 +331,25 @@
           >
           </a-upload>
         </a-form-item>
+        <a-divider v-if="uploadRecords.length > 0">上传记录</a-divider>
+        <div v-if="uploadRecords.length > 0" class="upload-records">
+          <a-list :data="uploadRecords">
+            <template #item="{ item }">
+              <a-list-item>
+                <div class="upload-record-item">
+                  <span class="terminal-name">{{ item.terminalName }}</span>
+                  <span class="file-name">{{ item.fileName }}</span>
+                  <span class="upload-status">
+                    <a-tag :color="getStatusColor(item.status)">
+                      {{ getStatusText(item.status) }}
+                    </a-tag>
+                  </span>
+                  <span v-if="item.message" class="upload-message">{{ item.message }}</span>
+                </div>
+              </a-list-item>
+            </template>
+          </a-list>
+        </div>
       </a-form>
     </a-modal>
   </div>
@@ -375,10 +394,9 @@ const selectedKeys = ref<(string | number)[]>([]);
 const uploadRecords = ref<{
   terminalId: number;
   terminalName: string;
+  fileName: string;
   status: 'uploading' | 'success' | 'error';
   message?: string;
-  progress: number;
-  files: { name: string; progress: number }[];
 }[]>([]);
 const router = useRouter();
 
@@ -538,6 +556,15 @@ const handleBatchUpload = () => {
   uploadVisible.value = true;
 };
 
+// 上传记录类型
+interface UploadRecord {
+  terminalId: number;
+  terminalName: string;
+  fileName: string;
+  status: 'uploading' | 'success' | 'error';
+  message?: string;
+}
+
 // 处理文件上传请求
 const customRequest = (option: RequestOption): UploadRequest => {
   const { fileItem, onProgress, onSuccess, onError } = option;
@@ -548,7 +575,18 @@ const customRequest = (option: RequestOption): UploadRequest => {
     };
   }
 
-  const file = fileItem.file;  // 保存一个引用，这样TypeScript就知道file不会是undefined
+  const file = fileItem.file;
+
+  // 为每个选中的终端创建上传记录
+  selectedKeys.value.forEach(terminalId => {
+    const terminal = tableData.value.find(t => t.id === Number(terminalId));
+    uploadRecords.value.push({
+      terminalId: Number(terminalId),
+      terminalName: terminal?.name || `终端${terminalId}`,
+      fileName: file.name,
+      status: 'uploading'
+    });
+  });
 
   // 准备上传数据
   const formData = new FormData();
@@ -559,15 +597,27 @@ const customRequest = (option: RequestOption): UploadRequest => {
   selectedKeys.value.forEach(async (terminalId) => {
     try {
       await terminalApi.uploadFiles(Number(terminalId), formData);
+      // 更新上传记录状态为成功
+      const record = uploadRecords.value.find(
+        r => r.terminalId === Number(terminalId) && r.fileName === file.name
+      );
+      if (record) {
+        record.status = 'success';
+      }
       onSuccess();
-      Message.success(`文件 ${file.name} 上传成功`);
     } catch (error) {
+      // 更新上传记录状态为失败
+      const record = uploadRecords.value.find(
+        r => r.terminalId === Number(terminalId) && r.fileName === file.name
+      );
+      if (record) {
+        record.status = 'error';
+        record.message = error instanceof Error ? error.message : '上传失败';
+      }
       onError();
-      Message.error(`文件 ${file.name} 上传失败`);
     }
   });
 
-  // 返回一个带有abort方法的对象
   return {
     abort: () => {
       console.log('上传被取消');
@@ -597,6 +647,31 @@ const handleUploadCancel = () => {
   uploadVisible.value = false;
   fileList.value = [];
   uploadPath.value = '/tmp';
+  uploadRecords.value = [];
+};
+
+// 获取状态颜色
+const getStatusColor = (status: 'uploading' | 'success' | 'error') => {
+  switch (status) {
+    case 'uploading':
+      return 'blue';
+    case 'success':
+      return 'green';
+    case 'error':
+      return 'red';
+  }
+};
+
+// 获取状态文本
+const getStatusText = (status: 'uploading' | 'success' | 'error') => {
+  switch (status) {
+    case 'uploading':
+      return '上传中';
+    case 'success':
+      return '成功';
+    case 'error':
+      return '失败';
+  }
 };
 
 // 提交表单
@@ -735,44 +810,32 @@ fetchData();
   display: flex;
   align-items: center;
   width: 100%;
+  gap: 12px;
 
   .terminal-name {
-    flex: 1;
+    flex: 0 0 120px;
     font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-name {
+    flex: 1;
+    color: var(--color-text-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .upload-status {
-    margin: 0 12px;
+    flex: 0 0 auto;
   }
 
   .upload-message {
+    flex: 0 0 auto;
     color: var(--color-text-3);
     font-size: 12px;
-  }
-}
-
-.upload-progress {
-  margin-top: 8px;
-  width: 100%;
-
-  .file-progress-list {
-    margin-top: 4px;
-  }
-
-  .file-progress-item {
-    display: flex;
-    align-items: center;
-    margin-top: 4px;
-    gap: 8px;
-
-    .file-name {
-      flex: 0 1 200px;
-      font-size: 12px;
-      color: var(--color-text-3);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
   }
 }
 
