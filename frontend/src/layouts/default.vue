@@ -325,9 +325,26 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 全局字体设置 */
+:root {
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+  --font-size-base: 14px;
+  --line-height-base: 1.5715;
+}
+
+/* 应用全局字体设置 */
 .layout {
   height: 100vh;
   background-color: var(--color-fill-2);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative;
+  overflow: hidden;
 }
 
 /* 禁用菜单文字选中 */
@@ -347,6 +364,11 @@ onUnmounted(() => {
   box-shadow: 0 1px 4px 0 rgba(0, 21, 41, 0.08);
   z-index: 100;
   transition: all 0.2s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
 }
 
 .header-left {
@@ -372,9 +394,10 @@ onUnmounted(() => {
   margin: 0;
   color: var(--color-text-1);
   font-size: 18px;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
   transition: all 0.2s ease;
+  letter-spacing: 0.3px;
 }
 
 .menu-trigger {
@@ -428,6 +451,8 @@ onUnmounted(() => {
 .username {
   color: var(--color-text-1);
   font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
 }
 
 .layout-sider {
@@ -435,11 +460,16 @@ onUnmounted(() => {
   background: var(--color-bg-2);
   z-index: 99;
   transition: all 0.2s ease;
+  position: fixed;
+  top: 64px;
+  left: 0;
+  bottom: 0;
+  height: calc(100vh - 64px);
 }
 
 :deep(.arco-layout-sider-children) {
   overflow-y: auto;
-  height: calc(100vh - 64px);
+  height: 100%;
 }
 
 .layout-content {
@@ -447,6 +477,9 @@ onUnmounted(() => {
   overflow: auto;
   background: var(--color-neutral-2);
   transition: all 0.2s ease;
+  margin-left: 220px;
+  margin-top: 64px;
+  height: calc(100vh - 64px);
 }
 
 .content-wrapper {
@@ -456,6 +489,14 @@ onUnmounted(() => {
   min-height: calc(100vh - 96px);
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: 0.2px;
+}
+
+/* 当侧边栏收起时的样式 */
+.layout-sider.collapsed + .layout-content {
+  margin-left: 64px;
 }
 
 /* 路由切换动画 */
@@ -565,5 +606,36 @@ onUnmounted(() => {
 
 .action-btn:hover .arco-icon {
   transform: rotate(30deg);
+}
+
+/* 菜单项字体优化 */
+:deep(.arco-menu-item) {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+:deep(.arco-menu-item-title) {
+  font-weight: 500;
+}
+
+/* 面包屑字体优化 */
+:deep(.arco-breadcrumb-item) {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* 按钮文字优化 */
+:deep(.arco-btn) {
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* 标题文字优化 */
+:deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  line-height: 1.4;
 }
 </style>
