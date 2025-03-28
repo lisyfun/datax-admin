@@ -30,6 +30,35 @@
             <template #icon><icon-close /></template>
             关闭连接
           </a-button>
+          <a-divider direction="vertical" />
+          <a-tooltip content="减小字体">
+            <a-button @click="decreaseFontSize" :disabled="!connected">
+              <template #icon><icon-minus /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip content="增大字体">
+            <a-button @click="increaseFontSize" :disabled="!connected">
+              <template #icon><icon-plus /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip :content="isBold ? '使用常规字体' : '使用粗体字体'">
+            <a-button @click="toggleFontWeight" :disabled="!connected">
+              <template #icon><icon-bold /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip content="减小行高">
+            <a-button @click="decreaseLineHeight" :disabled="!connected">
+              <template #icon><icon-line-height /></template>
+              <template #default>-</template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip content="增大行高">
+            <a-button @click="increaseLineHeight" :disabled="!connected">
+              <template #icon><icon-line-height /></template>
+              <template #default>+</template>
+            </a-button>
+          </a-tooltip>
+          <a-divider direction="vertical" />
           <a-button @click="toggleInfoPanel" v-if="connected">
             <template #icon>
               <icon-up v-if="showInfoPanel" />
@@ -81,6 +110,10 @@ import {
   IconUp,
   IconDown,
   IconClose,
+  IconMinus,
+  IconPlus,
+  IconBold,
+  IconLineHeight,
 } from '@arco-design/web-vue/es/icon';
 import type { TerminalInfo } from '@/types/terminal';
 import terminalApi from '@/api/terminal';
@@ -108,6 +141,95 @@ let reconnectTimer: number | null = null;
 
 const RECONNECT_INTERVAL = 3000; // 3秒后尝试重连
 const MAX_RECONNECT_ATTEMPTS = 3; // 最大重连次数
+
+// 字体设置相关
+const fontSize = ref(14);
+const isBold = ref(false);
+const lineHeight = ref(1.3);
+
+// 从本地存储加载字体设置
+const loadFontSettings = () => {
+  if (terminalId.value) {
+    const savedSettings = localStorage.getItem(`terminal_settings_${terminalId.value}`);
+    if (savedSettings) {
+      const settings = JSON.parse(savedSettings);
+      fontSize.value = settings.fontSize || 14;
+      isBold.value = settings.fontWeight === 'bold';
+      lineHeight.value = settings.lineHeight || 1.3;
+    }
+  }
+};
+
+// 保存字体设置到本地存储
+const saveFontSettings = () => {
+  if (terminalId.value) {
+    localStorage.setItem(
+      `terminal_settings_${terminalId.value}`,
+      JSON.stringify({
+        fontSize: fontSize.value,
+        fontWeight: isBold.value ? 'bold' : 'normal',
+        lineHeight: lineHeight.value
+      })
+    );
+  }
+};
+
+// 应用字体设置到终端
+const applyFontSettings = () => {
+  if (terminal) {
+    terminal.options.fontSize = fontSize.value;
+    terminal.options.fontWeight = isBold.value ? 'bold' : 'normal';
+    terminal.options.lineHeight = lineHeight.value;
+
+    // 重新适配终端大小
+    const fitAddon = new FitAddon();
+    terminal.loadAddon(fitAddon);
+    fitAddon.fit();
+  }
+};
+
+// 增大字体
+const increaseFontSize = () => {
+  if (fontSize.value < 32) {
+    fontSize.value += 1;
+    applyFontSettings();
+    saveFontSettings();
+  }
+};
+
+// 减小字体
+const decreaseFontSize = () => {
+  if (fontSize.value > 8) {
+    fontSize.value -= 1;
+    applyFontSettings();
+    saveFontSettings();
+  }
+};
+
+// 切换字体粗细
+const toggleFontWeight = () => {
+  isBold.value = !isBold.value;
+  applyFontSettings();
+  saveFontSettings();
+};
+
+// 增大行高
+const increaseLineHeight = () => {
+  if (lineHeight.value < 2.0) {
+    lineHeight.value = Math.round((lineHeight.value + 0.1) * 10) / 10;
+    applyFontSettings();
+    saveFontSettings();
+  }
+};
+
+// 减小行高
+const decreaseLineHeight = () => {
+  if (lineHeight.value > 1.0) {
+    lineHeight.value = Math.round((lineHeight.value - 0.1) * 10) / 10;
+    applyFontSettings();
+    saveFontSettings();
+  }
+};
 
 // 处理F11键全屏切换
 const handleF11KeyDown = (e: KeyboardEvent) => {
@@ -191,12 +313,12 @@ const initTerminal = () => {
       background: '#1e1e1e',
       foreground: '#ffffff',
     },
-    fontSize: isFullscreen.value ? 16 : 14,
+    fontSize: fontSize.value,
     fontFamily: 'Consolas, Menlo, Monaco, "Courier New", monospace',
-    fontWeight: 200,
+    fontWeight: isBold.value ? 'bold' : 'normal',
     scrollback: 1000,
     convertEol: true,
-    lineHeight: 1.3,
+    lineHeight: lineHeight.value,
     letterSpacing: 0.5,
   });
 
@@ -598,6 +720,7 @@ const handleReconnect = () => {
 // 组件挂载
 onMounted(() => {
   fetchTerminalInfo();
+  loadFontSettings(); // 加载字体设置
 
   // 监听键盘快捷键 F11 切换全屏
   window.addEventListener('keydown', handleF11KeyDown);
@@ -721,7 +844,7 @@ onBeforeUnmount(() => {
       height: auto !important; // 强制使用flex布局的高度
 
       &.connected {
-        padding: 0;
+        padding: 8px 8px 8px 8px;
       }
 
       .terminal-content {
@@ -740,6 +863,7 @@ onBeforeUnmount(() => {
           flex-direction: column;
           padding: 0;
           margin: 0;
+          padding-left: 8px;
 
           .xterm-viewport {
             flex: 1;
@@ -798,7 +922,7 @@ onBeforeUnmount(() => {
     transition: height 0.3s ease;
 
     &.connected {
-      padding: 8px;
+      padding: 8px 8px 8px 8px;
     }
 
     .terminal-placeholder {
@@ -815,7 +939,18 @@ onBeforeUnmount(() => {
       height: 100%;
       display: flex;
       flex-direction: column;
+
+      :deep(.xterm) {
+        padding-left: 8px;
+      }
     }
+  }
+}
+
+// 添加字体控制按钮样式
+:deep(.arco-btn) {
+  &[disabled] {
+    opacity: 0.5;
   }
 }
 </style>

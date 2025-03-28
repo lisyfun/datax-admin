@@ -622,11 +622,12 @@ const handleUploadSubmit = async () => {
       if (record) {
         const fileRecord = record.files.find(f => f.name === fileName);
         if (fileRecord) {
-          // 确保进度不会超过 100%
-          fileRecord.progress = Math.min(100, Math.max(0, progress));
-          // 计算总体进度
-          const totalProgress = record.files.reduce((acc, f) => acc + f.progress, 0);
-          record.progress = Math.min(100, Math.round(totalProgress / record.files.length));
+          // 确保进度在 0-100 之间
+          fileRecord.progress = Math.min(100, Math.max(0, Math.floor(progress)));
+          // 计算总体进度 - 使用所有文件的平均进度
+          record.progress = Math.floor(
+            record.files.reduce((acc, f) => acc + f.progress, 0) / record.files.length
+          );
         }
       }
     };
@@ -877,12 +878,12 @@ fetchData();
     display: flex;
     align-items: center;
     margin-top: 4px;
+    gap: 8px;
 
     .file-name {
-      flex: 1;
+      flex: 0 1 200px;
       font-size: 12px;
       color: var(--color-text-3);
-      margin-right: 8px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
