@@ -47,6 +47,7 @@
         :row-selection="rowSelection"
         @page-change="onPageChange"
         @page-size-change="onPageSizeChange"
+        :scroll="{ x: '100%' }"
       >
         <template #status="{ record }">
           <a-tag :color="record.status === 1 ? 'green' : 'red'">
@@ -65,24 +66,24 @@
           {{ formatDateTime(record.updated_at) }}
         </template>
         <template #operations="{ record }">
-          <a-space>
-            <a-button type="text" size="small" @click="handleEdit(record)">
+          <a-space :size="4">
+            <a-button type="text" size="mini" @click="handleEdit(record)">
               <template #icon><icon-edit /></template>
               编辑
             </a-button>
             <a-button
               type="text"
-              size="small"
+              size="mini"
               status="success"
               @click="handleExecute(record)"
             >
               <template #icon><icon-play-circle /></template>
-              执行一次
+              执行
             </a-button>
             <a-button
               v-if="record.status === 0"
               type="text"
-              size="small"
+              size="mini"
               @click="handleStart(record)"
             >
               <template #icon><icon-play-circle /></template>
@@ -91,7 +92,7 @@
             <a-button
               v-else
               type="text"
-              size="small"
+              size="mini"
               status="warning"
               @click="handleStop(record)"
             >
@@ -100,17 +101,17 @@
             </a-button>
             <a-button
               type="text"
-              size="small"
+              size="mini"
               @click="handleHistory(record)"
             >
               <template #icon><icon-history /></template>
-              执行历史
+              历史
             </a-button>
             <a-popconfirm
               content="确定要删除该任务吗？"
               @ok="handleDelete(record)"
             >
-              <a-button type="text" size="small" status="danger">
+              <a-button type="text" size="mini" status="danger">
                 <template #icon><icon-delete /></template>
                 删除
               </a-button>
@@ -178,43 +179,49 @@ const columns = [
   {
     title: '任务名称',
     dataIndex: 'name',
-    align: 'center' as const,
+    width: 120,
+    align: 'left' as const,
   },
   {
     title: '任务类型',
     dataIndex: 'type',
     slotName: 'type',
+    width: 120,
     align: 'center' as const,
   },
   {
     title: '任务描述',
     dataIndex: 'description',
-    align: 'center' as const,
+    width: 200,
+    align: 'left' as const,
   },
   {
     title: 'Cron 表达式',
     dataIndex: 'cron_expr',
-    width: 200,
+    width: 150,
     align: 'center' as const,
   },
   {
     title: '状态',
     dataIndex: 'status',
     slotName: 'status',
+    width: 100,
     align: 'center' as const,
   },
   {
     title: '创建时间',
     dataIndex: 'created_at',
     slotName: 'created_at',
+    width: 180,
     align: 'center' as const,
   },
   {
     title: '操作',
     dataIndex: 'operations',
     slotName: 'operations',
-    width: 320,
+    width: 300,
     align: 'center' as const,
+    fixed: 'right' as const,
   },
 ];
 
@@ -423,5 +430,39 @@ fetchData();
 <style scoped>
 .jobs {
   padding: 16px;
+}
+
+:deep(.arco-table-tr) {
+  height: 100px;
+}
+
+:deep(.arco-table-td) {
+  padding: 8px !important;
+}
+
+:deep(.arco-table-cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.5;
+}
+
+:deep(.arco-table-cell-align-left) {
+  justify-content: flex-start;
+}
+
+:deep(.arco-space-compact) {
+  display: flex;
+  align-items: center;
+}
+
+:deep(.arco-btn-text) {
+  padding: 0 4px;
+  height: 24px;
+  line-height: 24px;
+}
+
+:deep(.arco-tag) {
+  margin: 0;
 }
 </style>

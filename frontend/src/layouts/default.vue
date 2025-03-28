@@ -149,6 +149,9 @@ const isDarkMode = ref(false);
 const isFullscreen = ref(false);
 const isRefreshing = ref(false);
 
+// 提供collapsed状态给子组件
+provide('collapsed', collapsed);
+
 interface MenuItem {
   key: string;
   title: string;
@@ -686,4 +689,5 @@ onUnmounted(() => {
 .layout-sider.collapsed + .layout-content {
   margin-left: 64px;
 }
+
 </style>

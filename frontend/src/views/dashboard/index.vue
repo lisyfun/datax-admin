@@ -137,7 +137,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, computed, nextTick, inject } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick, inject, watch } from 'vue';
 import {
   IconUser,
   IconUserGroup,
@@ -241,6 +241,7 @@ const systemInfoData = computed(() => [
 
 const chartRef = ref<HTMLElement>();
 let chart: echarts.ECharts | null = null;
+const collapsed = inject('collapsed', ref(false));
 
 const getThemeColor = (cssVar: string) => {
   const el = document.documentElement;
@@ -263,146 +264,84 @@ const getCurrentTheme = () => {
 
 const initChart = () => {
   if (chartRef.value) {
+    console.log('初始化图表，容器宽度:', chartRef.value.offsetWidth);
+    if (chart) {
+      chart.dispose();
+    }
     chart = echarts.init(chartRef.value, getCurrentTheme());
-    window.addEventListener('resize', () => {
+    updateChart();
+
+    const resizeHandler = () => {
       if (chart) {
+        console.log('调整图表大小，容器宽度:', chartRef.value?.offsetWidth);
         chart.resize();
       }
-    });
-    updateChart();
+    };
+
+    window.addEventListener('resize', resizeHandler);
   }
 };
 
 const updateChart = () => {
   if (!chart) return;
 
+  const maxValue = Math.max(...trendData.value.map(item => Math.max(item.successCount, item.failedCount)));
   const option = {
     color: ['#67c23a', '#f56c6c'],
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
       axisPointer: {
-        type: 'line'
+        type: 'cross'
       }
     },
     legend: {
-      data: ['成功', '失败'],
-      top: 10
+      data: ['成功次数', '失败次数'],
+      top: 0
     },
     grid: {
-      left: '8%',
-      right: '5%',
-      bottom: '8%',
-      top: '15%',
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '40px',
       containLabel: true
     },
     xAxis: {
       type: 'category',
-      data: trendData.value.map(item => item.date),
-      axisLabel: {
-        rotate: 0,
-        fontSize: 12,
-        margin: 8
-      },
-      boundaryGap: false
+      boundaryGap: false,
+      data: trendData.value.map(item => item.date)
     },
     yAxis: {
       type: 'value',
-      splitLine: {
-        lineStyle: {
-          type: 'dashed'
-        }
-      },
-      axisLabel: {
-        fontSize: 12
-      },
-      minInterval: 1,
-      min: 0,
-      max: function(value: { max: number }) {
-        return Math.ceil(value.max * 1.1);
-      }
+      max: maxValue > 0 ? Math.ceil(maxValue * 1.0) : 10
     },
     series: [
       {
-        name: '成功',
+        name: '成功次数',
         type: 'line',
         data: trendData.value.map(item => item.successCount),
         smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        itemStyle: {
-          color: '#67c23a'
-        },
-        lineStyle: {
-          width: 2.5,
-          color: '#67c23a'
-        },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [{
-              offset: 0,
-              color: 'rgba(103, 194, 58, 0.3)'
-            }, {
-              offset: 1,
-              color: 'rgba(103, 194, 58, 0.05)'
-            }]
-          }
-        },
-        emphasis: {
-          focus: 'series',
-          lineStyle: {
-            width: 3
-          }
-        },
-        showSymbol: true
+        animation: true,
+        animationDuration: 300,
+        animationEasing: 'cubicInOut'
       },
       {
-        name: '失败',
+        name: '失败次数',
         type: 'line',
         data: trendData.value.map(item => item.failedCount),
         smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        itemStyle: {
-          color: '#f56c6c'
-        },
-        lineStyle: {
-          width: 2.5,
-          color: '#f56c6c'
-        },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [{
-              offset: 0,
-              color: 'rgba(245, 108, 108, 0.3)'
-            }, {
-              offset: 1,
-              color: 'rgba(245, 108, 108, 0.05)'
-            }]
-          }
-        },
-        emphasis: {
-          focus: 'series',
-          lineStyle: {
-            width: 3
-          }
-        },
-        showSymbol: true
+        animation: true,
+        animationDuration: 300,
+        animationEasing: 'cubicInOut'
       }
     ]
   };
 
-  chart.setOption(option, true);
+  chart.setOption(option, {
+    notMerge: false,
+    lazyUpdate: true,
+    silent: true
+  });
 };
 
 // 获取仪表盘数据
@@ -414,7 +353,10 @@ const fetchDashboardData = async () => {
     trendData.value = res.data.trendData;
     systemInfo.value = res.data.systemInfo;
     await nextTick();
-    initChart();
+    // 使用 setTimeout 确保 DOM 完全渲染
+    setTimeout(() => {
+      initChart();
+    }, 300);
   } catch (error) {
     console.error('获取仪表盘数据失败:', error);
   }
@@ -435,15 +377,35 @@ const observer = new MutationObserver(() => {
   }
 });
 
+// 监听侧边栏状态变化
+watch(collapsed, (newValue) => {
+  console.log('侧边栏状态变化:', newValue ? '收起' : '展开');
+  const currentChart = chart;
+  if (currentChart && chartRef.value) {
+    // 使用动画效果调整图表大小
+    setTimeout(() => {
+      if (currentChart) {
+        currentChart.resize();
+        updateChart();
+      }
+    }, 300);
+  }
+}, { immediate: true });
+
 onMounted(() => {
-  fetchDashboardData();
-  // 添加刷新事件监听
-  window.addEventListener('page-refresh', handlePageRefresh);
+  // 确保在 mounted 后再获取数据和初始化图表
+  nextTick(() => {
+    fetchDashboardData();
+  });
+
   // 监听 body 的属性变化
   observer.observe(document.body, {
     attributes: true,
     attributeFilter: ['arco-theme']
   });
+
+  // 添加刷新事件监听
+  window.addEventListener('page-refresh', handlePageRefresh);
 });
 
 onUnmounted(() => {
