@@ -133,8 +133,11 @@ func (s *SSHClient) ResizeTerminal(width, height int) error {
 	return s.session.WindowChange(height, width)
 }
 
+// ProgressCallback 定义进度回调函数类型
+type ProgressCallback func(current, total int64)
+
 // UploadFile 上传文件
-func (c *SSHClient) UploadFile(src io.Reader, destPath string) error {
+func (c *SSHClient) UploadFile(src io.Reader, destPath string, fileSize int64, progressCb ProgressCallback) error {
 	if c.sftpClient == nil {
 		return fmt.Errorf("SFTP客户端未创建")
 	}
@@ -146,10 +149,26 @@ func (c *SSHClient) UploadFile(src io.Reader, destPath string) error {
 	}
 	defer destFile.Close()
 
-	// 复制文件内容
-	_, err = io.Copy(destFile, src)
-	if err != nil {
-		return fmt.Errorf("复制文件失败: %v", err)
+	// 使用缓冲区复制文件内容
+	buf := make([]byte, 32*1024) // 32KB 缓冲区
+	var total int64
+	for {
+		n, err := src.Read(buf)
+		if err != nil && err != io.EOF {
+			return fmt.Errorf("读取文件失败: %v", err)
+		}
+		if n == 0 {
+			break
+		}
+
+		if _, err := destFile.Write(buf[:n]); err != nil {
+			return fmt.Errorf("写入文件失败: %v", err)
+		}
+
+		total += int64(n)
+		if progressCb != nil {
+			progressCb(total, fileSize)
+		}
 	}
 
 	return nil

@@ -58,50 +58,6 @@ export default {
       timeout: 30 * 60 * 1000, // 30分钟超时
       maxContentLength: Infinity, // 不限制响应大小
       maxBodyLength: Infinity, // 不限制请求大小
-      onUploadProgress: (progressEvent: { loaded: number; total?: number }) => {
-        if (!progressEvent.total) return;
-
-        // 获取当前正在上传的文件名
-        const formDataFiles = data.getAll('files') as File[];
-        if (formDataFiles.length === 0) return;
-
-        // 计算总大小和已上传大小的百分比
-        const totalSize = formDataFiles.reduce((acc, file) => acc + file.size, 0);
-        const overallProgress = Math.min(100, Math.round((progressEvent.loaded * 100) / totalSize));
-
-        // 找到当前正在上传的文件
-        let accumulatedSize = 0;
-        let currentFileIndex = 0;
-
-        for (let i = 0; i < formDataFiles.length; i++) {
-          const nextSize = accumulatedSize + formDataFiles[i].size;
-          if (progressEvent.loaded <= nextSize) {
-            currentFileIndex = i;
-            break;
-          }
-          accumulatedSize = nextSize;
-        }
-
-        const currentFile = formDataFiles[currentFileIndex];
-        const currentFileLoaded = progressEvent.loaded - accumulatedSize;
-        const currentFileProgress = Math.min(100, Math.round((currentFileLoaded * 100) / currentFile.size));
-
-        // 触发进度事件
-        const event = new CustomEvent('uploadProgress', {
-          detail: {
-            terminalId: id,
-            fileName: currentFile.name,
-            progress: currentFileProgress
-          }
-        });
-        window.dispatchEvent(event);
-      },
-      cancelToken: new axios.CancelToken((cancel) => {
-        (window as any).uploadCancel = cancel;
-      }),
-      validateStatus: (status: number) => {
-        return status >= 200 && status < 300;
-      }
     });
   },
 };

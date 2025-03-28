@@ -296,20 +296,22 @@
       </template>
     </a-modal>
 
-    <!-- 文件上传对话框 -->
+    <!-- 上传对话框 -->
     <a-modal
       v-model:visible="uploadVisible"
       title="上传文件"
+      @ok="handleUploadSubmit"
       @cancel="handleUploadCancel"
+      :ok-loading="uploadLoading"
       :mask-closable="false"
       :unmount-on-close="true"
-      :width="600"
+      :width="480"
     >
       <a-form :model="{ path: uploadPath }" layout="vertical">
         <a-form-item field="path" label="上传路径">
           <a-input
             v-model="uploadPath"
-            placeholder="请输入文件上传路径"
+            placeholder="请输入上传路径"
             allow-clear
           >
             <template #prefix>
@@ -320,65 +322,14 @@
         <a-form-item field="files" label="选择文件">
           <a-upload
             v-model:file-list="fileList"
-            :custom-request="(options: RequestOption) => ({ abort: () => {} })"
             :auto-upload="false"
+            :showUploadButton="true"
             multiple
           >
-            <template #upload-button>
-              <a-button type="primary">
-                <template #icon>
-                  <icon-upload />
-                </template>
-                选择文件
-              </a-button>
-            </template>
+
           </a-upload>
         </a-form-item>
-        <a-divider v-if="uploadRecords.length > 0">上传记录</a-divider>
-        <div v-if="uploadRecords.length > 0" class="upload-records">
-          <a-list :data="uploadRecords">
-            <template #item="{ item }">
-              <a-list-item>
-                <div class="upload-record-item">
-                  <span class="terminal-name">{{ item.terminalName }}</span>
-                  <span class="upload-status">
-                    <a-tag :color="getStatusColor(item.status)">
-                      {{ getStatusText(item.status) }}
-                    </a-tag>
-                  </span>
-                  <span v-if="item.message" class="upload-message">{{ item.message }}</span>
-                  <div v-if="item.status === 'uploading'" class="upload-progress">
-                    <a-progress :percent="item.progress" size="small" />
-                    <div class="file-progress-list">
-                      <div v-for="(file, index) in item.files" :key="index" class="file-progress-item">
-                        <span class="file-name">{{ file.name }}</span>
-                        <a-progress :percent="Math.min(100, file.progress)" size="mini" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </a-list-item>
-            </template>
-          </a-list>
-        </div>
       </a-form>
-      <template #footer>
-        <div class="modal-footer">
-          <a-space>
-            <a-button @click="handleUploadCancel">
-              {{ uploadLoading ? '取消上传' : '取消' }}
-            </a-button>
-            <a-button
-              type="primary"
-              :loading="uploadLoading"
-              @click="handleUploadSubmit"
-              :disabled="uploadLoading"
-            >
-              {{ uploadLoading ? '上传中...' : '上传' }}
-            </a-button>
-          </a-space>
-        </div>
-      </template>
     </a-modal>
   </div>
 </template>
@@ -600,76 +551,31 @@ const handleUploadSubmit = async () => {
   try {
     uploadLoading.value = true;
 
-    // 初始化上传记录
-    uploadRecords.value = selectedKeys.value.map(id => {
-      const terminal = tableData.value.find(t => t.id === Number(id));
-      return {
-        terminalId: Number(id),
-        terminalName: terminal?.name || `终端${id}`,
-        status: 'uploading',
-        progress: 0,
-        files: fileList.value.map(f => ({
-          name: f.file?.name || '',
-          progress: 0
-        }))
-      };
-    });
+    // 并行上传文件
+    await Promise.all(
+      selectedKeys.value.map(async terminalId => {
+        try {
+          // 准备上传数据
+          const formData = new FormData();
+          formData.append('path', uploadPath.value);
+          fileList.value.forEach(file => {
+            if (file.file) {
+              formData.append('files', file.file);
+            }
+          });
 
-    // 监听上传进度事件
-    const handleProgress = (event: CustomEvent) => {
-      const { terminalId, fileName, progress } = event.detail;
-      const record = uploadRecords.value.find(r => r.terminalId === terminalId);
-      if (record) {
-        const fileRecord = record.files.find(f => f.name === fileName);
-        if (fileRecord) {
-          // 确保进度在 0-100 之间
-          fileRecord.progress = Math.min(100, Math.max(0, Math.floor(progress)));
-          // 计算总体进度 - 使用所有文件的平均进度
-          record.progress = Math.floor(
-            record.files.reduce((acc, f) => acc + f.progress, 0) / record.files.length
-          );
+          // 发送文件上传请求
+          await terminalApi.uploadFiles(Number(terminalId), formData);
+        } catch (error) {
+          console.error('上传失败:', error);
+          throw error;
         }
-      }
-    };
+      })
+    );
 
-    window.addEventListener('uploadProgress', handleProgress as EventListener);
-
-    try {
-      // 并行上传文件
-      await Promise.all(
-        uploadRecords.value.map(async record => {
-          try {
-            const formData = new FormData();
-            formData.append('path', uploadPath.value);
-            fileList.value.forEach(file => {
-              if (file.file) {
-                formData.append('files', file.file);
-              }
-            });
-
-            // 发送文件上传请求
-            await terminalApi.uploadFiles(record.terminalId, formData);
-            record.status = 'success';
-            record.message = '上传成功';
-          } catch (error) {
-            console.error('上传失败:', error);
-            record.status = 'error';
-            record.message = error instanceof Error ? error.message : '上传失败';
-          }
-        })
-      );
-    } finally {
-      // 清理事件监听
-      window.removeEventListener('uploadProgress', handleProgress as EventListener);
-    }
-
-    // 检查是否全部成功
-    const hasError = uploadRecords.value.some(record => record.status === 'error');
-    if (hasError) {
-      Message.warning('部分终端上传失败，请查看详情');
-    } else {
-      Message.success('所有文件上传成功');
-    }
+    Message.success('文件上传成功');
+    uploadVisible.value = false;
+    fileList.value = [];
   } catch (error) {
     console.error('上传过程出错:', error);
     Message.error('文件上传失败');
@@ -678,40 +584,11 @@ const handleUploadSubmit = async () => {
   }
 };
 
-// 获取状态颜色
-const getStatusColor = (status: 'uploading' | 'success' | 'error') => {
-  switch (status) {
-    case 'uploading':
-      return 'blue';
-    case 'success':
-      return 'green';
-    case 'error':
-      return 'red';
-  }
-};
-
-// 获取状态文本
-const getStatusText = (status: 'uploading' | 'success' | 'error') => {
-  switch (status) {
-    case 'uploading':
-      return '上传中';
-    case 'success':
-      return '成功';
-    case 'error':
-      return '失败';
-  }
-};
-
 // 取消上传
 const handleUploadCancel = () => {
-  // 如果有正在进行的上传，则取消
-  if ((window as any).uploadCancel) {
-    (window as any).uploadCancel('用户取消上传');
-  }
   uploadVisible.value = false;
   fileList.value = [];
   uploadPath.value = '/tmp';
-  uploadRecords.value = [];
 };
 
 // 提交表单

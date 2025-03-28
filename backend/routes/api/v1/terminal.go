@@ -2,13 +2,14 @@ package v1
 
 import (
 	"datax-admin/controllers"
+
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterTerminalRoutes 注册终端管理相关路由
 func RegisterTerminalRoutes(authenticated *gin.RouterGroup) {
 	terminalController := controllers.NewTerminalController()
-	
+
 	terminals := authenticated.Group("/terminals")
 	{
 		terminals.POST("", terminalController.CreateTerminal)
@@ -26,6 +27,6 @@ func RegisterTerminalRoutes(authenticated *gin.RouterGroup) {
 // RegisterWebSocketRoutes 注册WebSocket相关路由
 func RegisterWebSocketRoutes(wsGroup *gin.RouterGroup) {
 	terminalController := controllers.NewTerminalController()
-	
+
 	wsGroup.GET("/terminals/:id", terminalController.ConnectTerminal)
 }

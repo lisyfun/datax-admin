@@ -4,14 +4,13 @@ import (
 	"datax-admin/services"
 	"datax-admin/types"
 	"datax-admin/utils/logger"
-	"fmt"
 	"io"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"time"
 
 	"encoding/json"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -25,7 +24,7 @@ type TerminalController struct {
 // NewTerminalController 创建终端控制器
 func NewTerminalController() *TerminalController {
 	return &TerminalController{
-		terminalService: &services.TerminalService{},
+		terminalService: services.NewTerminalService(),
 	}
 }
 
@@ -295,15 +294,14 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 
 // UploadFiles 上传文件到终端
 func (c *TerminalController) UploadFiles(ctx *gin.Context) {
-	// 获取终端ID
-	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	terminalID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的终端ID"})
 		return
 	}
 
 	// 获取终端信息
-	terminal, err := c.terminalService.GetTerminalByID(uint(id))
+	terminal, err := c.terminalService.GetTerminalByID(uint(terminalID))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -315,16 +313,16 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 		uploadPath = "/tmp"
 	}
 
-	// 获取上传的文件
+	// 获取文件
 	form, err := ctx.MultipartForm()
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "获取上传文件失败"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的文件上传请求"})
 		return
 	}
 
 	files := form.File["files"]
 	if len(files) == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "没有选择要上传的文件"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "未选择文件"})
 		return
 	}
 
@@ -336,22 +334,33 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 	}
 	defer sshClient.Close()
 
+	// 设置最大文件大小限制 (1GB)
+	const maxFileSize = 1 * 1024 * 1024 * 1024
+
 	// 上传文件
 	for _, file := range files {
+		if file.Size > maxFileSize {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error": "文件大小超过限制(1GB)",
+			})
+			return
+		}
+
 		// 打开文件
 		src, err := file.Open()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "打开文件失败"})
 			return
 		}
-		defer src.Close()
 
 		// 创建目标文件路径
 		destPath := filepath.Join(uploadPath, file.Filename)
 
-		// 直接上传文件
-		if err := sshClient.UploadFile(src, destPath); err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("上传文件 %s 失败: %v", file.Filename, err)})
+		// 上传文件
+		err = sshClient.UploadFile(src, destPath, file.Size, nil)
+		src.Close()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "文件上传失败"})
 			return
 		}
 	}

@@ -6,11 +6,39 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 // TerminalService 终端服务
-type TerminalService struct{}
+type TerminalService struct {
+}
+
+// NewTerminalService 创建终端服务
+func NewTerminalService() *TerminalService {
+	return &TerminalService{}
+}
+
+// GetUploadProgressChan 获取上传进度通道
+func (s *TerminalService) GetUploadProgressChan(terminalID uint) chan gin.H {
+	// This method is removed as per the instructions
+	return nil
+}
+
+// UpdateUploadProgress 更新上传进度
+func (s *TerminalService) UpdateUploadProgress(terminalID uint, progress gin.H) {
+	// This method is removed as per the instructions
+}
+
+// CreateUploadProgressChan 创建上传进度通道
+func (s *TerminalService) CreateUploadProgressChan(terminalID uint) {
+	// This method is removed as per the instructions
+}
+
+// RemoveUploadProgressChan 移除上传进度通道
+func (s *TerminalService) RemoveUploadProgressChan(terminalID uint) {
+	// This method is removed as per the instructions
+}
 
 // CreateTerminal 创建终端
 func (s *TerminalService) CreateTerminal(req *types.CreateTerminalRequest) error {
