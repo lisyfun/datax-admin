@@ -22,6 +22,7 @@ export default defineConfig({
         target: 'ws://localhost:28080',
         ws: true,
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/datax/, ''),
       },
     },
   },
