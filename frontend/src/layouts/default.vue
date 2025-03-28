@@ -347,12 +347,45 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* 禁用菜单文字选中 */
+/* 菜单整体样式优化 */
 :deep(.arco-menu) {
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+}
+
+:deep(.arco-menu-item),
+:deep(.arco-sub-menu-title),
+:deep(.arco-menu-title),
+:deep(.arco-breadcrumb) {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  height: 45px;
+  line-height: 45px;
+}
+
+:deep(.arco-menu-icon),
+:deep(.arco-sub-menu-icon),
+:deep(.arco-menu-item-icon) {
+  font-size: 17px;
+  stroke-width: 3;
+  stroke: currentColor;
+}
+
+:deep(.arco-menu-selected) {
+  font-weight: 600 !important;
+  background-color: var(--color-fill-2) !important;
+}
+
+:deep(.arco-menu-item:hover),
+:deep(.arco-sub-menu-title:hover) {
+  background-color: var(--color-fill-2) !important;
+}
+
+:deep(.arco-menu-light .arco-menu-selected) {
+  background-color: var(--color-fill-2) !important;
 }
 
 .header {
@@ -606,30 +639,6 @@ onUnmounted(() => {
 
 .action-btn:hover .arco-icon {
   transform: rotate(30deg);
-}
-
-/* 菜单项字体优化 */
-:deep(.arco-menu-item) {
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.2px;
-}
-
-:deep(.arco-menu-item-title) {
-  font-weight: 500;
-}
-
-/* 面包屑字体优化 */
-:deep(.arco-breadcrumb-item) {
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.2px;
-}
-
-/* 按钮文字优化 */
-:deep(.arco-btn) {
-  font-weight: 500;
-  letter-spacing: 0.2px;
 }
 
 /* 标题文字优化 */
