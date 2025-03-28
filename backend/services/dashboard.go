@@ -352,7 +352,7 @@ func (s *DashboardService) getRecentLogins() ([]types.RecentLogin, error) {
 	if err := models.DB.Model(&models.LoginLog{}).
 		Select("username, login_time, ip").
 		Order("login_time desc").
-		Limit(10).
+		Limit(6).
 		Find(&loginLogs).Error; err != nil {
 		return nil, err
 	}
