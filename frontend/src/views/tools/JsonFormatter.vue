@@ -229,8 +229,8 @@ watch(treeData, () => {
 }
 
 .content-area {
-  height: calc(100vh - 250px);
-  min-height: 500px;
+  height: calc(100vh - 300px);
+  min-height: 400px;
 }
 
 .input-area {
