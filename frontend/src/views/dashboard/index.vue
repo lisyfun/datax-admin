@@ -514,18 +514,27 @@ onUnmounted(() => {
   border-radius: 8px;
 }
 
-.chart-container {
-  height: 360px;
-  width: 100%;
-  min-height: 360px;
-  padding: 0 0 16px 0;
-}
-
 .chart-card {
   height: 100%;
   min-height: 420px;
   background-color: var(--color-bg-2);
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.arco-card-body) {
+  flex: 1;
+  padding: 16px 16px 16px 16px;
+  height: calc(100% - 52px);
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-container {
+  flex: 1;
+  width: 100%;
+  min-height: 360px;
 }
 
 .list-card {
