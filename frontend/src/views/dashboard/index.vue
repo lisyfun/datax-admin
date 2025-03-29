@@ -269,6 +269,82 @@ const initChart = () => {
       chart.dispose();
     }
     chart = echarts.init(chartRef.value, getCurrentTheme());
+
+    // 设置初始配置
+    const initialOption = {
+      color: ['#67c23a', '#f56c6c'],
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'cross'
+        }
+      },
+      legend: {
+        data: ['成功次数', '失败次数'],
+        top: 0
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        top: '40px',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: []
+      },
+      yAxis: {
+        type: 'value',
+        min: 0,
+        max: 10,
+        minInterval: 1,
+        splitNumber: 5,
+        axisLabel: {
+          formatter: '{value}'
+        }
+      },
+      series: [
+        {
+          name: '成功次数',
+          type: 'line',
+          data: [],
+          smooth: true,
+          animation: true,
+          animationDuration: 300,
+          animationEasing: 'cubicInOut',
+          symbol: 'circle',
+          symbolSize: 6,
+          lineStyle: {
+            width: 2
+          },
+          areaStyle: {
+            opacity: 0.1
+          }
+        },
+        {
+          name: '失败次数',
+          type: 'line',
+          data: [],
+          smooth: true,
+          animation: true,
+          animationDuration: 300,
+          animationEasing: 'cubicInOut',
+          symbol: 'circle',
+          symbolSize: 6,
+          lineStyle: {
+            width: 2
+          },
+          areaStyle: {
+            opacity: 0.1
+          }
+        }
+      ]
+    };
+
+    chart.setOption(initialOption);
     updateChart();
 
     const resizeHandler = () => {
@@ -285,7 +361,10 @@ const initChart = () => {
 const updateChart = () => {
   if (!chart) return;
 
+  // 计算最大值，并添加 20% 的缓冲空间
   const maxValue = Math.max(...trendData.value.map(item => Math.max(item.successCount, item.failedCount)));
+  const yAxisMax = Math.max(10, Math.ceil(maxValue * 1.2)); // 确保最小值为10，并增加20%缓冲
+
   const option = {
     color: ['#67c23a', '#f56c6c'],
     backgroundColor: 'transparent',
@@ -313,7 +392,13 @@ const updateChart = () => {
     },
     yAxis: {
       type: 'value',
-      max: maxValue > 0 ? Math.ceil(maxValue * 1.0) : 10
+      min: 0,
+      max: yAxisMax,
+      minInterval: 1,
+      splitNumber: 5,
+      axisLabel: {
+        formatter: '{value}'
+      }
     },
     series: [
       {
@@ -323,7 +408,15 @@ const updateChart = () => {
         smooth: true,
         animation: true,
         animationDuration: 300,
-        animationEasing: 'cubicInOut'
+        animationEasing: 'cubicInOut',
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: {
+          width: 2
+        },
+        areaStyle: {
+          opacity: 0.1
+        }
       },
       {
         name: '失败次数',
@@ -332,7 +425,15 @@ const updateChart = () => {
         smooth: true,
         animation: true,
         animationDuration: 300,
-        animationEasing: 'cubicInOut'
+        animationEasing: 'cubicInOut',
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: {
+          width: 2
+        },
+        areaStyle: {
+          opacity: 0.1
+        }
       }
     ]
   };
@@ -382,12 +483,87 @@ watch(collapsed, (newValue) => {
   console.log('侧边栏状态变化:', newValue ? '收起' : '展开');
   const currentChart = chart;
   if (currentChart && chartRef.value) {
-    // 使用动画效果调整图表大小
+    // 先销毁当前图表实例
+    currentChart.dispose();
+    // 重新初始化图表
     setTimeout(() => {
-      if (currentChart) {
-        currentChart.resize();
-        updateChart();
-      }
+      chart = echarts.init(chartRef.value, getCurrentTheme());
+      // 设置初始配置
+      const initialOption = {
+        color: ['#67c23a', '#f56c6c'],
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'cross'
+          }
+        },
+        legend: {
+          data: ['成功次数', '失败次数'],
+          top: 0
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '3%',
+          top: '40px',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          boundaryGap: false,
+          data: []
+        },
+        yAxis: {
+          type: 'value',
+          min: 0,
+          max: 10,
+          minInterval: 1,
+          splitNumber: 5,
+          axisLabel: {
+            formatter: '{value}'
+          }
+        },
+        series: [
+          {
+            name: '成功次数',
+            type: 'line',
+            data: [],
+            smooth: true,
+            animation: true,
+            animationDuration: 300,
+            animationEasing: 'cubicInOut',
+            symbol: 'circle',
+            symbolSize: 6,
+            lineStyle: {
+              width: 2
+            },
+            areaStyle: {
+              opacity: 0.1
+            }
+          },
+          {
+            name: '失败次数',
+            type: 'line',
+            data: [],
+            smooth: true,
+            animation: true,
+            animationDuration: 300,
+            animationEasing: 'cubicInOut',
+            symbol: 'circle',
+            symbolSize: 6,
+            lineStyle: {
+              width: 2
+            },
+            areaStyle: {
+              opacity: 0.1
+            }
+          }
+        ]
+      };
+      chart.setOption(initialOption);
+      // 更新数据
+      updateChart();
     }, 300);
   }
 }, { immediate: true });
