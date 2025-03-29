@@ -268,7 +268,11 @@ const initChart = () => {
     if (chart) {
       chart.dispose();
     }
-    chart = echarts.init(chartRef.value, getCurrentTheme());
+    chart = echarts.init(chartRef.value, getCurrentTheme(), {
+      renderer: 'canvas',
+      useDirtyRect: true,
+      devicePixelRatio: window.devicePixelRatio
+    });
 
     // 设置初始配置
     const initialOption = {
@@ -291,6 +295,16 @@ const initChart = () => {
         top: '40px',
         containLabel: true
       },
+      dataZoom: [
+        {
+          type: 'inside',
+          start: 0,
+          end: 100,
+          zoomOnMouseWheel: 'shift',
+          moveOnMouseMove: true,
+          preventDefaultMouseMove: false
+        }
+      ],
       xAxis: {
         type: 'category',
         boundaryGap: false,
@@ -354,7 +368,7 @@ const initChart = () => {
       }
     };
 
-    window.addEventListener('resize', resizeHandler);
+    window.addEventListener('resize', resizeHandler, { passive: true });
   }
 };
 
@@ -483,11 +497,13 @@ watch(collapsed, (newValue) => {
   console.log('侧边栏状态变化:', newValue ? '收起' : '展开');
   const currentChart = chart;
   if (currentChart && chartRef.value) {
-    // 先销毁当前图表实例
     currentChart.dispose();
-    // 重新初始化图表
     setTimeout(() => {
-      chart = echarts.init(chartRef.value, getCurrentTheme());
+      chart = echarts.init(chartRef.value, getCurrentTheme(), {
+        renderer: 'canvas',
+        useDirtyRect: true,
+        devicePixelRatio: window.devicePixelRatio
+      });
       // 设置初始配置
       const initialOption = {
         color: ['#67c23a', '#f56c6c'],
@@ -509,6 +525,16 @@ watch(collapsed, (newValue) => {
           top: '40px',
           containLabel: true
         },
+        dataZoom: [
+          {
+            type: 'inside',
+            start: 0,
+            end: 100,
+            zoomOnMouseWheel: 'shift',
+            moveOnMouseMove: true,
+            preventDefaultMouseMove: false
+          }
+        ],
         xAxis: {
           type: 'category',
           boundaryGap: false,

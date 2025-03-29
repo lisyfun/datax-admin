@@ -7,6 +7,7 @@ import App from './App.vue'
 
 import '@arco-design/web-vue/dist/arco.css'
 import './styles/index.css'
+import 'default-passive-events'
 
 const app = createApp(App)
 
