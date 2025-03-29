@@ -41,7 +41,7 @@ help:
 	@echo "  build           构建后端可执行文件 (当前平台)"
 	@echo "  build-frontend  构建前端"
 	@echo "  clean           清理构建产物"
-	@echo "  test            运行测试"
+	@echo "  run             运行应用"
 	@echo "  docker          构建Docker镜像 (AMD64)"
 	@echo "  docker-arm64    构建Docker镜像 (ARM64)"
 	@echo "  docker-all      构建所有架构的Docker镜像"
@@ -73,11 +73,24 @@ clean:
 	@echo -e "$(GREEN)清理完成$(NC)"
 
 # 测试
-.PHONY: test
-test:
-	@echo -e "$(YELLOW)运行测试...$(NC)"
-	cd $(MAIN_PACKAGE) && go test -v ./...
-	@echo -e "$(GREEN)测试完成$(NC)"
+
+# 运行应用（前端和后端）
+.PHONY: run
+run:
+	@echo -e "$(YELLOW)启动前端服务...$(NC)"
+	cd $(FRONTEND_DIR) && \
+	if command -v pnpm > /dev/null; then \
+		pnpm dev & \
+	else \
+		npm run dev & \
+	fi
+	@echo -e "$(YELLOW)启动后端服务...$(NC)"
+	cd $(MAIN_PACKAGE) && go run main.go
+	@echo -e "$(GREEN)服务已启动$(NC)"
+	@echo -e "$(GREEN)前端访问地址: http://localhost:3000$(NC)"
+	@echo -e "$(GREEN)后端访问地址: http://localhost:28080$(NC)"
+
+
 
 # 构建前端
 .PHONY: build-frontend
@@ -210,4 +223,3 @@ docker-push: docker-all
 	@echo -e "$(GREEN)多架构 Docker 镜像推送完成$(NC)"
 	@echo -e "$(GREEN)镜像可通过以下方式拉取:$(NC)"
 	@echo "  docker pull $(DOCKER_USERNAME)/$(DOCKER_IMAGE):latest"
-
