@@ -59,8 +59,10 @@
         class="layout-sider"
         :collapsed="collapsed"
         :width="220"
+        :collapsed-width="70"
         :hide-trigger="true"
         breakpoint="xl"
+        :style="{ width: collapsed ? '70px' : '220px' }"
       >
         <a-menu
           :selected-keys="selectedKeys"
@@ -506,6 +508,47 @@ onUnmounted(() => {
 :deep(.arco-layout-sider-children) {
   overflow-y: auto;
   height: 100%;
+  width: 100% !important;
+}
+
+:deep(.arco-menu) {
+  width: 100% !important;
+}
+
+:deep(.arco-menu-collapse) {
+  width: 100% !important;
+
+  .arco-menu-item,
+  .arco-menu-item-inner,
+  .arco-sub-menu-title {
+    padding: 0 !important;
+    justify-content: center;
+    width: 100%;
+  }
+
+}
+
+
+/* 基础菜单样式 */
+:deep(.arco-menu-item),
+:deep(.arco-sub-menu-title) {
+  display: flex;
+  align-items: center;
+  height: 45px;
+  line-height: 45px;
+  text-align: left;
+}
+
+:deep(.arco-menu-item-inner) {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+:deep(.arco-menu-title) {
+  text-align: left;
+  justify-content: flex-start;
 }
 
 .layout-content {
