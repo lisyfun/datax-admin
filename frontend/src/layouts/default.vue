@@ -59,10 +59,9 @@
         class="layout-sider"
         :collapsed="collapsed"
         :width="220"
-        :collapsed-width="64"
+        :collapsed-width="50"
         :hide-trigger="true"
-        breakpoint="xl"
-        :style="{ width: collapsed ? '64px' : '220px' }"
+        breakpoint="xxl"
       >
         <a-menu
           :selected-keys="selectedKeys"
@@ -575,7 +574,7 @@ onUnmounted(() => {
 
 /* 当侧边栏收起时的样式 */
 .layout-sider.collapsed + .layout-content {
-  margin-left: 64px;
+  margin-left: 50px;
 }
 
 /* 路由切换动画 */
@@ -723,15 +722,15 @@ onUnmounted(() => {
   overflow: auto;
   background: var(--color-neutral-2);
   transition: all 0.2s ease;
-  margin-left: v-bind('collapsed ? "64px" : "220px"');
+  margin-left: v-bind('collapsed ? "50px" : "220px"');
   margin-top: 64px;
   height: calc(100vh - 64px);
 }
 
 /* 当侧边栏收起时的样式 */
-.layout-sider.collapsed + .layout-content {
+/* .layout-sider.collapsed + .layout-content {
   margin-left: 64px;
-}
+} */
 
 .arco-menu-inner + .arco-menu-has-icon{
   padding-left: 22px;
