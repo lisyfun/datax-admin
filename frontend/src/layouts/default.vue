@@ -59,10 +59,10 @@
         class="layout-sider"
         :collapsed="collapsed"
         :width="220"
-        :collapsed-width="70"
+        :collapsed-width="64"
         :hide-trigger="true"
         breakpoint="xl"
-        :style="{ width: collapsed ? '70px' : '220px' }"
+        :style="{ width: collapsed ? '64px' : '220px' }"
       >
         <a-menu
           :selected-keys="selectedKeys"
@@ -731,6 +731,10 @@ onUnmounted(() => {
 /* 当侧边栏收起时的样式 */
 .layout-sider.collapsed + .layout-content {
   margin-left: 64px;
+}
+
+.arco-menu-inner + .arco-menu-has-icon{
+  padding-left: 22px;
 }
 
 </style>
