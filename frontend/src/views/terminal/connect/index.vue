@@ -37,11 +37,6 @@
               <template #icon><icon-plus /></template>
             </a-button>
           </a-tooltip>
-          <a-tooltip :content="isBold ? '使用常规字体' : '使用粗体字体'">
-            <a-button @click="toggleFontWeight" :disabled="!connected">
-              <template #icon><icon-bold /></template>
-            </a-button>
-          </a-tooltip>
           <a-tooltip content="减小行高">
             <a-button @click="decreaseLineHeight" :disabled="!connected">
               <template #icon><icon-line-height /></template>
