@@ -17,14 +17,10 @@
             status="success"
             @click="handleConnect"
             :loading="connecting"
-            :disabled="!canConnect || connected"
+            :disabled="connecting || !terminalInfo"
           >
             <template #icon><icon-play-circle /></template>
-            {{ connected ? '重新连接' : '连接' }}
-          </a-button>
-          <a-button type="primary" @click="testWebSocket" :disabled="connecting">
-            <template #icon><icon-bug /></template>
-            测试连接
+            连接
           </a-button>
           <a-button type="primary" status="danger" @click="handleDisconnect" v-if="connected">
             <template #icon><icon-close /></template>
@@ -402,8 +398,8 @@ const initTerminal = () => {
 
 // 连接终端
 const handleConnect = async () => {
-  if (!terminalInfo.value || !canConnect.value) {
-    console.error('终端信息未获取到或未通过连接测试');
+  if (!terminalInfo.value) {
+    console.error('终端信息未获取到');
     return;
   }
 
@@ -411,19 +407,31 @@ const handleConnect = async () => {
     connecting.value = true;
     console.log('终端信息:', terminalInfo.value);
 
+    // 如果已经连接，先断开现有连接
+    if (connected.value) {
+      if (socket) {
+        socket.close(1000, '重新连接');
+      }
+      if (terminal) {
+        terminal.clear();
+        terminal.dispose();
+        terminal = null;
+      }
+      connected.value = false;
+      await nextTick();
+    }
+
     // 先设置连接状态，让DOM元素显示出来
     connected.value = true;
 
     // 等待DOM更新
     await nextTick();
 
-    // 初始化终端
+    // 重新初始化终端
+    console.log('初始化终端实例');
+    initTerminal();
     if (!terminal) {
-      console.log('初始化终端实例');
-      initTerminal();
-      if (!terminal) {
-        throw new Error('终端初始化失败');
-      }
+      throw new Error('终端初始化失败');
     }
 
     // 关闭已存在的连接
@@ -435,12 +443,9 @@ const handleConnect = async () => {
     // 动态构建WebSocket URL
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsHost = window.location.host;
-    // 获取基础路径，例如 /datax
     const basePath = window.location.pathname.split('/')[1] || '';
     const wsUrl = `${wsProtocol}//${wsHost}/${basePath ? basePath + '/' : ''}ws/terminals/${terminalId.value}`;
 
-    console.log('当前页面 URL:', window.location.href);
-    console.log('基础路径:', basePath);
     console.log('WebSocket连接URL:', wsUrl);
     console.log('终端ID:', terminalId.value);
 
@@ -527,64 +532,6 @@ const handleConnect = async () => {
     connected.value = false;  // 连接失败时重置状态
   } finally {
     connecting.value = false;
-  }
-};
-
-// 测试WebSocket连接
-const testWebSocket = async () => {
-  try {
-    if (!terminalInfo.value) {
-      Message.error('终端信息未获取到');
-      return;
-    }
-
-    // 动态构建WebSocket URL
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = window.location.host;
-    // 获取基础路径，例如 /datax
-    const basePath = window.location.pathname.split('/')[1] || '';
-    const wsUrl = `${wsProtocol}//${wsHost}/${basePath ? basePath + '/' : ''}ws/terminals/${terminalId.value}`;
-
-    // 创建测试连接
-    const testSocket = new WebSocket(wsUrl);
-
-    testSocket.onopen = () => {
-      Message.success('WebSocket连接测试成功');
-      canConnect.value = true;
-      // 发送一个测试消息
-      testSocket.send(JSON.stringify({ type: 'test', data: 'test connection' }));
-      setTimeout(() => {
-        testSocket.close(1000, '测试完成');
-      }, 1000);
-    };
-
-    testSocket.onerror = (event: Event) => {
-      canConnect.value = false;
-      const wsEvent = event as WebSocketEventMap['error'];
-      Message.error('WebSocket连接测试失败');
-    };
-
-    testSocket.onclose = (event: CloseEvent) => {
-      if (event.code !== 1000) {
-        canConnect.value = false;
-        Message.warning(`WebSocket连接已关闭: ${event.code}`);
-      }
-    };
-
-    testSocket.onmessage = (event: MessageEvent) => {
-      console.log('收到WebSocket消息:', event.data);
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'error') {
-          Message.error(data.data);
-        }
-      } catch (error) {
-        console.error('解析WebSocket消息失败:', error);
-      }
-    };
-  } catch (error) {
-    canConnect.value = false;
-    Message.error(`WebSocket连接测试出错: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 
