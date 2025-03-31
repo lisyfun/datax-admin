@@ -4,8 +4,11 @@ import (
 	"datax-admin/services"
 	"datax-admin/types"
 	"datax-admin/utils/logger"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -384,4 +387,93 @@ func (c *TerminalController) DisconnectTerminal(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "终端已断开连接"})
+}
+
+// DownloadFile 从终端下载文件
+func (c *TerminalController) DownloadFile(ctx *gin.Context) {
+	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid terminal ID"})
+		return
+	}
+
+	filePath := ctx.Query("path")
+	if filePath == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "File path is required"})
+		return
+	}
+
+	terminal, err := c.terminalService.GetTerminalByID(uint(id))
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Terminal not found"})
+		return
+	}
+
+	sshClient, err := services.NewSSHClient(terminal.Host, terminal.Port, terminal.Username, terminal.Password)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create SSH client"})
+		return
+	}
+	defer sshClient.Close()
+
+	fileInfo, err := sshClient.GetFileInfo(filePath)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	// 设置响应头
+	ctx.Header("Content-Description", "File Transfer")
+	ctx.Header("Content-Transfer-Encoding", "binary")
+	ctx.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, url.QueryEscape(filepath.Base(filePath))))
+	ctx.Header("Content-Type", "application/octet-stream")
+	ctx.Header("Content-Length", strconv.FormatInt(fileInfo.Size(), 10))
+	ctx.Header("Cache-Control", "no-cache")
+
+	// 下载文件
+	err = sshClient.DownloadFile(filePath, ctx.Writer)
+	if err != nil {
+		// 由于已经开始写入响应，这里不能再返回 JSON
+		log.Printf("Error downloading file: %v", err)
+		return
+	}
+}
+
+// GetFileList 获取终端文件列表
+func (c *TerminalController) GetFileList(ctx *gin.Context) {
+	terminalID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的终端ID"})
+		return
+	}
+
+	// 获取目录路径
+	dirPath := ctx.Query("path")
+	if dirPath == "" {
+		dirPath = "."
+	}
+
+	// 获取终端信息
+	terminal, err := c.terminalService.GetTerminalByID(uint(terminalID))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 创建SSH客户端
+	sshClient, err := services.NewSSHClient(terminal.Host, terminal.Port, terminal.Username, terminal.Password)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "SSH连接失败"})
+		return
+	}
+	defer sshClient.Close()
+
+	// 获取文件列表
+	fileList, err := sshClient.GetFileList(dirPath)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "获取文件列表失败"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"data": fileList})
 }

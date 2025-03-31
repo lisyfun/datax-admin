@@ -21,6 +21,8 @@ func RegisterTerminalRoutes(authenticated *gin.RouterGroup) {
 		terminals.POST("/:id/connect", terminalController.ConnectTerminal)
 		terminals.POST("/:id/disconnect", terminalController.DisconnectTerminal)
 		terminals.POST("/:id/upload", terminalController.UploadFiles)
+		terminals.GET("/:id/download", terminalController.DownloadFile)
+		terminals.GET("/:id/files", terminalController.GetFileList)
 	}
 }
 

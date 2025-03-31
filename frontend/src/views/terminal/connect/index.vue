@@ -81,7 +81,7 @@
         <a-descriptions :column="2" :data="terminalInfoData" />
       </div>
 
-      <div ref="terminalContainer" class="terminal-container" :class="{ connected }">
+      <div ref="terminalContainer" class="terminal-container" :class="{ connected }" @click="handleTerminalClick">
         <template v-if="!connected">
           <div class="terminal-placeholder">
             <icon-robot :style="{ fontSize: '48px', marginBottom: '16px' }" />
@@ -725,6 +725,13 @@ onMounted(() => {
   // 监听键盘快捷键 F11 切换全屏
   window.addEventListener('keydown', handleF11KeyDown);
 });
+
+// 处理终端容器点击事件
+const handleTerminalClick = () => {
+  if (terminal && connected.value) {
+    terminal.focus();
+  }
+};
 
 // 组件卸载前清理
 onBeforeUnmount(() => {

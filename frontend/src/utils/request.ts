@@ -33,6 +33,29 @@ request.interceptors.response.use(
   },
   (error) => {
     if (error.response) {
+      // 如果是blob类型的响应，需要特殊处理
+      if (error.response.config.responseType === 'blob') {
+        // 尝试将blob转换为json以读取错误信息
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const errorData = JSON.parse(reader.result as string);
+              error.response.data = errorData;
+              Message.error(errorData.message || '下载失败');
+            } catch (e) {
+              Message.error('下载失败');
+            }
+            reject(error);
+          };
+          reader.onerror = () => {
+            Message.error('下载失败');
+            reject(error);
+          };
+          reader.readAsText(error.response.data);
+        });
+      }
+
       const { status } = error.response;
       switch (status) {
         case 401:

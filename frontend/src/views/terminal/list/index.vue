@@ -166,6 +166,20 @@
                     </template>
                   </a-button>
                 </a-tooltip>
+                <a-tooltip content="下载文件">
+                  <a-button
+                    type="primary"
+                    size="mini"
+                    shape="circle"
+                    status="warning"
+                    @click="handleDownload(record)"
+                    class="action-button"
+                  >
+                    <template #icon>
+                      <icon-download />
+                    </template>
+                  </a-button>
+                </a-tooltip>
                 <a-tooltip content="编辑信息">
                   <a-button
                     type="primary"
@@ -351,6 +365,86 @@
         </div>
       </a-form>
     </a-modal>
+
+    <!-- 文件列表对话框 -->
+    <a-modal
+      v-model:visible="fileListVisible"
+      title="选择要下载的文件"
+      @cancel="handleFileListCancel"
+      :mask-closable="false"
+      :unmount-on-close="true"
+      :width="800"
+      :modal-style="{ height: '80vh' }"
+      :body-style="{ height: 'calc(80vh - 120px)', padding: '0' }"
+    >
+      <div class="file-list-container">
+        <div class="file-list-header">
+          <a-space>
+            <a-button type="outline" @click="handleNavigateUp" :disabled="currentPath === '.'">
+              <template #icon><icon-arrow-up /></template>
+              返回上级
+            </a-button>
+            <a-input
+              v-model="currentPath"
+              placeholder="当前路径"
+              style="width: 300px"
+              @press-enter="handlePathChange"
+            >
+              <template #prefix>
+                <icon-folder />
+              </template>
+            </a-input>
+          </a-space>
+        </div>
+        <div class="file-list-content">
+          <a-table
+            :data="serverFileList"
+            :loading="fileListLoading"
+            :pagination="false"
+            :bordered="false"
+          >
+            <template #columns>
+              <a-table-column title="文件名" data-index="name">
+                <template #cell="{ record }">
+                  <a-space>
+                    <icon-folder v-if="record.isDir" />
+                    <icon-file v-else />
+                    <a-button
+                      type="text"
+                      @click="handleFileClick(record)"
+                    >
+                      {{ record.name }}
+                    </a-button>
+                  </a-space>
+                </template>
+              </a-table-column>
+              <a-table-column title="大小" data-index="size" :width="120">
+                <template #cell="{ record }">
+                  {{ formatFileSize(record.size) }}
+                </template>
+              </a-table-column>
+              <a-table-column title="修改时间" data-index="modTime" :width="180">
+                <template #cell="{ record }">
+                  {{ formatDate(record.modTime) }}
+                </template>
+              </a-table-column>
+              <a-table-column title="操作" :width="120" align="center">
+                <template #cell="{ record }">
+                  <a-button
+                    v-if="!record.isDir"
+                    type="primary"
+                    size="mini"
+                    @click="handleDownloadFile(record)"
+                  >
+                    下载
+                  </a-button>
+                </template>
+              </a-table-column>
+            </template>
+          </a-table>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -376,8 +470,13 @@ import {
   IconCloseCircleFill,
   IconUpload,
   IconFolder,
+  IconDownload,
+  IconArrowUp,
+  IconFile,
 } from '@arco-design/web-vue/es/icon';
 import type { TerminalInfo } from '@/types/terminal';
+import type { FileInfo } from '@/api/terminal';
+import type { TreeNodeData } from '@arco-design/web-vue/es/tree/interface';
 import terminalApi from '@/api/terminal';
 import { useRouter } from 'vue-router';
 
@@ -717,6 +816,123 @@ const handleCancel = () => {
   formRef.value.resetFields();
 };
 
+// 文件列表相关
+const fileListVisible = ref(false);
+const fileListLoading = ref(false);
+const serverFileList = ref<FileInfo[]>([]);
+const currentPath = ref('.');
+
+// 格式化文件大小
+const formatFileSize = (size: number) => {
+  if (size < 1024) return size + ' B';
+  if (size < 1024 * 1024) return (size / 1024).toFixed(2) + ' KB';
+  if (size < 1024 * 1024 * 1024) return (size / (1024 * 1024)).toFixed(2) + ' MB';
+  return (size / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+};
+
+// 获取文件列表
+const fetchFileList = async (path: string) => {
+  if (!currentTerminal.value) return;
+
+  fileListLoading.value = true;
+  try {
+    const res = await terminalApi.getFileList(currentTerminal.value.id, path);
+    serverFileList.value = res.data.data;
+  } catch (error) {
+    Message.error('获取文件列表失败');
+  } finally {
+    fileListLoading.value = false;
+  }
+};
+
+// 处理文件点击
+const handleFileClick = (file: FileInfo) => {
+  if (file.isDir) {
+    currentPath.value = file.path;
+    fetchFileList(file.path);
+  }
+};
+
+// 处理路径变化
+const handlePathChange = () => {
+  fetchFileList(currentPath.value);
+};
+
+// 返回上级目录
+const handleNavigateUp = () => {
+  const parentPath = currentPath.value.split('/').slice(0, -1).join('/') || '.';
+  currentPath.value = parentPath;
+  fetchFileList(parentPath);
+};
+
+// 打开文件列表对话框
+const handleDownload = async (record: TerminalInfo) => {
+  currentTerminal.value = record;
+  currentPath.value = '.';
+  fileListVisible.value = true;
+  await fetchFileList('.');
+};
+
+// 下载文件
+const handleDownloadFile = async (file: FileInfo) => {
+  if (!currentTerminal.value) return;
+
+  try {
+    const response = await terminalApi.downloadFile(currentTerminal.value.id, file.path, {
+      responseType: 'blob',  // 确保设置响应类型为blob
+    });
+
+    // 检查响应状态
+    if (response.status !== 200) {
+      throw new Error('下载失败');
+    }
+
+    // 从响应头中获取文件名
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = file.name;
+    if (contentDisposition) {
+      const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+      if (matches != null && matches[1]) {
+        filename = decodeURIComponent(matches[1].replace(/['"]/g, ''));
+      }
+    }
+
+    // 创建 Blob 对象，并指定正确的 MIME 类型
+    const blob = new Blob([response.data], {
+      type: response.headers['content-type'] || 'application/octet-stream'
+    });
+
+    // 创建下载链接并触发下载
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+
+    // 添加到文档并触发点击
+    document.body.appendChild(link);
+    link.click();
+
+    // 延迟清理，确保下载开始
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    }, 100);
+
+    Message.success('文件下载成功');
+  } catch (error) {
+    console.error('下载文件失败:', error);
+    Message.error('文件下载失败');
+  }
+};
+
+// 关闭文件列表对话框
+const handleFileListCancel = () => {
+  fileListVisible.value = false;
+  serverFileList.value = [];
+  currentPath.value = '.';
+  currentTerminal.value = null;
+};
+
 // 初始加载数据
 fetchData();
 </script>
@@ -867,6 +1083,29 @@ fetchData();
 
     p {
       margin: 0;
+    }
+  }
+}
+
+.file-list-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  .file-list-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .file-list-content {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+
+    :deep(.arco-table) {
+      .arco-table-th {
+        background-color: var(--color-fill-2);
+      }
     }
   }
 }

@@ -8,6 +8,17 @@ import type {
 } from '@/types/terminal';
 import axios from 'axios';
 
+// 文件信息类型
+export interface FileInfo {
+  name: string;
+  path: string;
+  size: number;
+  mode: number;
+  modTime: string;
+  isDir: boolean;
+  children?: FileInfo[];
+}
+
 export default {
   // 创建终端
   createTerminal(data: CreateTerminalData) {
@@ -58,6 +69,27 @@ export default {
       timeout: 30 * 60 * 1000, // 30分钟超时
       maxContentLength: Infinity, // 不限制响应大小
       maxBodyLength: Infinity, // 不限制请求大小
+    });
+  },
+
+  // 从终端下载文件
+  downloadFile(id: number, path: string) {
+    const url = `/terminals/${id}/download?path=${encodeURIComponent(path)}`;
+    return request({
+      url,
+      method: 'GET',
+      responseType: 'blob',
+      timeout: 1800000, // 30分钟超时
+      headers: {
+        'Accept': 'application/octet-stream',
+      }
+    });
+  },
+
+  // 获取终端文件列表
+  getFileList(id: number, path: string = '.') {
+    return request.get<{ data: FileInfo[] }>(`/terminals/${id}/files`, {
+      params: { path },
     });
   },
 };

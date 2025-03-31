@@ -279,3 +279,125 @@ func (c *SSHClient) UploadFile(src io.Reader, destPath string, fileSize int64, p
 	// 默认使用新的上传方法
 	return c.UploadFileWithTemp(src, destPath, fileSize, progressCb)
 }
+
+// GetFileInfo 获取文件信息
+func (c *SSHClient) GetFileInfo(filePath string) (os.FileInfo, error) {
+	if c.sftpClient == nil {
+		return nil, fmt.Errorf("SFTP客户端未创建")
+	}
+
+	fileInfo, err := c.sftpClient.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("获取文件信息失败: %v", err)
+	}
+
+	return fileInfo, nil
+}
+
+// DownloadFile 下载文件
+func (c *SSHClient) DownloadFile(filePath string, writer io.Writer) error {
+	if c.sftpClient == nil {
+		return fmt.Errorf("SFTP客户端未创建")
+	}
+
+	// 打开远程文件
+	srcFile, err := c.sftpClient.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("打开远程文件失败: %v", err)
+	}
+	defer srcFile.Close()
+
+	// 获取文件大小
+	fileInfo, err := srcFile.Stat()
+	if err != nil {
+		return fmt.Errorf("获取文件信息失败: %v", err)
+	}
+
+	// 创建缓冲区
+	buf := make([]byte, 32*1024) // 32KB缓冲区
+	var total int64
+	startTime := time.Now()
+
+	// 读取并写入文件
+	for {
+		n, err := srcFile.Read(buf)
+		if err != nil {
+			if err != io.EOF {
+				return fmt.Errorf("读取文件失败: %v", err)
+			}
+			break
+		}
+		if n == 0 {
+			break
+		}
+
+		if _, err := writer.Write(buf[:n]); err != nil {
+			return fmt.Errorf("写入文件失败: %v", err)
+		}
+
+		total += int64(n)
+
+		// 每传输10MB记录一次进度
+		if total%(10*1024*1024) == 0 {
+			elapsed := time.Since(startTime)
+			speed := float64(total) / elapsed.Seconds() / 1024 / 1024 // MB/s
+			fmt.Printf("已下载: %.2f MB, 总大小: %.2f MB, 速度: %.2f MB/s\n",
+				float64(total)/1024/1024,
+				float64(fileInfo.Size())/1024/1024,
+				speed)
+		}
+	}
+
+	elapsed := time.Since(startTime)
+	speed := float64(total) / elapsed.Seconds() / 1024 / 1024 // MB/s
+	fmt.Printf("文件下载完成: %.2f MB, 耗时: %.2f 秒, 平均速度: %.2f MB/s\n",
+		float64(total)/1024/1024,
+		elapsed.Seconds(),
+		speed)
+
+	return nil
+}
+
+// FileInfo 文件信息结构
+type FileInfo struct {
+	Name    string      `json:"name"`
+	Path    string      `json:"path"`
+	Size    int64       `json:"size"`
+	Mode    os.FileMode `json:"mode"`
+	ModTime time.Time   `json:"modTime"`
+	IsDir   bool        `json:"isDir"`
+}
+
+// GetFileList 获取目录下的文件列表
+func (c *SSHClient) GetFileList(dirPath string) ([]FileInfo, error) {
+	if c.sftpClient == nil {
+		return nil, fmt.Errorf("SFTP客户端未创建")
+	}
+
+	// 如果目录路径为空，使用当前目录
+	if dirPath == "" {
+		dirPath = "."
+	}
+
+	// 获取目录下的文件列表
+	entries, err := c.sftpClient.ReadDir(dirPath)
+	if err != nil {
+		return nil, fmt.Errorf("读取目录失败: %v", err)
+	}
+
+	// 转换为FileInfo结构
+	var fileList []FileInfo
+	for _, entry := range entries {
+		fileInfo := FileInfo{
+			Name:    entry.Name(),
+			Path:    filepath.Join(dirPath, entry.Name()),
+			Size:    entry.Size(),
+			Mode:    entry.Mode(),
+			ModTime: entry.ModTime(),
+			IsDir:   entry.IsDir(),
+		}
+		fileList = append(fileList, fileInfo)
+	}
+
+	return fileList, nil
+}
