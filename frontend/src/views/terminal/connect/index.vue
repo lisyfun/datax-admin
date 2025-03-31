@@ -17,7 +17,7 @@
             status="success"
             @click="handleConnect"
             :loading="connecting"
-            :disabled="connecting || !terminalInfo"
+            :disabled="connecting || !terminalInfo || connected"
           >
             <template #icon><icon-play-circle /></template>
             连接
