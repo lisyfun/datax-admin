@@ -78,10 +78,16 @@ export default {
     return request({
       url,
       method: 'GET',
-      responseType: 'blob',
+      responseType: 'arraybuffer',
       timeout: 1800000, // 30分钟超时
       headers: {
         'Accept': 'application/octet-stream',
+      },
+      onDownloadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          console.log(`下载进度: ${percentCompleted}%`);
+        }
       }
     });
   },

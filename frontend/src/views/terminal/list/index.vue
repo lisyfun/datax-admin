@@ -878,50 +878,40 @@ const handleDownloadFile = async (file: FileInfo) => {
   if (!currentTerminal.value) return;
 
   try {
-    const response = await terminalApi.downloadFile(currentTerminal.value.id, file.path, {
-      responseType: 'blob',  // 确保设置响应类型为blob
+    Message.info({
+      content: `开始下载文件: ${file.name}`,
+      position: 'top'
     });
 
-    // 检查响应状态
-    if (response.status !== 200) {
-      throw new Error('下载失败');
-    }
+    const response = await terminalApi.downloadFile(currentTerminal.value.id, file.path);
 
-    // 从响应头中获取文件名
-    const contentDisposition = response.headers['content-disposition'];
-    let filename = file.name;
-    if (contentDisposition) {
-      const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
-      if (matches != null && matches[1]) {
-        filename = decodeURIComponent(matches[1].replace(/['"]/g, ''));
-      }
-    }
+    // 创建 Blob 对象
+    const blob = new Blob([response.data], { type: 'application/octet-stream' });
 
-    // 创建 Blob 对象，并指定正确的 MIME 类型
-    const blob = new Blob([response.data], {
-      type: response.headers['content-type'] || 'application/octet-stream'
-    });
-
-    // 创建下载链接并触发下载
+    // 创建下载链接
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = filename;
+    link.download = file.name;
 
-    // 添加到文档并触发点击
+    // 触发下载
     document.body.appendChild(link);
     link.click();
 
-    // 延迟清理，确保下载开始
-    setTimeout(() => {
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-    }, 100);
+    // 清理
+    window.URL.revokeObjectURL(downloadUrl);
+    document.body.removeChild(link);
 
-    Message.success('文件下载成功');
+    Message.success({
+      content: `文件 ${file.name} 下载成功`,
+      position: 'top'
+    });
   } catch (error) {
     console.error('下载文件失败:', error);
-    Message.error('文件下载失败');
+    Message.error({
+      content: `下载失败: ${error instanceof Error ? error.message : '未知错误'}`,
+      position: 'top'
+    });
   }
 };
 
