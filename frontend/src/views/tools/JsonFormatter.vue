@@ -41,6 +41,7 @@
             placeholder="请输入需要格式化的 JSON 内容"
             allow-clear
             @input="handleInput"
+            @paste="handlePaste"
           ></a-textarea>
         </a-col>
         <a-col :span="12" class="preview-area">
@@ -53,6 +54,7 @@
             :data="treeData"
             v-model:expanded-keys="expandedKeys"
             :show-line="true"
+            :show-icon="false"
             block-node
           >
             <template #title="nodeData">
@@ -118,6 +120,38 @@ const handleInput = () => {
     expandAll()
   } catch (error) {
     // 解析错误时不更新树形结构
+  }
+}
+
+const handlePaste = (e: ClipboardEvent) => {
+  e.preventDefault()
+  const pastedText = e.clipboardData?.getData('text') || ''
+  try {
+    if (!pastedText.trim()) {
+      return
+    }
+    const obj = JSON.parse(pastedText)
+    jsonContent.value = JSON.stringify(obj, null, 2)
+    jsonData.value = obj
+    Message.success('格式化成功')
+    expandAll()
+  } catch (error) {
+    jsonContent.value = pastedText
+    Message.error('无效的 JSON 格式')
+  }
+}
+
+const handleBlur = () => {
+  try {
+    if (!jsonContent.value.trim()) {
+      return
+    }
+    const obj = JSON.parse(jsonContent.value)
+    jsonContent.value = JSON.stringify(obj, null, 2)
+    jsonData.value = obj
+    Message.success('格式化成功')
+  } catch (error) {
+    Message.error('无效的 JSON 格式')
   }
 }
 
@@ -264,13 +298,13 @@ watch(treeData, () => {
   color: var(--color-text-3);
 }
 
-.empty-state :deep(svg) {
-  font-size: 48px;
-  margin-bottom: 16px;
+.empty-state p {
+  margin: 0;
 }
 
 .node-title {
   font-family: monospace;
+  padding-left: 16px;
 }
 
 .key {
