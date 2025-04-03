@@ -77,43 +77,27 @@ clean:
 # 运行应用（前端和后端）
 .PHONY: run
 run:
-	@echo -e "$(YELLOW)启动前端服务...$(NC)"
-	cd $(FRONTEND_DIR) && \
-	if command -v pnpm > /dev/null; then \
-		pnpm dev & \
-	else \
-		npm run dev & \
-	fi
 	@echo -e "$(YELLOW)启动后端服务...$(NC)"
-	cd $(MAIN_PACKAGE) && go run main.go
-	@echo -e "$(GREEN)服务已启动$(NC)"
-	@echo -e "$(GREEN)前端访问地址: http://localhost:3000$(NC)"
+	cd $(MAIN_PACKAGE) && go run main.go &
 	@echo -e "$(GREEN)后端访问地址: http://localhost:28080$(NC)"
-
+	@echo -e "$(YELLOW)启动前端服务...$(NC)"
+	cd $(FRONTEND_DIR) && pnpm dev
+	@echo -e "$(GREEN)前端访问地址: http://localhost:3000$(NC)"
+	@echo -e "$(GREEN)服务已启动$(NC)"
 
 
 # 构建前端
 .PHONY: build-frontend
 build-frontend:
 	@echo -e "$(YELLOW)构建前端...$(NC)"
-	cd $(FRONTEND_DIR) && \
-	if command -v pnpm > /dev/null; then \
-		pnpm install && pnpm run build; \
-	else \
-		npm install && npm run build; \
-	fi
+	cd $(FRONTEND_DIR) && pnpm install && pnpm run build;
 	@echo -e "$(GREEN)前端构建完成$(NC)"
 
 # 构建后端 (AMD平台)
 .PHONY: build
 build: $(DIST_DIR)
 	@echo -e "$(YELLOW)构建前端...$(NC)"
-	cd $(FRONTEND_DIR) && \
-	if command -v pnpm > /dev/null; then \
-		pnpm install && pnpm run build; \
-	else \
-		npm install && npm run build; \
-	fi
+	cd $(FRONTEND_DIR) && pnpm install && pnpm run build;
 	@echo -e "$(GREEN)前端构建完成$(NC)"
 	@echo -e "$(YELLOW)构建 Linux AMD64...$(NC)"
 	cd $(MAIN_PACKAGE) && GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-amd64 .
@@ -123,12 +107,7 @@ build: $(DIST_DIR)
 .PHONY: build-arm64
 build-arm64: $(DIST_DIR)
 	@echo -e "$(YELLOW)构建前端...$(NC)"
-	cd $(FRONTEND_DIR) && \
-	if command -v pnpm > /dev/null; then \
-		pnpm install && pnpm run build; \
-	else \
-		npm install && npm run build; \
-	fi
+	cd $(FRONTEND_DIR) && pnpm install && pnpm run build;
 	@echo -e "$(GREEN)前端构建完成$(NC)"
 	@echo -e "$(YELLOW)构建 Linux AMD64...$(NC)"
 	cd $(MAIN_PACKAGE) && GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-arm64 .
