@@ -263,13 +263,6 @@ const columns = computed<TableColumnData[]>(() => [
     slotName: 'brokerCount',
   },
   {
-    title: '消费者组数',
-    dataIndex: 'consumerGroupCount',
-    width: 120,
-    align: 'center',
-    slotName: 'consumerGroupCount',
-  },
-  {
     title: '安全协议',
     dataIndex: 'securityProtocol',
   },

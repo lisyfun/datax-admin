@@ -46,6 +46,10 @@ func (s *KafkaTopicService) SyncTopics(clusterID uint) error {
 	// 按主题分组
 	topicMap := make(map[string][]kafka.Partition)
 	for _, p := range partitions {
+		// 跳过 __consumer_offsets 主题
+		if p.Topic == "__consumer_offsets" {
+			continue
+		}
 		topicMap[p.Topic] = append(topicMap[p.Topic], p)
 	}
 
@@ -156,7 +160,7 @@ func (s *KafkaTopicService) StartTopicSyncTask(syncInterval time.Duration) {
 func (s *KafkaTopicService) GetTopics(clusterID uint, page, pageSize int, search string) (*KafkaTopicListResponse, error) {
 	// 先检查数据库中是否有该集群的主题数据
 	var count int64
-	if err := models.DB.Model(&models.KafkaTopic{}).Where("cluster_id = ?", clusterID).Count(&count).Error; err != nil {
+	if err := models.DB.Model(&models.KafkaTopic{}).Where("cluster_id = ? AND name != ?", clusterID, "__consumer_offsets").Count(&count).Error; err != nil {
 		return nil, fmt.Errorf("检查主题数据失败: %v", err)
 	}
 
@@ -169,7 +173,7 @@ func (s *KafkaTopicService) GetTopics(clusterID uint, page, pageSize int, search
 
 	var topics []models.KafkaTopic
 	var total int64
-	query := models.DB.Model(&models.KafkaTopic{}).Where("cluster_id = ?", clusterID)
+	query := models.DB.Model(&models.KafkaTopic{}).Where("cluster_id = ? AND name != ?", clusterID, "__consumer_offsets")
 
 	if search != "" {
 		query = query.Where("name LIKE ?", "%"+search+"%")
