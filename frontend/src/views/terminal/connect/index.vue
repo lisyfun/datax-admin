@@ -473,7 +473,6 @@ const handleConnect = async () => {
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('收到WebSocket消息:', data);
         switch (data.type) {
           case 'output':
             terminal?.write(data.data);
@@ -732,155 +731,116 @@ onBeforeUnmount(() => {
     margin: 0 !important;
     min-height: 100vh !important;
   }
+
+  // 隐藏顶部栏和左侧导航栏
+  .arco-layout-header,
+  .arco-layout-sider {
+    display: none !important;
+  }
+
+  .arco-layout-content {
+    margin-left: 0 !important;
+    margin-top: 0 !important;
+  }
 }
 </style>
 
 <style lang="less" scoped>
 .terminal-connect {
-  padding: 16px;
-  transition: padding 0.3s ease;
+  padding: 0;
+  height: 100vh;
+  width: 100vw;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  background-color: var(--color-bg-1);
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 
   :deep(.arco-card) {
-    overflow: hidden;
-  }
-
-  &.fullscreen-mode {
-    padding: 0;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1000;
-    background-color: var(--color-bg-1);
+    height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
     margin: 0;
     border: none;
-    border-radius: 0;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 
-    .terminal-card {
-      height: 100vh;
-      border-radius: 0;
-      box-shadow: none;
-      margin: 0;
-      border: none;
-
-      :deep(.arco-card-body) {
-        padding: 0;
-        height: calc(100vh - 45px); // 减去头部高度
-        display: flex;
-        flex-direction: column;
-        margin: 0;
-        border: none;
-      }
-
-      :deep(.arco-card-header) {
-        border-bottom-color: var(--color-border-2);
-        background-color: var(--color-bg-2);
-      }
-    }
-
-    .terminal-info {
-      margin: 4px 8px;
-      padding: 8px;
+    .arco-card-header {
+      border-bottom-color: var(--color-border-2);
+      background-color: var(--color-bg-2);
+      padding: 12px 20px;
       flex-shrink: 0;
     }
 
-    .terminal-container {
-      border-radius: 0;
+    .arco-card-body {
+      padding: 0;
       flex: 1;
-      margin: 0;
-      height: auto !important; // 强制使用flex布局的高度
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+  }
 
-      &.connected {
-        padding: 8px 8px 8px 8px;
-      }
+  .terminal-info {
+    padding: 12px 20px;
+    background-color: var(--color-fill-2);
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
 
-      .terminal-content {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        background-color: #1e1e1e;
-        padding: 0;
-        margin: 0;
+    :deep(.arco-descriptions) {
+      .arco-descriptions-item {
+        padding: 8px 0;
 
-        :deep(.xterm) {
-          height: 100% !important;
-          display: flex;
-          flex-direction: column;
-          padding: 0;
-          margin: 0;
-          padding-left: 8px;
+        .arco-descriptions-item-label {
+          color: var(--color-text-2);
+          font-weight: 500;
+        }
 
-          .xterm-viewport {
-            flex: 1;
-          }
-
-          canvas {
-            padding: 0;
-            margin: 0;
-          }
+        .arco-descriptions-item-value {
+          color: var(--color-text-1);
         }
       }
     }
   }
 
-  .terminal-card {
-    :deep(.arco-card-header) {
-      border-bottom: 1px solid var(--color-border);
-    }
-
-    .card-title {
-      display: flex;
-      align-items: center;
-
-      .icon {
-        margin-right: 8px;
-        font-size: 20px;
-        color: rgb(var(--primary-6));
-      }
-
-      .title {
-        font-size: 16px;
-        font-weight: 500;
-      }
-    }
-  }
-
-  .terminal-info {
-    margin-bottom: 16px;
-    padding: 16px;
-    background-color: var(--color-fill-2);
-    border-radius: 4px;
-    transition: all 0.3s ease;
-
-    &.fullscreen-info {
-      margin-bottom: 8px;
-      padding: 8px 16px;
-      border-radius: 0;
-    }
-  }
-
   .terminal-container {
-    height: v-bind('getTerminalHeight()');
+    flex: 1;
+    position: relative;
     background-color: #1e1e1e;
-    border-radius: 4px;
     overflow: hidden;
-    transition: height 0.3s ease;
+    display: flex;
+    flex-direction: column;
 
     &.connected {
-      padding: 8px 8px 8px 8px;
+      padding: 8px;
     }
 
     .terminal-placeholder {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
       color: rgba(255, 255, 255, 0.5);
+
+      .icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+
+      p {
+        font-size: 16px;
+        margin: 0;
+      }
     }
 
     .terminal-content {
@@ -888,11 +848,41 @@ onBeforeUnmount(() => {
       height: 100%;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
+      background-color: #1e1e1e;
 
       :deep(.xterm) {
+        height: 100% !important;
+        display: flex;
+        flex-direction: column;
         padding-left: 8px;
+
+        .xterm-viewport {
+          flex: 1;
+        }
+
+        canvas {
+          padding: 0;
+          margin: 0;
+        }
       }
     }
+  }
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .icon {
+    font-size: 20px;
+    color: rgb(var(--primary-6));
+  }
+
+  .title {
+    font-size: 16px;
+    font-weight: 500;
   }
 }
 
