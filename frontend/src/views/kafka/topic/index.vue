@@ -1,6 +1,5 @@
 <template>
   <div class="container">
-    <Breadcrumb :items="['工具箱', 'Kafka 管理', '主题管理']" />
     <a-card class="general-card">
       <template #title>
         <div class="card-title">
@@ -205,7 +204,7 @@ const columns = computed<TableColumnData[]>(() => [
     title: '总日志大小',
     dataIndex: 'logSize',
   },
-  
+
 ]);
 
 const messageColumns = computed<TableColumnData[]>(() => [

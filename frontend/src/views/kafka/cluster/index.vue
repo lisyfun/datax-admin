@@ -1,6 +1,5 @@
 <template>
   <div class="container">
-    <Breadcrumb :items="['工具箱', 'Kafka 管理', '集群管理']" />
     <a-card class="general-card" title="集群管理">
       <a-row>
         <a-col :flex="1">
@@ -139,7 +138,6 @@ import { Message } from '@arco-design/web-vue';
 import useLoading from '@/hooks/loading';
 import { queryClusterList, createCluster, updateCluster, deleteCluster } from '@/api/kafka';
 import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
-
 interface KafkaCluster {
   id: number;
   name: string;
