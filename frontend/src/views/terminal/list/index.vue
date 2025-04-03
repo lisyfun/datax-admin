@@ -627,7 +627,7 @@ const handleDelete = async (record: TerminalInfo) => {
 
 // 连接终端
 const handleConnect = (record: TerminalInfo) => {
-  const terminalPath = `#/terminal/connect/${record.id}`;
+  const terminalPath = `/datax/#/terminal/connect/${record.id}`;
   const terminalUrl = `${window.location.origin}${terminalPath}`;
   // 设置打开新窗口标题
   const windowTitle = `终端连接 - ${record.name}`;
