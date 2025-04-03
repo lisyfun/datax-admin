@@ -57,14 +57,6 @@
             </template>
             {{ showInfoPanel ? '收起信息' : '展开信息' }}
           </a-button>
-          <a-button @click="toggleFullscreen">
-            <template #icon><icon-fullscreen /></template>
-            {{ isFullscreen ? '退出全屏' : '全屏' }}
-          </a-button>
-          <a-button @click="handleBack">
-            <template #icon><icon-arrow-left /></template>
-            返回列表
-          </a-button>
         </a-space>
       </template>
 
@@ -94,16 +86,13 @@ import { Message } from '@arco-design/web-vue';
 import {
   IconLink,
   IconPlayCircle,
-  IconArrowLeft,
   IconRobot,
   IconBug,
-  IconFullscreen,
   IconUp,
   IconDown,
   IconClose,
   IconMinus,
   IconPlus,
-  IconBold,
   IconLineHeight,
 } from '@arco-design/web-vue/es/icon';
 import type { TerminalInfo } from '@/types/terminal';
@@ -659,12 +648,14 @@ const handleReconnect = () => {
 };
 
 // 组件挂载
-onMounted(() => {
-  fetchTerminalInfo();
+onMounted(async () => {
+  await fetchTerminalInfo();
   loadFontSettings(); // 加载字体设置
 
-  // 监听键盘快捷键 F11 切换全屏
-  window.addEventListener('keydown', handleF11KeyDown);
+  // 自动触发连接
+  if (terminalInfo.value && terminalInfo.value.status === 'online') {
+    handleConnect();
+  }
 });
 
 // 处理终端容器点击事件
@@ -676,15 +667,6 @@ const handleTerminalClick = () => {
 
 // 组件卸载前清理
 onBeforeUnmount(() => {
-  // 退出全屏状态
-  if (isFullscreen.value) {
-    document.documentElement.classList.remove('terminal-fullscreen');
-    document.body.classList.remove('terminal-fullscreen-body');
-  }
-
-  // 移除键盘事件监听
-  window.removeEventListener('keydown', handleF11KeyDown);
-
   // 清除重连定时器
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
