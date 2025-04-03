@@ -627,8 +627,16 @@ const handleDelete = async (record: TerminalInfo) => {
 
 // 连接终端
 const handleConnect = (record: TerminalInfo) => {
-  router.push(`/terminal/connect/${record.id}`);
+  const terminalPath = `#/terminal/connect/${record.id}`;
+  const terminalUrl = `${window.location.origin}${terminalPath}`;
+  // 设置打开新窗口标题
+  const windowTitle = `终端连接 - ${record.name}`;
+  let newWindow = window.open(terminalUrl, '', 'width=1024,height=768,menubar=no,toolbar=no,location=no,status=no');
+  if (newWindow) {
+    setTimeout(() => newWindow!.document.title = windowTitle, 300);
+  }
 };
+
 
 // 打开上传对话框
 const handleUpload = (record: TerminalInfo) => {
