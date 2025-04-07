@@ -1026,7 +1026,6 @@ onMounted(() => {
   white-space: nowrap;
   overflow-x: auto;
   text-overflow: ellipsis;
-  font-family: 'Courier New', monospace;
   font-size: 12px;
   position: relative;
   line-height: 1.3;
@@ -1050,7 +1049,6 @@ onMounted(() => {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: 'Courier New', monospace;
   font-size: 12px;
   line-height: 1.3;
   width: 100%;
