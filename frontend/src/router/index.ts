@@ -246,6 +246,17 @@ export const appRoutes: AppRouteRecordRaw[] = [
               roles: ['admin'],
             },
           },
+          {
+            path: 'menu',
+            name: 'Menu',
+            component: () => import('@/views/system/menu/index.vue'),
+            meta: {
+              title: '菜单管理',
+              requiresAuth: true,
+              icon: 'icon-menu',
+              roles: ['admin'],
+            },
+          },
         ],
       },
     ],

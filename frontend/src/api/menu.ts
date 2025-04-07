@@ -12,7 +12,7 @@ export interface CreateMenuRequest {
   type: 1 | 2;
 }
 
-export interface UpdateMenuRequest extends CreateMenuRequest {
+export interface UpdateMenuRequest extends Partial<CreateMenuRequest> {
   status?: 0 | 1;
 }
 
@@ -24,16 +24,16 @@ export interface MenuResponse {
   component: string;
   icon: string;
   sort: number;
-  status: number;
+  status: 0 | 1;
   hidden: boolean;
   cache: boolean;
-  type: number;
+  type: 1 | 2;
   children?: MenuResponse[];
 }
 
 export interface MenuListRequest {
   keyword?: string;
-  type?: number;
+  type?: 1 | 2;
 }
 
 export interface MenuListResponse {
@@ -50,14 +50,17 @@ export function getMenuList(params: MenuListRequest = {}) {
   return request.get<MenuListResponse>('/menus', { params });
 }
 
+// 创建菜单
 export function createMenu(data: CreateMenuRequest) {
-  return request.post<void>('/menus', data);
+  return request.post('/menus', data);
 }
 
+// 更新菜单
 export function updateMenu(id: number, data: UpdateMenuRequest) {
-  return request.put<void>(`/menus/${id}`, data);
+  return request.put(`/menus/${id}`, data);
 }
 
+// 删除菜单
 export function deleteMenu(id: number) {
-  return request.delete<void>(`/menus/${id}`);
+  return request.delete(`/menus/${id}`);
 }
