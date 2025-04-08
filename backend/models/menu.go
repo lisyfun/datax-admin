@@ -16,8 +16,8 @@ type Menu struct {
 	Icon      string         `gorm:"size:50" json:"icon"`              // 图标
 	Sort      int            `gorm:"default:0" json:"sort"`            // 排序
 	Status    int            `gorm:"default:1" json:"status"`          // 状态：1-启用，0-禁用
-	Hidden    bool           `gorm:"default:false" json:"hidden"`      // 是否隐藏
-	Cache     bool           `gorm:"default:true" json:"cache"`        // 是否缓存
+	Hidden    int            `gorm:"default:0" json:"hidden"`          // 是否隐藏
+	Cache     int            `gorm:"default:1" json:"cache"`           // 是否缓存
 	Type      int            `gorm:"default:1" json:"type"`            // 类型：1-菜单，2-按钮
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`

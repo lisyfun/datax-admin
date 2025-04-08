@@ -60,13 +60,14 @@ export default function setupPermissionGuard(router: Router) {
 function generateRoutesFromMenu(menus: any[]): RouteRecordRaw[] {
   return menus.map((menu) => {
     const route = {
-      path: menu.path,
+      path: menu.path || '',
       name: menu.name,
       component: loadComponent(menu.component),
       meta: {
-        title: menu.title,
+        title: menu.name,
         icon: menu.icon,
         keepAlive: menu.cache,
+        hidden: menu.hidden,
       },
       children: [] as RouteRecordRaw[],
     } as RouteRecordRaw;
@@ -81,6 +82,10 @@ function generateRoutesFromMenu(menus: any[]): RouteRecordRaw[] {
 
 // 动态加载组件
 function loadComponent(component: string) {
-  // 这里假设所有的组件都在 views 目录下
-  return () => import(`@/views/${component}.vue`);
+  if (!component) {
+    return () => import('@/layouts/blank.vue');
+  }
+  // 移除开头的斜杠
+  const normalizedComponent = component.replace(/^\//, '');
+  return () => import(`@/views/${normalizedComponent}.vue`);
 }

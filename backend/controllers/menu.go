@@ -92,3 +92,22 @@ func (c *MenuController) GetMenuList(ctx *gin.Context) {
 	ctx.Header("Content-Type", "application/json; charset=utf-8")
 	ctx.JSON(http.StatusOK, resp)
 }
+
+// GetUserMenus 获取用户菜单列表
+func (c *MenuController) GetUserMenus(ctx *gin.Context) {
+	// 从上下文中获取用户ID
+	userID := ctx.GetUint("user_id")
+	if userID == 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		return
+	}
+
+	resp, err := c.menuService.GetUserMenus(userID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.Header("Content-Type", "application/json; charset=utf-8")
+	ctx.JSON(http.StatusOK, resp)
+}

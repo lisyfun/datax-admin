@@ -8,8 +8,8 @@ type CreateMenuRequest struct {
 	Component string `json:"component" binding:"max=200"`
 	Icon      string `json:"icon" binding:"max=50"`
 	Sort      int    `json:"sort"`
-	Hidden    bool   `json:"hidden"`
-	Cache     bool   `json:"cache"`
+	Hidden    int    `json:"hidden" binding:"oneof=0 1"`
+	Cache     int    `json:"cache" binding:"oneof=0 1"`
 	Type      int    `json:"type" binding:"required,oneof=1 2"`
 }
 
@@ -22,8 +22,8 @@ type UpdateMenuRequest struct {
 	Icon      string `json:"icon" binding:"max=50"`
 	Sort      int    `json:"sort"`
 	Status    int    `json:"status" binding:"oneof=0 1"`
-	Hidden    bool   `json:"hidden"`
-	Cache     bool   `json:"cache"`
+	Hidden    int    `json:"hidden" binding:"oneof=0 1"`
+	Cache     int    `json:"cache" binding:"oneof=0 1"`
 	Type      int    `json:"type" binding:"required,oneof=1 2"`
 }
 
@@ -37,8 +37,8 @@ type MenuResponse struct {
 	Icon      string         `json:"icon"`
 	Sort      int            `json:"sort"`
 	Status    int            `json:"status"`
-	Hidden    bool           `json:"hidden"`
-	Cache     bool           `json:"cache"`
+	Hidden    int            `json:"hidden"`
+	Cache     int            `json:"cache"`
 	Type      int            `json:"type"`
 	Children  []MenuResponse `json:"children,omitempty"`
 }

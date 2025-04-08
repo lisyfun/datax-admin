@@ -7,8 +7,8 @@ export interface CreateMenuRequest {
   component?: string;
   icon?: string;
   sort?: number;
-  hidden?: boolean;
-  cache?: boolean;
+  hidden?: number;
+  cache?: number;
   type: 1 | 2;
 }
 
@@ -25,8 +25,8 @@ export interface MenuResponse {
   icon: string;
   sort: number;
   status: 0 | 1;
-  hidden: boolean;
-  cache: boolean;
+  hidden: 0 | 1;
+  cache: 0 | 1;
   type: 1 | 2;
   children?: MenuResponse[];
 }

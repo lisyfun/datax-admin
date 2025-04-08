@@ -1,5 +1,5 @@
 <template>
-  <div class="roles">
+  <div class="roles" v-if="initialized">
     <a-card>
       <template #title>角色管理</template>
       <template #extra>
@@ -74,6 +74,7 @@
       :title="isEdit ? '编辑角色' : '新增角色'"
       @ok="handleRoleFormSubmit"
       @cancel="handleRoleFormCancel"
+      :unmount-on-close="true"
     >
       <a-form ref="roleFormRef" :model="roleForm">
         <a-form-item field="name" label="角色名称" :rules="[{ required: true, message: '请输入角色名称' }]">
@@ -94,24 +95,37 @@
       title="分配权限"
       @ok="handlePermissionFormSubmit"
       @cancel="handlePermissionFormCancel"
+      :unmount-on-close="true"
+      :mask-closable="false"
+      :footer="showPermissionForm ? undefined : false"
     >
-      <a-tree
-        v-model:checked-keys="permissionForm.permissionIds"
-        :data="permissionTree"
-        :field-names="{
-          key: 'id',
-          title: 'name',
-          children: 'children',
-        }"
-        checkable
-        :check-strictly="true"
-      />
+      <template #default>
+        <div v-if="showPermissionForm && permissionTree.length > 0">
+          <a-spin :loading="permissionLoading">
+            <a-tree
+              v-model:checked-keys="permissionForm.permissionIds"
+              :data="permissionTree"
+              :field-names="{
+                key: 'id',
+                title: 'name',
+                children: 'children',
+              }"
+              checkable
+              :check-strictly="false"
+              :default-expand-all="true"
+            />
+          </a-spin>
+        </div>
+        <div v-else-if="showPermissionForm">
+          <a-empty description="暂无权限数据" />
+        </div>
+      </template>
     </a-modal>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import type { TreeNodeData } from '@arco-design/web-vue';
 import type { RoleInfo, UpdateRoleParams, UpdateRolePermissionsParams } from '@/types/role';
@@ -126,6 +140,9 @@ import {
   IconDelete,
   IconSafe,
 } from '@arco-design/web-vue/es/icon';
+
+// 组件状态控制
+const isUnmounted = ref(false);
 
 // 表格数据
 const roles = ref<RoleInfo[]>([]);
@@ -154,8 +171,15 @@ const permissionForm = reactive({
   permissionIds: [] as number[],
 });
 
+// 添加权限加载状态
+const permissionLoading = ref(false);
+
+// 初始化标志
+const initialized = ref(false);
+
 // 获取角色列表
 const fetchRoles = async () => {
+  if (isUnmounted.value) return;
   try {
     loading.value = true;
     const res = await roleApi.getRoleList({
@@ -163,49 +187,93 @@ const fetchRoles = async () => {
       page_size: pageSize.value,
       keyword: searchKeyword.value,
     });
-    roles.value = res.data.items;
-    total.value = res.data.total;
+    if (!isUnmounted.value) {
+      roles.value = res.data.items || [];
+      total.value = res.data.total || 0;
+    }
   } catch (error: any) {
-    Message.error(error.response?.data?.error || '获取角色列表失败');
+    if (!isUnmounted.value) {
+      Message.error(error.response?.data?.error || '获取角色列表失败');
+      roles.value = [];
+      total.value = 0;
+    }
   } finally {
-    loading.value = false;
+    if (!isUnmounted.value) {
+      loading.value = false;
+    }
   }
 };
 
 // 获取权限树
 const fetchPermissionTree = async () => {
+  if (!initialized.value || isUnmounted.value) return;
   try {
+    permissionLoading.value = true;
     const res = await permissionApi.getPermissionTree();
-    permissionTree.value = convertToTreeData(res.data.list);
+    if (!isUnmounted.value) {
+      const treeData = res.data.list || [];
+      // 递归处理树形数据
+      const processTreeData = (items: any[]): TreeNodeData[] => {
+        return items.map(item => ({
+          id: item.id,
+          name: item.name,
+          children: item.children ? processTreeData(item.children) : [],
+          key: item.id,
+          title: item.name,
+        }));
+      };
+      permissionTree.value = processTreeData(treeData);
+    }
   } catch (error: any) {
-    Message.error(error.response?.data?.error || '获取权限树失败');
+    if (!isUnmounted.value) {
+      Message.error(error.response?.data?.error || '获取权限树失败');
+      permissionTree.value = [];
+    }
+  } finally {
+    if (!isUnmounted.value) {
+      permissionLoading.value = false;
+    }
   }
 };
 
 // 获取角色权限
 const fetchRolePermissions = async (roleId: number) => {
+  if (!initialized.value || isUnmounted.value) return;
   try {
+    permissionLoading.value = true;
     const res = await roleApi.getRolePermissions(roleId);
-    permissionForm.permissionIds = res.data.permissions;
+    if (!isUnmounted.value && res.data) {
+      permissionForm.permissionIds = res.data.permissions || [];
+    }
   } catch (error: any) {
-    Message.error(error.response?.data?.error || '获取角色权限失败');
+    if (!isUnmounted.value) {
+      Message.error(error.response?.data?.error || '获取角色权限失败');
+      permissionForm.permissionIds = [];
+    }
+  } finally {
+    if (!isUnmounted.value) {
+      permissionLoading.value = false;
+    }
   }
 };
 
 // 搜索
 const handleSearch = () => {
+  if (!initialized.value || isUnmounted.value) return;
   page.value = 1;
   fetchRoles();
 };
 
 // 分页
 const handlePageChange = (current: number) => {
+  if (!initialized.value || isUnmounted.value) return;
   page.value = current;
   fetchRoles();
 };
 
 // 新增角色
 const handleAdd = () => {
+  if (!initialized.value || isUnmounted.value) return;
   isEdit.value = false;
   roleForm.id = 0;
   roleForm.name = '';
@@ -216,6 +284,7 @@ const handleAdd = () => {
 
 // 编辑角色
 const handleEdit = (record: RoleInfo) => {
+  if (!initialized.value || isUnmounted.value) return;
   isEdit.value = true;
   roleForm.id = record.id;
   roleForm.name = record.name || '';
@@ -226,42 +295,87 @@ const handleEdit = (record: RoleInfo) => {
 
 // 分配权限
 const handleAssignPermissions = async (record: RoleInfo) => {
-  permissionForm.roleId = record.id;
-  await fetchRolePermissions(record.id);
-  showPermissionForm.value = true;
+  if (!initialized.value || isUnmounted.value) return;
+  try {
+    loading.value = true;
+    permissionForm.roleId = record.id;
+    permissionForm.permissionIds = []; // 重置选中的权限
+
+    // 确保权限树已加载
+    if (permissionTree.value.length === 0) {
+      await fetchPermissionTree();
+    }
+
+    // 获取角色权限
+    await fetchRolePermissions(record.id);
+
+    if (!isUnmounted.value) {
+      showPermissionForm.value = true;
+      await nextTick();
+    }
+  } catch (error: any) {
+    if (!isUnmounted.value) {
+      Message.error(error.response?.data?.error || '加载权限数据失败');
+    }
+  } finally {
+    if (!isUnmounted.value) {
+      loading.value = false;
+    }
+  }
 };
 
 // 更新状态
 const handleStatusChange = async (record: RoleInfo, value: boolean) => {
+  if (!initialized.value || isUnmounted.value) return;
   try {
+    loading.value = true;
     const updateData: UpdateRoleParams = {
       name: record.name,
       description: record.description,
       status: value ? 1 : 0
     };
     await roleApi.updateRole(record.id, updateData);
-    Message.success('状态更新成功');
-    await fetchRoles();
+    if (!isUnmounted.value) {
+      Message.success('状态更新成功');
+      await fetchRoles();
+    }
   } catch (error: any) {
-    Message.error(error.response?.data?.error || '状态更新失败');
+    if (!isUnmounted.value) {
+      Message.error(error.response?.data?.error || '状态更新失败');
+    }
+  } finally {
+    if (!isUnmounted.value) {
+      loading.value = false;
+    }
   }
 };
 
 // 删除角色
 const handleDelete = async (record: RoleInfo) => {
+  if (!initialized.value || isUnmounted.value) return;
   try {
+    loading.value = true;
     await roleApi.deleteRole(record.id);
-    Message.success('删除成功');
-    fetchRoles();
+    if (!isUnmounted.value) {
+      Message.success('删除成功');
+      await fetchRoles();
+    }
   } catch (error: any) {
-    Message.error(error.response?.data?.error || '删除失败');
+    if (!isUnmounted.value) {
+      Message.error(error.response?.data?.error || '删除失败');
+    }
+  } finally {
+    if (!isUnmounted.value) {
+      loading.value = false;
+    }
   }
 };
 
 // 提交角色表单
 const handleRoleFormSubmit = async () => {
+  if (!initialized.value || isUnmounted.value || !roleFormRef.value) return;
   try {
-    if (!roleFormRef.value) return;
+    loading.value = true;
     await roleFormRef.value.validate();
 
     if (isEdit.value) {
@@ -270,63 +384,127 @@ const handleRoleFormSubmit = async () => {
         description: roleForm.description,
         status: roles.value.find(r => r.id === roleForm.id)?.status || 1
       });
-      Message.success('编辑成功');
+      if (!isUnmounted.value) {
+        Message.success('编辑成功');
+      }
     } else {
       await roleApi.createRole({
         name: roleForm.name,
         code: roleForm.code,
         description: roleForm.description
       });
-      Message.success('新增成功');
+      if (!isUnmounted.value) {
+        Message.success('新增成功');
+      }
     }
-    showRoleForm.value = false;
-    fetchRoles();
+    if (!isUnmounted.value) {
+      showRoleForm.value = false;
+      await fetchRoles();
+    }
   } catch (error: any) {
-    if (error.response?.data?.error) {
-      Message.error(error.response.data.error);
-    } else if (error.errors) {
-      Message.error('表单验证失败，请检查输入');
-    } else {
-      Message.error(isEdit.value ? '编辑失败' : '新增失败');
+    if (!isUnmounted.value) {
+      if (error.response?.data?.error) {
+        Message.error(error.response.data.error);
+      } else if (error.errors) {
+        Message.error('表单验证失败，请检查输入');
+      } else {
+        Message.error(isEdit.value ? '编辑失败' : '新增失败');
+      }
+    }
+  } finally {
+    if (!isUnmounted.value) {
+      loading.value = false;
     }
   }
 };
 
 // 取消角色表单
 const handleRoleFormCancel = () => {
+  if (!initialized.value || isUnmounted.value) return;
   showRoleForm.value = false;
   if (roleFormRef.value) {
     roleFormRef.value.resetFields();
   }
 };
 
-// 提交权限表单
-const handlePermissionFormSubmit = async () => {
-  try {
-    const params: UpdateRolePermissionsParams = {
-      permission_ids: permissionForm.permissionIds
-    };
-    await roleApi.updateRolePermissions(permissionForm.roleId, params.permission_ids);
-    Message.success('权限更新成功');
-    showPermissionForm.value = false;
-  } catch (error: any) {
-    Message.error(error.response?.data?.error || '权限更新失败');
-  }
-};
-
 // 取消权限表单
 const handlePermissionFormCancel = () => {
+  if (!initialized.value || isUnmounted.value) return;
   showPermissionForm.value = false;
+  permissionForm.roleId = 0;
+  permissionForm.permissionIds = [];
+};
+
+// 提交权限表单
+const handlePermissionFormSubmit = async () => {
+  if (!initialized.value || isUnmounted.value) return;
+  try {
+    permissionLoading.value = true;
+    await roleApi.updateRolePermissions(permissionForm.roleId, permissionForm.permissionIds);
+    if (!isUnmounted.value) {
+      Message.success('权限更新成功');
+      showPermissionForm.value = false;
+      permissionForm.roleId = 0;
+      permissionForm.permissionIds = [];
+    }
+  } catch (error: any) {
+    if (!isUnmounted.value) {
+      Message.error(error.response?.data?.error || '权限更新失败');
+    }
+  } finally {
+    if (!isUnmounted.value) {
+      permissionLoading.value = false;
+    }
+  }
 };
 
 // 使用页面刷新功能
 usePageRefresh(() => {
-  fetchRoles();
+  if (initialized.value && !isUnmounted.value) {
+    fetchRoles();
+  }
 });
 
-onMounted(() => {
-  fetchRoles();
-  fetchPermissionTree();
+// 页面加载时获取数据
+onMounted(async () => {
+  if (isUnmounted.value) return;
+
+  const initializeData = async () => {
+    try {
+      loading.value = true;
+      // Sequential loading to prevent race conditions
+      await fetchRoles();
+      if (!isUnmounted.value) {
+        await fetchPermissionTree();
+        await nextTick();
+        initialized.value = true;
+      }
+    } catch (error) {
+      if (!isUnmounted.value) {
+        Message.error('页面初始化失败');
+        console.error('Initialization error:', error);
+      }
+    } finally {
+      if (!isUnmounted.value) {
+        loading.value = false;
+      }
+    }
+  };
+
+  await initializeData();
+});
+
+// 组件卸载前清理
+onBeforeUnmount(() => {
+  isUnmounted.value = true;
+  showRoleForm.value = false;
+  showPermissionForm.value = false;
+  // Reset all reactive states
+  roles.value = [];
+  permissionTree.value = [];
+  permissionForm.permissionIds = [];
+  loading.value = false;
+  initialized.value = false;
 });
 </script>
 

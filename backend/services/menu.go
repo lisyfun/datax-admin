@@ -82,6 +82,30 @@ func (s *MenuService) GetMenuList(req *types.MenuListRequest) (*types.MenuListRe
 	}, nil
 }
 
+// GetUserMenus 获取用户菜单列表
+func (s *MenuService) GetUserMenus(userID uint) (*types.MenuListResponse, error) {
+	var menus []models.Menu
+
+	// 查询用户角色关联的菜单
+	err := models.DB.Distinct("menus.*").
+		Joins("JOIN role_menus ON role_menus.menu_id = menus.id").
+		Joins("JOIN user_roles ON user_roles.role_id = role_menus.role_id").
+		Where("user_roles.user_id = ? AND menus.status = 1 AND menus.type = 1", userID).
+		Order("menus.sort").
+		Find(&menus).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为树形结构
+	menuTree := s.buildMenuTree(menus, 0)
+
+	return &types.MenuListResponse{
+		List: menuTree,
+	}, nil
+}
+
 // buildMenuTree 构建菜单树
 func (s *MenuService) buildMenuTree(menus []models.Menu, parentID uint) []types.MenuResponse {
 	var tree []types.MenuResponse

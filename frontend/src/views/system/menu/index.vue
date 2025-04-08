@@ -47,24 +47,24 @@
           <a-table-column title="状态" align="center">
             <template #cell="{ record }">
               <a-switch
-                :checked="getStatus(record)"
-                @change="(value) => handleStatusChange(record, value)"
+                :model-value="record.status === 1"
+                @update:model-value="(value) => handleStatusChange(record, Boolean(value))"
               />
             </template>
           </a-table-column>
           <a-table-column title="缓存" align="center">
             <template #cell="{ record }">
               <a-switch
-                :checked="getCache(record)"
-                @change="(value) => handleCacheChange(record, value)"
+                :model-value="record.cache === 1"
+                @update:model-value="(value) => handleCacheChange(record, Boolean(value))"
               />
             </template>
           </a-table-column>
           <a-table-column title="隐藏" align="center">
             <template #cell="{ record }">
               <a-switch
-                :checked="getHidden(record)"
-                @change="(value) => handleHiddenChange(record, value)"
+                :model-value="record.hidden === 1"
+                @update:model-value="(value) => handleHiddenChange(record, Boolean(value))"
               />
             </template>
           </a-table-column>
@@ -135,13 +135,22 @@
           <a-input-number v-model="formData.sort" placeholder="请输入排序" :min="0" />
         </a-form-item>
         <a-form-item field="status" label="状态">
-          <a-switch v-model="formData.status" />
+          <a-switch
+            :model-value="formData.status === 1"
+            @update:model-value="(value) => formData.status = value ? 1 : 0"
+          />
         </a-form-item>
         <a-form-item field="cache" label="缓存">
-          <a-switch v-model="formData.cache" />
+          <a-switch
+            :model-value="formData.cache === 1"
+            @update:model-value="(value) => formData.cache = value ? 1 : 0"
+          />
         </a-form-item>
         <a-form-item field="hidden" label="隐藏">
-          <a-switch v-model="formData.hidden" />
+          <a-switch
+            :model-value="formData.hidden === 1"
+            @update:model-value="(value) => formData.hidden = value ? 1 : 0"
+          />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -156,6 +165,7 @@ import type { TreeNodeData } from '@arco-design/web-vue';
 import { IconPlus, IconEdit, IconDelete, IconApps, IconUser, IconUserGroup, IconSafe, IconCalendar, IconUnorderedList, IconClockCircle, IconDashboard, IconDesktop, IconCloud, IconFile, IconBulb, IconCode, IconRobot, IconCommon, IconCommand, IconLock, IconList } from '@arco-design/web-vue/es/icon';
 import { getMenuList, createMenu, updateMenu, deleteMenu } from '@/api/menu';
 import type { MenuResponse, CreateMenuRequest, UpdateMenuRequest } from '@/api/menu';
+import { useMenuStore } from '@/stores/modules/menu';
 
 // 搜索关键字
 const searchKeyword = ref('');
@@ -173,7 +183,7 @@ const isEdit = ref(false);
 const formRef = ref<FormInstance>();
 
 // 表单数据
-const formData = reactive<Omit<CreateMenuRequest, 'parent_id'> & { id: number; parent_id?: number; status: boolean }>({
+const formData = reactive<Omit<CreateMenuRequest, 'parent_id'> & { id: number; parent_id?: number; status: number; cache: number; hidden: number }>({
   id: 0,
   name: '',
   type: 1,
@@ -182,9 +192,9 @@ const formData = reactive<Omit<CreateMenuRequest, 'parent_id'> & { id: number; p
   component: '',
   icon: '',
   sort: 0,
-  status: true,
-  cache: true,
-  hidden: false,
+  status: 1,
+  cache: 1,
+  hidden: 0,
 });
 
 // 表单校验规则
@@ -216,6 +226,9 @@ const iconMap: Record<string, any> = {
   'icon-lock': IconLock,
   'icon-menu': IconList,
 };
+
+// 添加 menuStore
+const menuStore = useMenuStore();
 
 // 转换为树形选择数据
 const convertToTreeData = (menus: MenuResponse[]): TreeNodeData[] => {
@@ -256,9 +269,9 @@ const handleAdd = (parent?: any) => {
   formData.component = '';
   formData.icon = '';
   formData.sort = 0;
-  formData.status = true;
-  formData.cache = true;
-  formData.hidden = false;
+  formData.status = 1;
+  formData.cache = 1;
+  formData.hidden = 0;
   showMenuForm.value = true;
 };
 
@@ -273,7 +286,7 @@ const handleEdit = (record: any) => {
   formData.component = record.component;
   formData.icon = record.icon;
   formData.sort = record.sort;
-  formData.status = record.status === 1;
+  formData.status = record.status;
   formData.cache = record.cache;
   formData.hidden = record.hidden;
   showMenuForm.value = true;
@@ -285,6 +298,8 @@ const handleDelete = async (record: any) => {
     await deleteMenu(record.id);
     Message.success('删除成功');
     fetchMenuList();
+    // 重新获取用户菜单
+    await menuStore.fetchUserMenus();
   } catch (error: any) {
     Message.error(error.message || '删除失败');
   }
@@ -294,10 +309,21 @@ const handleDelete = async (record: any) => {
 const handleStatusChange = async (record: MenuResponse, value: boolean) => {
   try {
     await updateMenu(record.id, {
+      name: record.name,
+      type: record.type,
+      parent_id: record.parent_id,
+      path: record.path,
+      component: record.component,
+      icon: record.icon,
+      sort: record.sort,
       status: value ? 1 : 0,
+      cache: record.cache as 0 | 1,
+      hidden: record.hidden as 0 | 1,
     });
     Message.success('更新成功');
     fetchMenuList();
+    // 重新获取用户菜单
+    await menuStore.fetchUserMenus();
   } catch (error: any) {
     Message.error(error.message || '更新失败');
   }
@@ -307,10 +333,21 @@ const handleStatusChange = async (record: MenuResponse, value: boolean) => {
 const handleCacheChange = async (record: MenuResponse, value: boolean) => {
   try {
     await updateMenu(record.id, {
-      cache: value,
+      name: record.name,
+      type: record.type,
+      parent_id: record.parent_id,
+      path: record.path,
+      component: record.component,
+      icon: record.icon,
+      sort: record.sort,
+      status: record.status as 0 | 1,
+      cache: value ? 1 : 0,
+      hidden: record.hidden as 0 | 1,
     });
     Message.success('更新成功');
     fetchMenuList();
+    // 重新获取用户菜单
+    await menuStore.fetchUserMenus();
   } catch (error: any) {
     Message.error(error.message || '更新失败');
   }
@@ -320,19 +357,25 @@ const handleCacheChange = async (record: MenuResponse, value: boolean) => {
 const handleHiddenChange = async (record: MenuResponse, value: boolean) => {
   try {
     await updateMenu(record.id, {
-      hidden: value,
+      name: record.name,
+      type: record.type,
+      parent_id: record.parent_id,
+      path: record.path,
+      component: record.component,
+      icon: record.icon,
+      sort: record.sort,
+      status: record.status as 0 | 1,
+      cache: record.cache as 0 | 1,
+      hidden: value ? 1 : 0,
     });
     Message.success('更新成功');
     fetchMenuList();
+    // 重新获取用户菜单
+    await menuStore.fetchUserMenus();
   } catch (error: any) {
     Message.error(error.message || '更新失败');
   }
 };
-
-// 状态计算函数
-const getStatus = (record: MenuResponse): boolean => record.status === 1;
-const getCache = (record: MenuResponse): boolean => !!record.cache;
-const getHidden = (record: MenuResponse): boolean => !!record.hidden;
 
 // 提交表单
 const handleSubmit = async () => {
@@ -348,9 +391,9 @@ const handleSubmit = async () => {
       component: formData.component,
       icon: formData.icon,
       sort: formData.sort,
-      status: formData.status ? 1 : 0,
-      cache: formData.cache,
-      hidden: formData.hidden,
+      status: formData.status as 0 | 1,
+      cache: formData.cache as 0 | 1,
+      hidden: formData.hidden as 0 | 1,
     };
 
     if (isEdit.value) {
@@ -363,6 +406,8 @@ const handleSubmit = async () => {
 
     showMenuForm.value = false;
     fetchMenuList();
+    // 重新获取用户菜单
+    await menuStore.fetchUserMenus();
   } catch (error: any) {
     Message.error(error.message || (isEdit.value ? '更新失败' : '创建失败'));
   }
