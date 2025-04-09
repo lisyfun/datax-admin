@@ -157,37 +157,6 @@ datax-admin/
 - 使用 ESLint 和 Prettier 进行代码格式化
 - 使用 golangci-lint 进行 Go 代码检查
 
-## 部署指南
-
-### Docker 部署
-
-1. 构建镜像
-```bash
-# 前端
-docker build -t datax-admin-frontend ./frontend
-
-# 后端
-docker build -t datax-admin-backend ./backend
-```
-
-2. 运行容器
-```bash
-# 前端
-docker run -d -p 80:80 datax-admin-frontend
-
-# 后端
-docker run -d -p 8080:8080 datax-admin-backend
-```
-
-### 传统部署
-
-1. 前端部署
-   - 执行 `pnpm build` 生成静态文件
-   - 将 `dist` 目录下的文件部署到 Web 服务器
-
-2. 后端部署
-   - 执行 `go build` 生成可执行文件
-   - 配置系统服务或使用 PM2 等工具运行
 
 ## 贡献指南
 
