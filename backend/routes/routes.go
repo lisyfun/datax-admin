@@ -13,7 +13,7 @@ import (
 func SetupRoutes(r *gin.Engine) {
 	// CORS 中间件配置
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost"},
+		AllowOrigins:     []string{"http://localhost:3000", "http://localhost", "http://127.0.0.1:28080"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "Connection", "Upgrade", "Sec-WebSocket-Key", "Sec-WebSocket-Version", "Sec-WebSocket-Extensions", "Sec-WebSocket-Protocol"},
 		ExposeHeaders:    []string{"Content-Length", "Upgrade", "Connection"},
