@@ -18,6 +18,7 @@ type UserService struct{}
 // Register 用户注册
 func (s *UserService) Register(req *types.RegisterRequest) error {
 	var count int64
+	// 使用参数化查询，防止SQL注入
 	if err := models.DB.Model(&models.User{}).Where("username = ?", req.Username).Count(&count).Error; err != nil {
 		return err
 	}
@@ -25,10 +26,20 @@ func (s *UserService) Register(req *types.RegisterRequest) error {
 		return errors.New("用户名已存在")
 	}
 
+	// 对用户输入进行净化处理，防止XSLT和其他注入攻击
+	safeUsername := strings.TrimSpace(req.Username)
+	safeNickname := strings.TrimSpace(req.Nickname)
+	safeEmail := strings.TrimSpace(req.Email)
+
+	// 验证用户输入是否包含恶意XML标签
+	if strings.Contains(safeUsername, "<") || strings.Contains(safeNickname, "<") || strings.Contains(safeEmail, "<") {
+		return errors.New("输入包含非法字符")
+	}
+
 	user := &models.User{
-		Username: req.Username,
-		Nickname: req.Nickname,
-		Email:    req.Email,
+		Username: safeUsername,
+		Nickname: safeNickname,
+		Email:    safeEmail,
 	}
 	if err := user.SetPassword(req.Password); err != nil {
 		return err
@@ -39,12 +50,22 @@ func (s *UserService) Register(req *types.RegisterRequest) error {
 
 // Login 用户登录
 func (s *UserService) Login(req *types.LoginRequest) (*types.LoginResponse, error) {
+	// 防止XSLT注入攻击
+	safeUsername := strings.TrimSpace(req.Username)
+	safePassword := req.Password // 不修改密码，因为它会被hash比较
+
+	// 验证用户输入是否包含恶意XML标签
+	if strings.Contains(safeUsername, "<") {
+		return nil, errors.New("用户名包含非法字符")
+	}
+
 	var user models.User
-	if err := models.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
+	// 使用参数化查询，防止SQL注入
+	if err := models.DB.Where("username = ?", safeUsername).First(&user).Error; err != nil {
 		return nil, errors.New("用户不存在")
 	}
 
-	if !utils.ComparePasswords(user.Password, req.Password) {
+	if !utils.ComparePasswords(user.Password, safePassword) {
 		return nil, errors.New("密码错误")
 	}
 

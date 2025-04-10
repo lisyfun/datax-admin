@@ -2,16 +2,16 @@ package types
 
 // RegisterRequest 注册请求
 type RegisterRequest struct {
-	Username string `json:"username" binding:"required,min=3,max=50"`
-	Password string `json:"password" binding:"required,min=6,max=50"`
-	Nickname string `json:"nickname" binding:"omitempty,max=50"`
-	Email    string `json:"email" binding:"omitempty,email,max=100"`
+	Username string `json:"username" binding:"required,min=3,max=50,excludesall=<>"`
+	Password string `json:"password" binding:"required,min=6,max=50,excludesall=<>"`
+	Nickname string `json:"nickname" binding:"omitempty,max=50,excludesall=<>"`
+	Email    string `json:"email" binding:"omitempty,email,max=100,excludesall=<>"`
 }
 
 // LoginRequest 登录请求
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" binding:"required,excludesall=<>"`
+	Password string `json:"password" binding:"required,excludesall=<>"`
 	IP       string `json:"ip"`
 }
 

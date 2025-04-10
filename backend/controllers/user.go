@@ -5,6 +5,7 @@ import (
 	"datax-admin/types"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,6 +30,13 @@ func (c *UserController) Register(ctx *gin.Context) {
 		return
 	}
 
+	// 额外的输入验证和净化 - 防止SQL和XSLT注入
+	if containsSQLInjection(req.Username) || containsSQLInjection(req.Password) ||
+		containsSQLInjection(req.Nickname) || containsSQLInjection(req.Email) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "输入包含非法字符"})
+		return
+	}
+
 	if err := c.userService.Register(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -42,6 +50,12 @@ func (c *UserController) Login(ctx *gin.Context) {
 	var req types.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 额外的输入验证和净化 - 防止SQL和XSLT注入
+	if containsSQLInjection(req.Username) || containsSQLInjection(req.Password) {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "输入包含非法字符"})
 		return
 	}
 
@@ -205,4 +219,34 @@ func (c *UserController) Logout(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "登出成功"})
+}
+
+// 检查SQL注入的辅助函数
+func containsSQLInjection(input string) bool {
+	// 检查常见的SQL注入模式
+	sqlPatterns := []string{
+		"--", ";", "/*", "*/", "@@", "@",
+		"char", "nchar", "varchar", "nvarchar",
+		"alter", "begin", "cast", "create", "cursor",
+		"declare", "delete", "drop", "end", "exec",
+		"execute", "fetch", "insert", "kill", "select",
+		"sys", "sysobjects", "syscolumns",
+		"table", "update", "xp_",
+		"or 1=1", "or 1=", "or 1 =",
+		"union", "UNION", "HAVING",
+		"1=1", "1 = 1",
+	}
+
+	for _, pattern := range sqlPatterns {
+		if strings.Contains(strings.ToLower(input), strings.ToLower(pattern)) {
+			return true
+		}
+	}
+
+	// 检查XML/XSLT注入
+	if strings.Contains(input, "<") && strings.Contains(input, ">") {
+		return true
+	}
+
+	return false
 }

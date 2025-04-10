@@ -13,12 +13,15 @@ import (
 func SetupRoutes(r *gin.Engine) {
 	// CORS 中间件配置
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
+		AllowOrigins:     []string{"http://localhost"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "Connection", "Upgrade", "Sec-WebSocket-Key", "Sec-WebSocket-Version", "Sec-WebSocket-Extensions", "Sec-WebSocket-Protocol"},
 		ExposeHeaders:    []string{"Content-Length", "Upgrade", "Connection"},
 		AllowCredentials: true,
 	}))
+
+	// 添加安全中间件
+	r.Use(middleware.SecurityMiddleware())
 
 	// WebSocket 路由 - 不需要认证
 	wsGroup := r.Group(config.GlobalConfig.Server.BasePath + "/ws")
