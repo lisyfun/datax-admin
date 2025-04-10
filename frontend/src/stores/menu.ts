@@ -48,7 +48,32 @@ export const useMenuStore = defineStore('menu', {
       this.loading = true;
       try {
         const { data } = await menuApi.getUserMenus();
-        this.menuList = data.list;
+
+        // Helper function to convert MenuResponse to MenuItem recursively
+        const convertToMenuItem = (item: menuApi.MenuResponse): MenuItem => {
+          const menuItem: MenuItem = {
+            id: item.id,
+            parent_id: item.parent_id,
+            name: item.name,
+            path: item.path,
+            component: item.component,
+            icon: item.icon,
+            sort: item.sort,
+            status: item.status,
+            hidden: Boolean(item.hidden),
+            cache: Boolean(item.cache),
+            type: item.type,
+          };
+
+          if (item.children && item.children.length > 0) {
+            menuItem.children = item.children.map(convertToMenuItem);
+          }
+
+          return menuItem;
+        };
+
+        // Convert the whole list
+        this.menuList = data.list.map(convertToMenuItem);
       } catch (error) {
         console.error('获取用户菜单列表失败:', error);
         throw error;
