@@ -617,7 +617,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 			}
 
 			// 尝试解析 JSON 格式的消息
-			var jsonData map[string]interface{}
+			var jsonData map[string]any
 			if err := json.Unmarshal(msg.Value, &jsonData); err == nil {
 				if msgType, ok := jsonData["msgType"].(string); ok {
 					message.MsgType = msgType

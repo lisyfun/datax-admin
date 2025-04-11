@@ -27,7 +27,7 @@ func SecurityMiddleware() gin.HandlerFunc {
 			c.Request.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
 
 			// 检查JSON格式的请求体是否有SQL注入尝试
-			var data map[string]interface{}
+			var data map[string]any
 			if err := json.Unmarshal(bodyBytes, &data); err == nil {
 				// 检查所有字符串值是否有注入尝试
 				if containsInjection(data) {
@@ -44,20 +44,20 @@ func SecurityMiddleware() gin.HandlerFunc {
 }
 
 // 递归检查所有值是否有注入尝试
-func containsInjection(data map[string]interface{}) bool {
+func containsInjection(data map[string]any) bool {
 	for _, v := range data {
 		switch value := v.(type) {
 		case string:
 			if containsSQLInjection(value) || containsXSLTInjection(value) {
 				return true
 			}
-		case map[string]interface{}:
+		case map[string]any:
 			if containsInjection(value) {
 				return true
 			}
-		case []interface{}:
+		case []any:
 			for _, item := range value {
-				if mapItem, ok := item.(map[string]interface{}); ok {
+				if mapItem, ok := item.(map[string]any); ok {
 					if containsInjection(mapItem) {
 						return true
 					}
