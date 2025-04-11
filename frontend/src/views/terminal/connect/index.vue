@@ -64,7 +64,7 @@
         <a-descriptions :column="2" :data="terminalInfoData" />
       </div>
 
-      <div ref="terminalContainer" class="terminal-container" :class="{ connected }" @click="handleTerminalClick">
+      <div ref="terminalContainer" class="terminal-container" :class="{ connected }" @click="handleTerminalClick" @contextmenu.prevent="handleRightClick">
         <template v-if="!connected">
           <div class="terminal-placeholder">
             <icon-robot :style="{ fontSize: '48px', marginBottom: '16px' }" />
@@ -74,6 +74,14 @@
         <template v-else>
           <div id="terminal" class="terminal-content"></div>
         </template>
+
+        <!-- 操作提示 -->
+        <div class="action-feedback copy-feedback" v-if="showCopyTip">
+          <icon-check-circle class="icon" /> 已复制到剪贴板
+        </div>
+        <div class="action-feedback paste-feedback" v-if="showPasteTip">
+          <icon-check-circle class="icon" /> 已粘贴
+        </div>
       </div>
     </a-card>
   </div>
@@ -87,19 +95,22 @@ import {
   IconLink,
   IconPlayCircle,
   IconRobot,
-  IconBug,
   IconUp,
   IconDown,
   IconClose,
   IconMinus,
   IconPlus,
   IconLineHeight,
+  IconCopy,
+  IconPaste,
+  IconCheckCircle,
 } from '@arco-design/web-vue/es/icon';
 import type { TerminalInfo } from '@/types/terminal';
 import terminalApi from '@/api/terminal';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { WebglAddon } from '@xterm/addon-webgl';
 import '@xterm/xterm/css/xterm.css';
 import { backendConfig } from '@/config';
 
@@ -126,6 +137,11 @@ const MAX_RECONNECT_ATTEMPTS = 3; // 最大重连次数
 const fontSize = ref(14);
 const isBold = ref(false);
 const lineHeight = ref(1.3);
+const hasSelection = ref(false);
+
+// 显示气泡提示的配置
+const showCopyTip = ref(false);
+const showPasteTip = ref(false);
 
 // 从本地存储加载字体设置
 const loadFontSettings = () => {
@@ -300,12 +316,32 @@ const initTerminal = () => {
     convertEol: true,
     lineHeight: lineHeight.value,
     letterSpacing: 0.5,
+    allowTransparency: true,
+    rightClickSelectsWord: true, // 右键选中单词
   });
 
   // 添加插件
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
   terminal.loadAddon(new WebLinksAddon());
+
+  // 添加WebGL渲染插件提高性能
+  try {
+    const webglAddon = new WebglAddon();
+    terminal.loadAddon(webglAddon);
+  } catch (e) {
+    console.warn('WebGL渲染初始化失败，将使用Canvas渲染', e);
+  }
+
+  // 监听选择事件，自动复制选中的内容
+  terminal.onSelectionChange(() => {
+    const hasTextSelected = terminal?.hasSelection() || false;
+    hasSelection.value = hasTextSelected;
+
+    if (hasTextSelected) {
+      copySelectionToClipboard();
+    }
+  });
 
   // 挂载终端
   terminal.open(terminalElement);
@@ -647,6 +683,52 @@ const handleReconnect = () => {
   attemptReconnect();
 };
 
+// 自动复制选中内容到剪贴板
+const copySelectionToClipboard = () => {
+  if (!terminal || !terminal.hasSelection()) return;
+
+  const selection = terminal.getSelection();
+  if (selection) {
+    navigator.clipboard.writeText(selection)
+      .then(() => {
+        showCopiedFeedback();
+      })
+      .catch(err => {
+        console.error('自动复制失败:', err);
+      });
+  }
+};
+
+// 显示复制成功的反馈
+const showCopiedFeedback = () => {
+  // 显示一个小提示，表明复制成功
+  showCopyTip.value = true;
+  setTimeout(() => {
+    showCopyTip.value = false;
+  }, 1000);
+};
+
+// 处理右键点击，直接粘贴
+const handleRightClick = async (e: MouseEvent) => {
+  if (!connected.value || !terminal) return;
+
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text && socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'input', data: text }));
+
+      // 显示粘贴成功的反馈
+      showPasteTip.value = true;
+      setTimeout(() => {
+        showPasteTip.value = false;
+      }, 1000);
+    }
+  } catch (err) {
+    console.error('粘贴失败:', err);
+    Message.error('粘贴失败，请检查浏览器权限');
+  }
+};
+
 // 组件挂载
 onMounted(async () => {
   await fetchTerminalInfo();
@@ -872,6 +954,34 @@ onBeforeUnmount(() => {
 :deep(.arco-btn) {
   &[disabled] {
     opacity: 0.5;
+  }
+}
+
+// 添加复制粘贴操作反馈的样式
+.action-feedback {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 100;
+
+  &.copy-feedback {
+    top: 20px;
+    right: 20px;
+  }
+
+  &.paste-feedback {
+    bottom: 20px;
+    right: 20px;
+  }
+
+  .icon {
+    color: #52c41a;
   }
 }
 </style>
