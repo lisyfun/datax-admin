@@ -101,8 +101,6 @@ import {
   IconMinus,
   IconPlus,
   IconLineHeight,
-  IconCopy,
-  IconPaste,
   IconCheckCircle,
 } from '@arco-design/web-vue/es/icon';
 import type { TerminalInfo } from '@/types/terminal';
