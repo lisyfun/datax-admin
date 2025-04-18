@@ -15,5 +15,6 @@ dist/
 *.log
 
 backend/bin/*
+backend/tmp/*
 bin/*
 */bin/*
