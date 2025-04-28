@@ -79,7 +79,7 @@ export default {
       url,
       method: 'GET',
       responseType: 'arraybuffer',
-      timeout: 1800000, // 30分钟超时
+      timeout: 30000, // 30分钟超时
       headers: {
         'Accept': 'application/octet-stream',
       },

@@ -6,9 +6,9 @@ import (
 	"datax-admin/utils/logger"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"time"
 
@@ -416,27 +416,23 @@ func (c *TerminalController) DownloadFile(ctx *gin.Context) {
 	}
 	defer sshClient.Close()
 
-	fileInfo, err := sshClient.GetFileInfo(filePath)
+	// 先下载到本地临时文件
+	localPath, size, err := sshClient.DownloadFileToLocal(filePath)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	defer os.Remove(localPath)
 
 	// 设置响应头
 	ctx.Header("Content-Description", "File Transfer")
 	ctx.Header("Content-Transfer-Encoding", "binary")
-	ctx.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, url.QueryEscape(filepath.Base(filePath))))
+	ctx.Header("Content-Disposition", fmt.Sprintf(`attachment; filename=\"%s\"`, url.QueryEscape(filepath.Base(filePath))))
 	ctx.Header("Content-Type", "application/octet-stream")
-	ctx.Header("Content-Length", strconv.FormatInt(fileInfo.Size(), 10))
+	ctx.Header("Content-Length", strconv.FormatInt(size, 10))
 	ctx.Header("Cache-Control", "no-cache")
 
-	// 下载文件
-	err = sshClient.DownloadFile(filePath, ctx.Writer)
-	if err != nil {
-		// 由于已经开始写入响应，这里不能再返回 JSON
-		log.Printf("Error downloading file: %v", err)
-		return
-	}
+	ctx.File(localPath)
 }
 
 // GetFileList 获取终端文件列表

@@ -401,3 +401,60 @@ func (c *SSHClient) GetFileList(dirPath string) ([]FileInfo, error) {
 
 	return fileList, nil
 }
+
+// DownloadFileToLocal 先将远程文件下载到本地临时文件，返回本地路径和文件大小
+func (c *SSHClient) DownloadFileToLocal(remotePath string) (localPath string, size int64, err error) {
+	if c.sftpClient == nil {
+		return "", 0, fmt.Errorf("SFTP客户端未创建")
+	}
+
+	// 打开远程文件
+	srcFile, err := c.sftpClient.Open(remotePath)
+	if err != nil {
+		return "", 0, fmt.Errorf("打开远程文件失败: %v", err)
+	}
+	defer srcFile.Close()
+
+	// 获取文件信息
+	fileInfo, err := srcFile.Stat()
+	if err != nil {
+		return "", 0, fmt.Errorf("获取文件信息失败: %v", err)
+	}
+
+	// 创建本地临时文件
+	tmpFile, err := os.CreateTemp("", "download-*.tmp")
+	if err != nil {
+		return "", 0, fmt.Errorf("创建本地临时文件失败: %v", err)
+	}
+	localPath = tmpFile.Name()
+	defer func() {
+		tmpFile.Close()
+	}()
+
+	// 拷贝内容
+	buf := make([]byte, 32*1024)
+	total := int64(0)
+	for {
+		n, err := srcFile.Read(buf)
+		if err != nil && err != io.EOF {
+			os.Remove(localPath)
+			return "", 0, fmt.Errorf("读取远程文件失败: %v", err)
+		}
+		if n == 0 {
+			break
+		}
+		if _, err := tmpFile.Write(buf[:n]); err != nil {
+			os.Remove(localPath)
+			return "", 0, fmt.Errorf("写入本地临时文件失败: %v", err)
+		}
+		total += int64(n)
+	}
+
+	// 确保写入磁盘
+	if err := tmpFile.Sync(); err != nil {
+		os.Remove(localPath)
+		return "", 0, fmt.Errorf("同步本地临时文件失败: %v", err)
+	}
+
+	return localPath, fileInfo.Size(), nil
+}
