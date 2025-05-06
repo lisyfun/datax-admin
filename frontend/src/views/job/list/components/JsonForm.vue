@@ -3,7 +3,7 @@
     <template v-if="!value || typeof value !== 'object'">
       <a-input
         :model-value="String(value)"
-        @update:model-value="(val) => $emit('update', { path: [], value: val })"
+        @update:model-value="(val: any) => $emit('update', { path: [], value: val })"
         placeholder="请输入值"
       />
     </template>

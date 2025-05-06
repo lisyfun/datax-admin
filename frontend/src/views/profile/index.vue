@@ -67,7 +67,7 @@
               :rules="[
                 { required: true, message: '请确认新密码' },
                 {
-                  validator: (value) => value === passwordForm.newPassword,
+                  validator: (value: string) => value === passwordForm.newPassword,
                   message: '两次输入的密码不一致',
                 },
               ]"

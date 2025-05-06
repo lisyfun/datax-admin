@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@arco-design/web-vue": "^2.56.3",
+    "@arco-design/web-vue": "^2.57.0",
     "@types/crypto-js": "^4.2.2",
     "@types/nprogress": "^0.2.3",
     "@vueuse/core": "^12.3.0",

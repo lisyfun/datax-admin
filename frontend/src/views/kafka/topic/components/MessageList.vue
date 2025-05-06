@@ -95,7 +95,7 @@
                 :model-value="searchForm.offset"
                 placeholder="偏移量"
                 style="width: 150px"
-                @change="(val) => { searchForm.offset = val !== null ? val : undefined }"
+                @change="(val: number | null) => { searchForm.offset = val !== null ? val : undefined }"
               />
             </div>
 
