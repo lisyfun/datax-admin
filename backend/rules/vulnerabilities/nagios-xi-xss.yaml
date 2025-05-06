@@ -1,0 +1,26 @@
+- method: GET
+  path: "/nagioslogserver/login"
+  status: 200
+  content-type: text/html
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    <html>
+    <head>
+      <title>Nagios Log Server - Login</title>
+    </head>
+    <body>
+      <div class="login-container">
+        <h1>Nagios Log Server</h1>
+        <div class="error-message">
+          </script><script>alert(document.domain)</script>
+        </div>
+        <form method="post" action="/login">
+          <input type="text" name="username" placeholder="Username">
+          <input type="password" name="password" placeholder="Password">
+          <button type="submit">Login</button>
+          <a href="/forgot-password">Cancel</a>
+        </form>
+      </div>
+    </body>
+    </html> 

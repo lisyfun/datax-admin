@@ -1,0 +1,21 @@
+- method: GET
+  path: "/ibm"
+  status: 200
+  content-type: text/html
+  headers:
+    Server: IBM_HTTP_Server/8.5.5
+    X-Powered-By: WebSphere_Application_Server/8.5.5
+  body: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>IBM HTTP Server</title>
+      <meta name="server" content="IBM HTTP Server 8.5.5">
+    </head>
+    <body>
+      <h1>IBM HTTP Server</h1>
+      <p>Server Information: IBM HTTP Server 8.5.5</p>
+      <hr>
+      <small>IBM HTTP Server powered by Apache</small>
+    </body>
+    </html> 

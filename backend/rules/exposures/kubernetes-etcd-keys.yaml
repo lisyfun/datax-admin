@@ -1,0 +1,15 @@
+- method: GET
+  path: "/apiserver-etcd-client.key"
+  status: 200
+  content-type: text/plain
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    -----BEGIN PRIVATE KEY-----
+    MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDFLz8smK+C+Yx/
+    JLbAGZ7uqX2kQDqE7BZxYqXPgJEDz9Hs+FDmJMVzxY5WDp6Z7vvuKvlEaEMQsHgb
+    /h4q8xW9sv/0Ps/Cd+4sQeHy/pYaZh7vwJvH2Bj0qk0UZtGMXzLwOGxGEX3XLv8h
+    Vy8WXXLh5HOT0xECAwEAAQKCAQEAtDRXkj3dVjMKJEHrYHHUPd55UpW3uYM5hG6i
+    cRkwH3GDdqQg8xfYKzGJp4Ux8PC4UmYUpJ8wEVS3Jd4A5LKxF4LmZX9veN9r4Yv5
+    8Hs+FDmJMVzxY5WDp6Z7vvuKvlEaEMQsHgb/h4q8xW9sv/0Ps/Cd+4sQeHy/pYaZ
+    -----END PRIVATE KEY----- 

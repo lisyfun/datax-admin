@@ -1,0 +1,15 @@
+- method: GET
+  path: "/latest/meta-data/identity-credentials/ec2/security-credentials/ec2-instance"
+  status: 200
+  content-type: application/json
+  headers:
+    Server: EC2MetadataService
+  body: |
+    {
+      "Code": "Success",
+      "LastUpdated": "2023-12-31T12:00:00Z",
+      "Type": "AWS-HMAC",
+      "AccessKeyId": "ASIA4SSKJJ232K",
+      "SecretAccessKey": "8P1jKx5iYtF3gH4nQ9vR2mD6bW8kL7pC3sY5aE4n",
+      "Expiration": "2025-03-02T12:00:00Z"
+    } 

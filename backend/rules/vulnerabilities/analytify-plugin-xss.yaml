@@ -1,0 +1,23 @@
+- method: GET
+  path: "/aa404bb?a</script><script>alert(/XSS/)</script>"
+  status: 404
+  content-type: text/html
+  headers:
+    Server: Apache/2.4.41
+  body: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Page Not Found - Analytify</title>
+      <script type="text/javascript">alert(/XSS/)</script>
+    </head>
+    <body>
+      <div class="wp-analytify error-page">
+        <h1>404 - Page Not Found</h1>
+        <p>The requested page could not be found.</p>
+        <div class="analytify-stats">
+          <!-- Analytify tracking code -->
+        </div>
+      </div>
+    </body>
+    </html> 

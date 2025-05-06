@@ -1,0 +1,22 @@
+- method: GET
+  path: "/access_tokens.db"
+  status: 200
+  content-type: application/octet-stream
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    SQLite format 3
+    CREATE TABLE access_tokens (
+      account_id TEXT PRIMARY KEY,
+      access_token TEXT,
+      token_expiry TIMESTAMP,
+      rapt_token TEXT,
+      id_token TEXT
+    );
+    INSERT INTO access_tokens VALUES(
+      'utku@gmail.com',
+      'ya29.a0AfB_byC6nK3k4l5m6n7o8p9q0r1s2t3u4v5w6x7y8z9',
+      '2024-01-01 00:00:00',
+      'rapt-token-value',
+      'id-token-value'
+    ); 

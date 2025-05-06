@@ -6,9 +6,12 @@ import (
 	"datax-admin/routes"
 	"datax-admin/services"
 	"datax-admin/utils/logger"
+	"log"
+	"path/filepath"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/utkusen/baitroute/go/pkg/baitroute"
 )
 
 func main() {
@@ -50,6 +53,13 @@ func main() {
 	// 设置文件上传大小限制为 500MB
 	r.MaxMultipartMemory = config.GlobalConfig.Server.MaxFileSize << 20
 
+	b := initBaitRoute()
+
+	// 注册蜜罐路由到 Gin
+	if err := b.RegisterWithGin(r); err != nil {
+		log.Fatalf("Failed to register bait endpoints: %v", err)
+	}
+
 	// 注册路由
 	routes.SetupRoutes(r)
 
@@ -58,4 +68,19 @@ func main() {
 	if err := r.Run(config.GlobalConfig.Server.Port); err != nil {
 		logger.Fatal("服务启动失败: %v", err)
 	}
+}
+
+// BaitRoute
+func initBaitRoute() *baitroute.BaitRoute {
+	rulesPath := filepath.Join("rules") // 你的 rules 路径
+	b, err := baitroute.NewBaitRoute(rulesPath)
+	if err != nil {
+		log.Fatalf("Failed to initialize baitroute: %v", err)
+	}
+
+	b.OnBaitHit(func(alert baitroute.Alert) {
+		log.Printf("Bait Alert: Method=%s Path=%s SourceIP=%s Rule=%s",
+			alert.Method, alert.Path, alert.SourceIP, alert.RuleName)
+	})
+	return b
 }

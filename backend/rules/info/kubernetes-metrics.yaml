@@ -1,0 +1,20 @@
+- method: GET
+  path: "/metrics"
+  status: 200
+  content-type: text/plain
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    # HELP kube_pod_container_status_running Describes whether the container is currently in running state
+    # TYPE kube_pod_container_status_running gauge
+    kube_pod_container_status_running{container="nginx",namespace="default",pod="web-1"} 1
+
+    # HELP kube_pod_container_resource_limits Resource limits for container
+    # TYPE kube_pod_container_resource_limits gauge
+    kube_pod_container_resource_limits{container="nginx",namespace="default",pod="web-1",resource="cpu"} 1
+    kube_pod_container_resource_limits{container="nginx",namespace="default",pod="web-1",resource="memory"} 512
+
+    # HELP kube_node_status_capacity Node capacity
+    # TYPE kube_node_status_capacity gauge
+    kube_node_status_capacity{node="worker-1",resource="cpu"} 4
+    kube_node_status_capacity{node="worker-1",resource="memory"} 8192 

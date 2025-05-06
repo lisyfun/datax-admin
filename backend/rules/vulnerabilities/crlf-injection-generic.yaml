@@ -1,0 +1,16 @@
+- method: GET
+  path: "/%0D%0ASet-Cookie:crlfinjection=crlfinjection"
+  status: 200
+  content-type: text/html
+  headers:
+    Server: nginx/1.18.0
+    Set-Cookie: crlfinjection=crlfinjection
+  body: |
+    <html>
+    <head>
+      <title>Welcome</title>
+    </head>
+    <body>
+      404 Not Found
+    </body>
+    </html> 

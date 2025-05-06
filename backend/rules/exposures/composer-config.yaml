@@ -1,0 +1,108 @@
+- method: GET
+  path: "/composer.json"
+  status: 200
+  content-type: application/json
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    {
+      "name": "example/web-application",
+      "description": "Composer Application",
+      "type": "project",
+      "license": "MIT",
+      "require": {
+          "php": "^7.4|^8.0",
+          "laravel/framework": "^8.0",
+          "guzzlehttp/guzzle": "^7.0.1",
+          "aws/aws-sdk-php": "^3.0",
+          "predis/predis": "^1.1",
+          "stripe/stripe-php": "^7.0"
+      },
+      "require-dev": {
+          "phpunit/phpunit": "^9.0",
+          "mockery/mockery": "^1.4",
+          "fakerphp/faker": "^1.9.1"
+      },
+      "autoload": {
+          "psr-4": {
+              "App\\": "app/",
+              "Database\\Factories\\": "database/factories/",
+              "Database\\Seeders\\": "database/seeders/"
+          }
+      },
+      "scripts": {
+          "post-autoload-dump": [
+              "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+              "@php artisan package:discover --ansi"
+          ],
+          "post-install-cmd": [
+              "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+          ]
+      },
+      "config": {
+          "optimize-autoloader": true,
+          "preferred-install": "dist",
+          "sort-packages": true
+      },
+      "minimum-stability": "dev",
+      "prefer-stable": true
+    }
+
+- method: GET
+  path: "/composer.lock"
+  status: 200
+  content-type: application/octet-stream
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    {
+      "_readme": [
+          "This file locks the dependencies of your project to a known state",
+          "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+          "This file is @generated automatically"
+      ],
+      "content-hash": "d751713988987e9331980363e24189ce",
+      "packages": [
+          {
+              "name": "laravel/framework",
+              "version": "v8.83.27",
+              "source": {
+                  "type": "git",
+                  "url": "https://github.com/laravel/framework.git",
+                  "reference": "e1afe088b4ca613fb96dc57e6d8dbcb8cc2c6b49"
+              },
+              "dist": {
+                  "type": "zip",
+                  "url": "https://api.github.com/repos/laravel/framework/zipball/e1afe088b4ca613fb96dc57e6d8dbcb8cc2c6b49",
+                  "reference": "e1afe088b4ca613fb96dc57e6d8dbcb8cc2c6b49",
+                  "shasum": ""
+              }
+          },
+          {
+              "name": "guzzlehttp/guzzle",
+              "version": "7.5.0",
+              "source": {
+                  "type": "git",
+                  "url": "https://github.com/guzzle/guzzle.git",
+                  "reference": "b50a2a1251152e43f6a37f0fa053e730a67d25ba"
+              },
+              "dist": {
+                  "type": "zip",
+                  "url": "https://api.github.com/repos/guzzle/guzzle/zipball/b50a2a1251152e43f6a37f0fa053e730a67d25ba",
+                  "reference": "b50a2a1251152e43f6a37f0fa053e730a67d25ba",
+                  "shasum": ""
+              }
+          }
+      ],
+      "packages-dev": [
+          {
+              "name": "phpunit/phpunit",
+              "version": "9.6.5",
+              "source": {
+                  "type": "git",
+                  "url": "https://github.com/sebastianbergmann/phpunit.git",
+                  "reference": "86e761949019ae83f49240b2f2123fb5ab3b2fc5"
+              }
+          }
+      ]
+    } 

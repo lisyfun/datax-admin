@@ -1,0 +1,53 @@
+- method: GET
+  path: "/.circleci/config.yml"
+  status: 200
+  content-type: text/yaml
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    version: 2.1
+
+    orbs:
+      aws-cli: circleci/aws-cli@3.1
+      docker: circleci/docker@2.2.0
+
+    jobs:
+      build:
+        docker:
+          - image: cimg/node:16.13
+        steps:
+          - checkout
+          - setup_remote_docker
+          - run:
+              name: Install Dependencies
+              command: npm install
+          - run:
+              name: Run Tests
+              command: npm test
+
+      deploy:
+        docker:
+          - image: cimg/python:3.9
+        environment:
+          AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+          AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+        steps:
+          - checkout
+          - aws-cli/setup
+          - run:
+              name: Deploy to AWS
+              command: |
+                aws s3 sync ./build s3://my-bucket/
+                aws cloudfront create-invalidation --distribution-id ${CDN_DISTRIBUTION_ID} --paths "/*"
+
+    workflows:
+      version: 2
+      build-and-deploy:
+        jobs:
+          - build
+          - deploy:
+              requires:
+                - build
+              filters:
+                branches:
+                  only: main 

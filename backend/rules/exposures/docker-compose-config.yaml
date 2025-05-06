@@ -1,0 +1,58 @@
+- method: GET
+  path: "/docker-compose.yml"
+  status: 200
+  content-type: text/yaml
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    version: '3.8'
+
+    services:
+      web:
+        build: .
+        image: myapp/web:latest
+        environment:
+          - DB_HOST=db
+          - DB_USER=admin
+          - DB_PASSWORD=secret123
+          - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+          - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+        ports:
+          - "8080:80"
+        volumes:
+          - ./src:/var/www/html
+        depends_on:
+          - db
+          - redis
+
+      db:
+        image: mysql:8.0
+        environment:
+          - MYSQL_ROOT_PASSWORD=rootpass123
+          - MYSQL_DATABASE=myapp
+          - MYSQL_USER=admin
+          - MYSQL_PASSWORD=secret123
+        volumes:
+          - db_data:/var/lib/mysql
+        ports:
+          - "3306:3306"
+
+      redis:
+        image: redis:6-alpine
+        volumes:
+          - redis_data:/data
+        ports:
+          - "6379:6379"
+
+      nginx:
+        image: nginx:alpine
+        ports:
+          - "80:80"
+        volumes:
+          - ./nginx.conf:/etc/nginx/conf.d/default.conf
+        depends_on:
+          - web
+
+    volumes:
+      db_data:
+      redis_data: 

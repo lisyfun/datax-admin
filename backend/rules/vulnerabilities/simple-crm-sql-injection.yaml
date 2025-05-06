@@ -1,0 +1,19 @@
+- method: POST
+  path: "/scrm/crm/admin"
+  status: 200
+  content-type: text/html
+  headers:
+    Server: Apache/2.4.41
+  body: |
+    <html>
+    <head>
+      <title>Simple CRM - Login</title>
+    </head>
+    <body>
+      <script>window.location.href='home.php'</script>
+      <div class="login-container">
+        <h1>Simple CRM</h1>
+        <p>Redirecting to dashboard...</p>
+      </div>
+    </body>
+    </html> 

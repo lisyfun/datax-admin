@@ -1,0 +1,20 @@
+- method: GET
+  path: "/SSI/index.htm"
+  status: 200
+  content-type: text/html
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    <HTML>
+    <HEAD>
+    <TITLE>HP LaserJet Professional - Home</TITLE>
+    </HEAD>
+    <BODY>
+    <h1>HP LaserJet Professional</h1>
+    <div class="printer-status">
+      <p>Status: Ready</p>
+      <p>Paper Tray: Loaded</p>
+      <p>Toner Level: 85%</p>
+    </div>
+    </BODY>
+    </HTML> 

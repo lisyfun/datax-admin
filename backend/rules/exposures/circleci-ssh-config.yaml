@@ -1,0 +1,27 @@
+- method: GET
+  path: "/.circleci/ssh-config"
+  status: 200
+  content-type: text/plain
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    Host github.com
+      HostName github.com
+      User git
+      IdentityFile ~/.ssh/id_rsa_github
+      StrictHostKeyChecking no
+
+    Host staging-server
+      HostName staging.example.com
+      User circleci
+      IdentityFile ~/.ssh/id_rsa_staging
+      Port 22
+      ForwardAgent yes
+
+    Host production-server
+      HostName prod.example.com
+      User deploy
+      IdentityFile ~/.ssh/id_rsa_production
+      Port 22
+      StrictHostKeyChecking no
+      UserKnownHostsFile /dev/null 

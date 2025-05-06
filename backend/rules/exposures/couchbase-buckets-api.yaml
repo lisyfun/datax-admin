@@ -1,0 +1,45 @@
+- method: GET
+  path: "/pools/default/buckets"
+  status: 200
+  content-type: application/json
+  headers:
+    Server: Couchbase Server
+  body: |
+    {
+      "couchbase": {
+        "buckets": [
+          {
+            "name": "default",
+            "bucket": "default",
+            "data": {
+              "quotaPercentUsed": 45.2,
+              "basicStats": {
+                "itemCount": 1234567,
+                "diskUsed": 123456789,
+                "memUsed": 987654321
+              }
+            },
+            "type": "membase",
+            "authType": "sasl",
+            "replicaNumber": 1,
+            "status": "healthy"
+          },
+          {
+            "name": "users",
+            "bucket": "users",
+            "data": {
+              "quotaPercentUsed": 78.9,
+              "basicStats": {
+                "itemCount": 89012,
+                "diskUsed": 456789012,
+                "memUsed": 345678901
+              }
+            },
+            "type": "membase",
+            "authType": "sasl",
+            "replicaNumber": 1,
+            "status": "healthy"
+          }
+        ]
+      }
+    } 

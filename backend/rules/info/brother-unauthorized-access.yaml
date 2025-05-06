@@ -1,0 +1,24 @@
+- method: GET
+  path: "/net/net/net.html"
+  status: 200
+  content-type: text/html
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    <HTML>
+    <HEAD>
+    <TITLE>Brother Industries - Network Configuration</TITLE>
+    </HEAD>
+    <BODY>
+    <div class="header">
+      <img src="brother-logo.png" alt="Brother Industries">
+    </div>
+    <h1>Network Status</h1>
+    <div class="network-info">
+      <p>IP Address: 192.168.1.100</p>
+      <p>Subnet Mask: 255.255.255.0</p>
+      <p>MAC Address: 00:11:22:33:44:55</p>
+      <p>Connection Status: Connected</p>
+    </div>
+    </BODY>
+    </HTML> 

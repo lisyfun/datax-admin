@@ -1,0 +1,79 @@
+- method: GET
+  path: "/openapi.json"
+  status: 200
+  content-type: application/json
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    {
+      "openapi": "3.0.3",
+      "info": {
+        "title": "Example API",
+        "description": "API Documentation for Example Service",
+        "version": "1.0.0",
+        "contact": {
+          "name": "API Support",
+          "email": "support@example.com"
+        }
+      },
+      "servers": [
+        {
+          "url": "https://api.example.com/v1"
+        }
+      ],
+      "paths": {
+        "/users": {
+          "get": {
+            "summary": "List users",
+            "responses": {
+              "200": {
+                "description": "Successful response",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/User"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "post": {
+            "summary": "Create user",
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "components": {
+        "schemas": {
+          "User": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    } 

@@ -1,0 +1,40 @@
+- method: GET
+  path: "/settings.php.bak"
+  status: 200
+  content-type: text/plain
+  headers:
+    Server: Apache/2.4.49
+  body: |
+    <?php
+    // Database Configuration
+    define('DB_NAME', 'example_database');
+    define('DB_USER', 'db_user');
+    define('DB_PASSWORD', 'super_secret_password');
+    define('DB_HOST', 'localhost');
+    define('DB_CHARSET', 'utf8');
+    define('DB_COLLATE', '');
+
+    // Authentication unique keys and salts
+    define('AUTH_KEY',         'put your unique phrase here');
+    define('SECURE_AUTH_KEY',  'put your unique phrase here');
+    define('LOGGED_IN_KEY',    'put your unique phrase here');
+    define('NONCE_KEY',        'put your unique phrase here');
+
+    // Database Table prefix
+    $table_prefix  = 'wp_';
+
+    // Database connection settings
+    $db_settings = array(
+        'default' => array(
+            'DB' => array(
+                'driver' => 'mysql',
+                'host' => DB_HOST,
+                'database' => DB_NAME,
+                'username' => DB_USER,
+                'password' => DB_PASSWORD,
+                'charset' => DB_CHARSET,
+                'collation' => 'utf8_unicode_ci',
+                'prefix' => '',
+            ),
+        ),
+    ); 

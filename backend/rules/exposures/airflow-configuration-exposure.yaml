@@ -1,0 +1,42 @@
+- method: GET
+  path: "/airflow.cfg"
+  status: 200
+  content-type: text/plain
+  headers:
+    Server: Apache/2.4.49
+  body: |
+    [core]
+    dags_folder = /usr/local/airflow/dags
+    base_log_folder = /usr/local/airflow/logs
+    executor = CeleryExecutor
+    sql_alchemy_conn = postgresql+psycopg2://airflow:airflow@postgres/airflow
+    load_examples = False
+    dags_are_paused_at_creation = True
+    dag_file_processor_timeout = 600
+
+    [api]
+    auth_backend = airflow.api.auth.backend.basic_auth
+    api_client = airflow.api.client.json_client
+    access_control_allow_headers = origin,content-type,accept
+    access_control_allow_methods = POST,GET,OPTIONS,DELETE
+    access_control_allow_origin = *
+
+    [webserver]
+    base_url = http://localhost:8080
+    web_server_host = 0.0.0.0
+    web_server_port = 8080
+    secret_key = your_secret_key_here
+    workers = 4
+    expose_config = True
+
+    [celery]
+    broker_url = redis://redis:6379/0
+    result_backend = db+postgresql://airflow:airflow@postgres/airflow
+    worker_concurrency = 16
+
+    [scheduler]
+    job_heartbeat_sec = 5
+    scheduler_heartbeat_sec = 5
+    run_duration = -1
+    min_file_process_interval = 0
+    dag_file_processor_timeout = 600 

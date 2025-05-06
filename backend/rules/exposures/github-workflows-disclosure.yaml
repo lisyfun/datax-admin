@@ -1,0 +1,70 @@
+- method: GET
+  path: "/.github/workflows/release.yml"
+  status: 200
+  content-type: text/yaml
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    name: Release Pipeline
+
+    on:
+      push:
+        tags:
+          - 'v*'
+      workflow_dispatch:
+
+    jobs:
+      build:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v3
+          
+          - uses: actions/setup-node@v3
+            with:
+              node-version: '16'
+              
+          - uses: actions/cache@v3
+            with:
+              path: ~/.npm
+              key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+              
+          - name: Install dependencies
+            run: npm ci
+            
+          - name: Run tests
+            run: npm test
+
+      deploy:
+        needs: build
+        runs-on: ubuntu-latest
+        environment: production
+        steps:
+          - uses: actions/checkout@v3
+          
+          - name: Configure AWS credentials
+            uses: aws-actions/configure-aws-credentials@v1
+            with:
+              aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+              aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+              aws-region: us-east-1
+              
+          - name: Build application
+            run: |
+              npm ci
+              npm run build
+              
+          - name: Deploy to S3
+            uses: jakejarvis/s3-sync-action@master
+            with:
+              args: --acl public-read --follow-symlinks --delete
+            env:
+              AWS_S3_BUCKET: ${{ secrets.S3_BUCKET }}
+              
+          - name: Create Release
+            uses: softprops/action-gh-release@v1
+            with:
+              files: |
+                dist/*
+                README.md
+            env:
+              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

@@ -1,0 +1,44 @@
+- method: GET
+  path: "/nagios/cgi-bin/status.cgi"
+  status: 200
+  content-type: text/html
+  headers:
+    Server: Apache/2.4.49
+  body: |
+    <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+    <html>
+    <head>
+      <title>Current Network Status</title>
+      <link rel="stylesheet" type="text/css" href="/nagios/stylesheets/common.css">
+    </head>
+    <body>
+      <div class="navbar">
+        <div class="navbarlogo">
+          <a href="/nagios/"><img src="/nagios/images/sblogo.png" alt="Nagios"></a>
+        </div>
+      </div>
+      <div class="statusTitle">
+        <h1>Current Network Status</h1>
+        <p>Last Updated: Mon Jan 1 12:00:00 UTC 2025</p>
+      </div>
+      <div class="status">
+        <table class="status">
+          <tr class="statusOdd">
+            <td class="statusHOST">web-server-01</td>
+            <td class="statusOK">OK</td>
+            <td>HTTP OK: HTTP/1.1 200 OK - 1234 bytes in 0.123 second response time</td>
+          </tr>
+          <tr class="statusEven">
+            <td class="statusHOST">db-server-01</td>
+            <td class="statusWARNING">WARNING</td>
+            <td>DISK WARNING - free space: / 1234 MB (5% inode=75%)</td>
+          </tr>
+          <tr class="statusOdd">
+            <td class="statusHOST">mail-server-01</td>
+            <td class="statusCRITICAL">CRITICAL</td>
+            <td>SMTP CRITICAL - Cannot connect to SMTP server (Connection refused)</td>
+          </tr>
+        </table>
+      </div>
+    </body>
+    </html> 

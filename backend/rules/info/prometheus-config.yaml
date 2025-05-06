@@ -1,0 +1,13 @@
+- method: GET
+  path: "/api/v1/status/config"
+  status: 200
+  content-type: application/json
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    {
+      "status": "success",
+      "data": {
+        "yaml": "global:\n  scrape_interval: 15s\n  evaluation_interval: 15s\nalerting:\n  alertmanagers:\n  - static_configs:\n    - targets:\n      - alertmanager:9093\nrule_files:\n  - /etc/prometheus/rules/*.rules\nscrape_configs:\n  - job_name: prometheus\n    static_configs:\n      - targets: ['localhost:9090']\n  - job_name: node-exporter\n    static_configs:\n      - targets: ['node-exporter:9100']"
+      }
+    } 

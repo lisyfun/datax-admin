@@ -1,0 +1,12 @@
+- method: GET
+  path: "/.composer-auth.json"
+  status: 200
+  content-type: application/json
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    {
+      "github-oauth": {
+        "github.com": "ghp_abcdefghijklmnopqrstuvwxyz0123"
+      }
+    } 

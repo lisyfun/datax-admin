@@ -1,0 +1,35 @@
+- method: GET
+  path: "/ansible.cfg"
+  status: 200
+  content-type: text/plain
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    [defaults]
+    inventory = ./inventory
+    remote_user = ansible
+    private_key_file = ~/.ssh/id_rsa
+    host_key_checking = False
+    retry_files_enabled = False
+    roles_path = ./roles
+    vault_password_file = ./.vault_pass
+    log_path = ./ansible.log
+    forks = 5
+
+    [inventory]
+    enable_plugins = host_list, script, auto, yaml, ini, toml
+    cache = yes
+    cache_plugin = jsonfile
+    cache_timeout = 3600
+    cache_connection = /tmp/ansible_inventory_cache
+
+    [privilege_escalation]
+    become = True
+    become_method = sudo
+    become_user = root
+    become_ask_pass = False
+
+    [ssh_connection]
+    ssh_args = -C -o ControlMaster=auto -o ControlPersist=60s
+    pipelining = True
+    control_path = /tmp/ansible-ssh-%%h-%%p-%%r 

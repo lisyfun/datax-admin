@@ -1,0 +1,25 @@
+- method: GET
+  path: "/config.js"
+  status: 200
+  content-type: application/javascript
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC8xjxZxPCn3qJHsPmk_QZWxGY1KlZ9zXc",
+      authDomain: "theappprod22.firebaseapp.com",
+      databaseURL: "https://theappprod22.firebaseio.com",
+      projectId: "theappprod22",
+      storageBucket: "theappprod22.appspot.com",
+      messagingSenderId: "123456789012",
+      appId: "1:123456789012:web:abc123def456ghi789",
+      measurementId: "G-ABC123DEF4"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+
+    // Export the config for use in other modules
+    export default firebaseConfig; 

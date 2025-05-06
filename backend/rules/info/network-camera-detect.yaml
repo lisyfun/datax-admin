@@ -1,0 +1,18 @@
+- method: GET
+  path: "/CgiStart?page=Single"
+  status: 200
+  content-type: text/html
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    <HTML>
+    <HEAD>
+    <TITLE>Network Camera</TITLE>
+    </HEAD>
+    <BODY>
+    <h1>Network Camera Control Panel</h1>
+    <div class="camera-view">
+      <img src="live.jpg" alt="Camera Feed">
+    </div>
+    </BODY>
+    </HTML> 

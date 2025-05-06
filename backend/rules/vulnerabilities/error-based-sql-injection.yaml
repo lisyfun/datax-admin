@@ -1,0 +1,19 @@
+- method: GET
+  path: "/'"
+  status: 500
+  content-type: text/html
+  headers:
+    Server: Apache/2.4.41
+  body: |
+    <html>
+    <head>
+      <title>Database Error</title>
+    </head>
+    <body>
+      <h1>Internal Server Error</h1>
+      <p>Error executing database query</p>
+      <div class="error-details">
+        com.mysql.jdbc.exceptions.MySQLSyntaxErrorException: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''' at line 1
+      </div>
+    </body>
+    </html> 

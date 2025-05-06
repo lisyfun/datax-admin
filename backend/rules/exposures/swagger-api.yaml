@@ -1,0 +1,53 @@
+- method: GET
+  path: "/swagger/ui/swagger-ui.js"
+  status: 200
+  content-type: text/html
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>API Documentation - @version v2.1.3</title>
+      <script>
+        window.onload = function() {
+          loadSwaggerUI();
+        }
+      </script>
+    </head>
+    <body>
+      <div id="swagger-ui">
+        {
+          "swagger": "2.0",
+          "info": {
+            "title": "Example API",
+            "description": "Swagger 2.0 API Documentation",
+            "version": "2.1.3"
+          },
+          "host": "api.example.com",
+          "basePath": "/v1",
+          "schemes": ["https"],
+          "securityDefinitions": {
+            "Bearer": {
+              "type": "apiKey",
+              "name": "Authorization",
+              "in": "header",
+              "description": "**token**: JWT token required for authentication"
+            }
+          },
+          "paths": {
+            "/users": {
+              "get": {
+                "summary": "List users",
+                "responses": {
+                  "200": {
+                    "description": "Success"
+                  }
+                }
+              }
+            }
+          }
+        }
+      </div>
+    </body>
+    </html> 

@@ -1,0 +1,53 @@
+- method: GET
+  path: "/Dockerrun.aws.json"
+  status: 200
+  content-type: application/json
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    {
+      "AWSEBDockerrunVersion": 2,
+      "volumes": [
+        {
+          "name": "app-data",
+          "host": {
+            "sourcePath": "/var/app/data"
+          }
+        }
+      ],
+      "containerDefinitions": [
+        {
+          "name": "web-app",
+          "image": "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-web-app:latest",
+          "essential": true,
+          "memory": 512,
+          "portMappings": [
+            {
+              "hostPort": 80,
+              "containerPort": 8080
+            }
+          ],
+          "environment": [
+            {
+              "name": "DB_HOST",
+              "value": "db.internal"
+            },
+            {
+              "name": "AWS_ACCESS_KEY_ID",
+              "value": "AKIA1234567890"
+            },
+            {
+              "name": "AWS_SECRET_ACCESS_KEY",
+              "value": "secretkey123456789"
+            }
+          ],
+          "mountPoints": [
+            {
+              "sourceVolume": "app-data",
+              "containerPath": "/usr/src/app/data",
+              "readOnly": false
+            }
+          ]
+        }
+      ]
+    } 

