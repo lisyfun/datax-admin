@@ -32,6 +32,7 @@ COPY ./frontend/50x.html ./50x.html
 COPY ./backend/bin/${BINARY_NAME}-${BINARY_VERSION} /app/${BINARY_NAME}
 COPY ./bin/datax-${DATAX_VERSION} /app/bin/datax
 COPY ${CONFIG_FILE} /app/config.yaml
+COPY ./backend/rules /app/rules
 
 # 复制 Nginx 配置和启动脚本
 COPY nginx.conf /etc/nginx/nginx.conf
