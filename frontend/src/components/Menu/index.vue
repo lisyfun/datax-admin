@@ -24,7 +24,7 @@
             </template>
             {{ child.name }}
           </a-menu-item>
-          <a-sub-menu v-else :key="child.id">
+          <a-sub-menu v-else :key="`sub-menu-${child.id}`">
             <template #icon>
               <icon-font v-if="child.icon" :type="child.icon" />
             </template>
@@ -42,7 +42,7 @@
         </template>
       </a-sub-menu>
       <!-- 没有子菜单的情况 -->
-      <a-menu-item v-else :key="menu.id">
+      <a-menu-item v-else :key="`menu-item-${menu.id}`">
         <template #icon>
           <icon-font v-if="menu.icon" :type="menu.icon" />
         </template>
