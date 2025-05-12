@@ -366,7 +366,6 @@ onUnmounted(() => {
 :deep(.arco-menu-title),
 :deep(.arco-breadcrumb) {
   font-size: 14px;
-  font-weight: 500;
   letter-spacing: 0.2px;
   height: 45px;
   line-height: 45px;
@@ -691,13 +690,9 @@ onUnmounted(() => {
 /* 菜单项字体优化 */
 :deep(.arco-menu-item) {
   font-size: 14px;
-  font-weight: 500;
   letter-spacing: 0.2px;
 }
 
-:deep(.arco-menu-item-title) {
-  font-weight: 500;
-}
 
 /* 面包屑字体优化 */
 :deep(.arco-breadcrumb-item) {

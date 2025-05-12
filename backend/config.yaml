@@ -5,7 +5,7 @@ server:
   max_file_size: 500  # 500MB
 
 db:
-  host: 192.168.228.1
+  host: host.docker.internal
   port: 13306
   username: root
   password: 123456
