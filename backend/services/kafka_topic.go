@@ -31,7 +31,7 @@ func (s *KafkaTopicService) SyncTopics(clusterID uint) error {
 	}
 
 	// 连接到 Kafka 集群
-	conn, err := s.kafkaService.getKafkaConn(cluster, "")
+	conn, err := s.kafkaService.getKafkaConn(cluster)
 	if err != nil {
 		return fmt.Errorf("连接Kafka失败: %v", err)
 	}

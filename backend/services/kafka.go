@@ -75,7 +75,7 @@ type TopicConfig struct {
 // ValidateClusterConnection 验证集群连接
 func (s *KafkaService) ValidateClusterConnection(cluster *models.KafkaCluster) error {
 	// 使用 kafka-go 验证连接
-	conn, err := s.getKafkaConn(cluster, "")
+	conn, err := s.getKafkaConn(cluster)
 	if err != nil {
 		return fmt.Errorf("连接失败: %v", err)
 	}
@@ -141,7 +141,7 @@ func (s *KafkaService) GetKafkaCluster(id uint) (*models.KafkaCluster, error) {
 	}
 
 	// 连接到 Kafka 集群
-	conn, err := s.getKafkaConn(&cluster, "")
+	conn, err := s.getKafkaConn(&cluster)
 	if err != nil {
 		// 减少日志输出
 		return &cluster, nil
@@ -154,6 +154,10 @@ func (s *KafkaService) GetKafkaCluster(id uint) (*models.KafkaCluster, error) {
 		// 统计唯一的 topic 名称
 		topicMap := make(map[string]bool)
 		for _, p := range topics {
+			//如果topic名称包含"__consumer_offsets"，则不统计
+			if strings.Contains(p.Topic, "__consumer_offsets") {
+				continue
+			}
 			topicMap[p.Topic] = true
 		}
 		cluster.TopicCount = len(topicMap)
@@ -217,7 +221,7 @@ func (s *KafkaService) ListKafkaClusters(page, pageSize int, search string) (*Ka
 				defer close(done)
 
 				// 尝试连接集群
-				conn, err := s.getKafkaConn(&clusters[index], "")
+				conn, err := s.getKafkaConn(&clusters[index])
 				if err != nil {
 					// 连接失败，状态设为不可用
 					clusters[index].Status = false
@@ -275,7 +279,7 @@ func (s *KafkaService) CheckClusterStatus(cluster *models.KafkaCluster) error {
 	cluster.LastCheckTime = time.Now()
 
 	// 尝试连接集群
-	conn, err := s.getKafkaConn(cluster, "")
+	conn, err := s.getKafkaConn(cluster)
 	if err != nil {
 		cluster.Status = false
 		return models.DB.Save(cluster).Error
@@ -350,54 +354,8 @@ func (s *KafkaService) StartClusterHealthCheck(checkInterval time.Duration) {
 	}()
 }
 
-// enrichClusterStats 丰富集群统计信息 - 仅在需要详细信息时使用
-func (s *KafkaService) enrichClusterStats(cluster *models.KafkaCluster) {
-	// 检查集群状态
-	if err := s.CheckClusterStatus(cluster); err != nil {
-		// 减少日志输出，只在调试模式下输出
-		// logger.Info("检查集群状态失败: %v\n", err)
-		return
-	}
-
-	// 如果集群不可用，直接返回
-	if !cluster.Status {
-		return
-	}
-
-	// 连接到 Kafka 集群
-	conn, err := s.getKafkaConn(cluster, "")
-	if err != nil {
-		// 减少日志输出，只在调试模式下输出
-		// logger.Info("获取 Kafka 连接失败: %v\n", err)
-		return
-	}
-	defer conn.Close()
-
-	// 获取 Topic 数量
-	topics, err := conn.ReadPartitions()
-	if err == nil {
-		// 统计唯一的 topic 名称
-		topicMap := make(map[string]bool)
-		for _, p := range topics {
-			topicMap[p.Topic] = true
-		}
-		cluster.TopicCount = len(topicMap)
-		// 减少日志输出，只在调试模式下输出
-		// logger.Info("获取到主题数量: %d\n", cluster.TopicCount)
-	} else {
-		// 减少日志输出，只在调试模式下输出
-		// logger.Info("获取主题列表失败: %v\n", err)
-	}
-
-	// 获取消费者组数量
-	// 由于 kafka-go 没有直接获取消费者组的 API，我们设置一个默认值
-	cluster.ConsumerGroupCount = 1
-	// 减少日志输出，只在调试模式下输出
-	// logger.Info("设置默认消费者组数量: %d\n", cluster.ConsumerGroupCount)
-}
-
 // getKafkaConn 获取 Kafka 连接
-func (s *KafkaService) getKafkaConn(cluster *models.KafkaCluster, topic string) (*kafka.Conn, error) {
+func (s *KafkaService) getKafkaConn(cluster *models.KafkaCluster) (*kafka.Conn, error) {
 	// 解析 broker 地址
 	brokers := strings.Split(cluster.BrokerServers, ",")
 	if len(brokers) == 0 {
@@ -682,7 +640,7 @@ func (s *KafkaService) CreateTopic(clusterID uint, name string, partitions, repl
 	}
 
 	// 连接到 Kafka 集群
-	conn, err := s.getKafkaConn(cluster, "")
+	conn, err := s.getKafkaConn(cluster)
 	if err != nil {
 		return err
 	}
@@ -705,7 +663,7 @@ func (s *KafkaService) DeleteTopic(clusterID uint, name string) error {
 	}
 
 	// 连接到 Kafka 集群
-	conn, err := s.getKafkaConn(cluster, "")
+	conn, err := s.getKafkaConn(cluster)
 	if err != nil {
 		return err
 	}
@@ -724,7 +682,7 @@ func (s *KafkaService) AlterTopic(clusterID uint, name string, partitions int) e
 	}
 
 	// 连接到 Kafka 集群
-	conn, err := s.getKafkaConn(cluster, "")
+	conn, err := s.getKafkaConn(cluster)
 	if err != nil {
 		return err
 	}
@@ -757,7 +715,7 @@ func (s *KafkaService) GetTopicDetails(clusterID uint, name string) (*KafkaTopic
 	}
 
 	// 连接到 Kafka 集群
-	conn, err := s.getKafkaConn(cluster, "")
+	conn, err := s.getKafkaConn(cluster)
 	if err != nil {
 		return nil, err
 	}
@@ -829,7 +787,7 @@ func (s *KafkaService) GetTopicPartitions(clusterID uint, name string) ([]int32,
 	}
 
 	// 连接到 Kafka 集群
-	conn, err := s.getKafkaConn(cluster, "")
+	conn, err := s.getKafkaConn(cluster)
 	if err != nil {
 		return nil, err
 	}
