@@ -97,6 +97,11 @@ func (s *KafkaService) CreateKafkaCluster(cluster *models.KafkaCluster) error {
 		return err
 	}
 
+	// 如果未设置，给 last_check_time 赋当前时间
+	if cluster.LastCheckTime.IsZero() {
+		cluster.LastCheckTime = time.Now()
+	}
+
 	// 验证成功后创建集群
 	return models.DB.Create(cluster).Error
 }
