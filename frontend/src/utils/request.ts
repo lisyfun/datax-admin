@@ -10,15 +10,14 @@ const request = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // 添加 withCredentials 配置，使请求带上 cookie
+  withCredentials: true,
 });
 
 // 请求拦截器
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('datax_admin_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // 移除 JWT token 认证相关代码
     return config;
   },
   (error) => {
@@ -60,7 +59,7 @@ request.interceptors.response.use(
       switch (status) {
         case 401:
           Message.error('登录已过期，请重新登录');
-          localStorage.removeItem('datax_admin_token');
+          // 不再需要清除token
           router.push('/login');
           break;
         case 403:

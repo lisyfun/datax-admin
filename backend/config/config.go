@@ -10,9 +10,9 @@ import (
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Database DatabaseConfig `mapstructure:"db"`
-	JWT      JWTConfig      `mapstructure:"jwt"`
 	DataX    DataXConfig    `mapstructure:"datax"`
 	Logger   LoggerConfig   `mapstructure:"logger"`
+	Redis    RedisConfig    `mapstructure:"redis"`
 }
 
 type ServerConfig struct {
@@ -36,11 +36,6 @@ type DatabaseConfig struct {
 	Charset      string `mapstructure:"charset"`
 }
 
-type JWTConfig struct {
-	Secret string `mapstructure:"secret"`
-	Expire int    `mapstructure:"expire"` // token过期时间（小时）
-}
-
 type DataXConfig struct {
 	Home string `mapstructure:"home"`
 	Bin  string `mapstructure:"bin"`
@@ -52,6 +47,19 @@ type LoggerConfig struct {
 	MaxBackups int    `mapstructure:"max_backups"` // 最大保留的旧日志文件数
 	MaxAge     int    `mapstructure:"max_age"`     // 日志文件保留的最大天数
 	Compress   bool   `mapstructure:"compress"`    // 是否压缩旧日志文件
+}
+
+// RedisConfig Redis配置
+type RedisConfig struct {
+	Host        string `mapstructure:"host"`
+	Port        string `mapstructure:"port"`
+	Password    string `mapstructure:"password"`
+	DB          int    `mapstructure:"db"`
+	MaxIdle     int    `mapstructure:"max_idle"`
+	MaxActive   int    `mapstructure:"max_active"`
+	IdleTimeout int    `mapstructure:"idle_timeout"`
+	Secret      string `mapstructure:"secret"`  // Session 密钥
+	MaxAge      int    `mapstructure:"max_age"` // Session 过期时间(秒)
 }
 
 var GlobalConfig Config

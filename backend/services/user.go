@@ -69,11 +69,11 @@ func (s *UserService) Login(req *types.LoginRequest) (*types.LoginResponse, erro
 		return nil, errors.New("密码错误")
 	}
 
-	// 生成 JWT token
-	token, err := utils.GenerateToken(user.ID, user.Username)
-	if err != nil {
-		return nil, err
-	}
+	// 不再生成JWT token，改用session
+	// token, err := utils.GenerateToken(user.ID, user.Username)
+	// if err != nil {
+	//	return nil, err
+	// }
 
 	// 记录登录日志
 	loginLog := models.LoginLog{
@@ -90,7 +90,7 @@ func (s *UserService) Login(req *types.LoginRequest) (*types.LoginResponse, erro
 	UpdateUserOnlineStatus(user.ID)
 
 	return &types.LoginResponse{
-		Token: token,
+		// Token: token, // 不再返回token
 		User: types.UserInfo{
 			ID:       user.ID,
 			Username: user.Username,

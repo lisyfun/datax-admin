@@ -16,10 +16,6 @@ db:
   log_mode: info
   charset: utf8mb4
 
-jwt:
-  secret: "b4zljlMro70w4Ps6DNago2rENqw8rvkCqTQOrFAfQd8="
-  expire: 86400  # 24 hours
-
 datax:
   home: "/app"  # DataX 安装目录
   bin: "/app/bin/datax"  # DataX 可执行文件路径
@@ -31,3 +27,14 @@ logger:
   max_age: 30       # 日志文件保留的最大天数
   compress: true    # 是否压缩旧日志文件
 
+# 新增Redis配置
+redis:
+  host: "host.docker.internal"  # Redis主机地址
+  port: "16379"                  # Redis端口
+  password: "123456"                  # Redis密码，空为无密码
+  db: 0                         # 使用的数据库索引
+  max_idle: 10                  # 最大空闲连接数
+  max_active: 100               # 最大活跃连接数
+  idle_timeout: 300             # 空闲连接超时时间(秒)
+  secret: "01JV3YHVKC3F9GE7N97QJY26NM"    # Session密钥
+  max_age: 86400                # Session过期时间(秒)，86400=1天

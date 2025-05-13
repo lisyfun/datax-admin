@@ -20,8 +20,8 @@ type RoleInfo struct {
 
 // LoginResponse 登录响应
 type LoginResponse struct {
-	Token string   `json:"token"`
-	User  UserInfo `json:"user"`
+	// Token string   `json:"token"` // 改用session认证，不再需要返回token
+	User UserInfo `json:"user"`
 }
 
 // UpdatePasswordRequest 更新密码请求

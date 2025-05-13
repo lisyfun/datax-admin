@@ -11,7 +11,7 @@ import type {
 } from '@/types/user';
 
 export function login(data: LoginParams) {
-  return request.post<{ token: string }>('/login', data);
+  return request.post('/login', data);
 }
 
 export function register(data: RegisterParams) {
@@ -59,6 +59,6 @@ export function deleteUser(id: number) {
 }
 
 export function logout() {
-  localStorage.removeItem('datax_admin_token');
-  return Promise.resolve();
+  // 调用后端登出接口
+  return request.post('/user/logout');
 }

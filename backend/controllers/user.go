@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -73,6 +74,12 @@ func (c *UserController) Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 设置Session
+	session := sessions.Default(ctx)
+	session.Set("userID", resp.User.ID)
+	session.Set("username", resp.User.Username)
+	session.Save()
 
 	ctx.JSON(http.StatusOK, resp)
 }
@@ -217,6 +224,11 @@ func (c *UserController) Logout(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 清除 Session
+	session := sessions.Default(ctx)
+	session.Clear()
+	session.Save()
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "登出成功"})
 }

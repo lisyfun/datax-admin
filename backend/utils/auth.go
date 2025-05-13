@@ -8,22 +8,22 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// GenerateToken 生成 JWT token
+// 生成 JWT token
 func GenerateToken(userID uint, username string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  userID,
 		"username": username,
-		"exp":      time.Now().Add(time.Hour * time.Duration(config.GlobalConfig.JWT.Expire)).Unix(),
+		"exp":      time.Now().Add(time.Hour * time.Duration(config.GlobalConfig.Redis.MaxAge)).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(config.GlobalConfig.JWT.Secret))
+	return token.SignedString([]byte(config.GlobalConfig.Redis.Secret))
 }
 
 // ParseToken 解析 JWT token
 func ParseToken(tokenString string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		return []byte(config.GlobalConfig.JWT.Secret), nil
+		return []byte(config.GlobalConfig.Redis.Secret), nil
 	})
 
 	if err != nil {

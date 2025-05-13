@@ -17,11 +17,14 @@ func SetupRoutes(r *gin.Engine) {
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "Connection", "Upgrade", "Sec-WebSocket-Key", "Sec-WebSocket-Version", "Sec-WebSocket-Extensions", "Sec-WebSocket-Protocol"},
 		ExposeHeaders:    []string{"Content-Length", "Upgrade", "Connection"},
-		AllowCredentials: true,
+		AllowCredentials: true, // 必须为true，才能使用cookie传递session
 	}))
 
 	// 添加安全中间件
 	r.Use(middleware.SecurityMiddleware())
+
+	// 初始化Session中间件 (新增)
+	r.Use(middleware.InitSession())
 
 	// WebSocket 路由 - 不需要认证
 	wsGroup := r.Group(config.GlobalConfig.Server.BasePath + "/ws")
@@ -40,9 +43,10 @@ func SetupRoutes(r *gin.Engine) {
 				v1.RegisterAuthRoutes(public)
 			}
 
-			// 需要认证的路由
+			// 需要认证的路由 - 改为使用Session认证
 			authenticated := v1Group.Group("")
-			authenticated.Use(middleware.JWTAuth())
+			// authenticated.Use(middleware.JWTAuth()) // 注释掉JWT认证
+			authenticated.Use(middleware.SessionAuth()) // 使用Session认证
 			{
 				v1.RegisterDashboardRoutes(authenticated)
 				v1.RegisterUserRoutes(authenticated)

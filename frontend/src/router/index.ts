@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router
 import type { RouteRecordRaw } from 'vue-router';
 import type { AppRouteRecordRaw } from './types';
 import DefaultLayout from '@/layouts/default.vue';
+import { useUserStore } from '@/stores/modules/user';
 
 export const appRoutes: AppRouteRecordRaw[] = [
   {
@@ -269,17 +270,31 @@ const router = createRouter({
 });
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('datax_admin_token');
+router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false);
+  const userStore = useUserStore();
 
-  if (requiresAuth && !token) {
-    // 需要认证但未登录，重定向到登录页
-    next({ path: '/login', query: { redirect: to.fullPath } });
-  } else if (token && (to.path === '/login' || to.path === '/register')) {
-    // 已登录但访问登录或注册页，重定向到首页
-    next({ path: '/' });
+  if (requiresAuth) {
+    try {
+      // 尝试获取用户信息，如果成功表示已登录
+      await userStore.getUserInfo();
+
+      if (to.path === '/login' || to.path === '/register') {
+        // 已登录但访问登录或注册页，重定向到首页
+        next({ path: '/' });
+      } else {
+        next();
+      }
+    } catch (err) {
+      // 获取用户信息失败，表示未登录
+      if (to.path !== '/login') {
+        next({ path: '/login', query: { redirect: to.fullPath } });
+      } else {
+        next();
+      }
+    }
   } else {
+    // 不需要认证的路由直接放行
     next();
   }
 });
