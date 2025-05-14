@@ -12,7 +12,7 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"db"`
 	DataX    DataXConfig    `mapstructure:"datax"`
 	Logger   LoggerConfig   `mapstructure:"logger"`
-	Redis    RedisConfig    `mapstructure:"redis"`
+	Auth     AuthConfig     `mapstructure:"auth"`
 }
 
 type ServerConfig struct {
@@ -49,17 +49,10 @@ type LoggerConfig struct {
 	Compress   bool   `mapstructure:"compress"`    // 是否压缩旧日志文件
 }
 
-// RedisConfig Redis配置
-type RedisConfig struct {
-	Host        string `mapstructure:"host"`
-	Port        string `mapstructure:"port"`
-	Password    string `mapstructure:"password"`
-	DB          int    `mapstructure:"db"`
-	MaxIdle     int    `mapstructure:"max_idle"`
-	MaxActive   int    `mapstructure:"max_active"`
-	IdleTimeout int    `mapstructure:"idle_timeout"`
+// AuthConfig Auth配置
+type AuthConfig struct {
 	Secret      string `mapstructure:"secret"`  // Session 密钥
-	MaxAge      int    `mapstructure:"max_age"` // Session 过期时间(秒)
+	Expiration  int    `mapstructure:"expiration"` // Session 过期时间(秒)
 }
 
 var GlobalConfig Config

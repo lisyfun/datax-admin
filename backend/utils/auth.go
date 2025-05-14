@@ -13,17 +13,17 @@ func GenerateToken(userID uint, username string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  userID,
 		"username": username,
-		"exp":      time.Now().Add(time.Hour * time.Duration(config.GlobalConfig.Redis.MaxAge)).Unix(),
+		"exp":      time.Now().Add(time.Hour * time.Duration(config.GlobalConfig.Auth.Expiration)).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(config.GlobalConfig.Redis.Secret))
+	return token.SignedString([]byte(config.GlobalConfig.Auth.Secret))
 }
 
 // ParseToken 解析 JWT token
 func ParseToken(tokenString string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		return []byte(config.GlobalConfig.Redis.Secret), nil
+		return []byte(config.GlobalConfig.Auth.Secret), nil
 	})
 
 	if err != nil {

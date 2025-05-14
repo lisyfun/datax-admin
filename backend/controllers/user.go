@@ -228,7 +228,12 @@ func (c *UserController) Logout(ctx *gin.Context) {
 	// 清除 Session
 	session := sessions.Default(ctx)
 	session.Clear()
-	session.Save()
+	session.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   -1, // 立即过期
+		HttpOnly: true,
+	})
+	_ = session.Save()
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "登出成功"})
 }

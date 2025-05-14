@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+
 	// 初始化配置
 	config.InitConfig()
 
