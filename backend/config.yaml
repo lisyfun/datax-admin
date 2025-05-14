@@ -36,5 +36,5 @@ redis:
   max_idle: 10                  # 最大空闲连接数
   max_active: 100               # 最大活跃连接数
   idle_timeout: 300             # 空闲连接超时时间(秒)
-  secret: "01JV3YHVKC3F9GE7N97QJY26NM"    # Session密钥
+  secret: "a266d59b-88e4-4d61-8aaa-b77bac0f7a50"    # Session密钥
   max_age: 86400                # Session过期时间(秒)，86400=1天

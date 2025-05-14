@@ -7,7 +7,6 @@ export default function setupPermissionGuard(router: Router) {
   router.beforeEach(async (to, from, next) => {
     const userStore = useUserStore();
     const menuStore = useMenuStore();
-    const token = userStore.token;
 
     // 白名单路由直接放行
     if (WHITE_LIST.includes(to.name as string)) {
@@ -16,7 +15,7 @@ export default function setupPermissionGuard(router: Router) {
     }
 
     // 未登录跳转到登录页
-    if (!token) {
+    if (!userStore.userInfo) {
       next({
         name: 'login',
         query: {
