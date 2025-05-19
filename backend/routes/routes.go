@@ -21,7 +21,7 @@ func SetupRoutes(r *gin.Engine) {
 	}))
 
 	// 添加安全中间件
-	r.Use(middleware.SecurityMiddleware())
+	// r.Use(middleware.SecurityMiddleware())
 
 	// 初始化Session中间件 (新增)
 	r.Use(middleware.InitSession())

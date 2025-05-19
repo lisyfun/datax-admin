@@ -31,11 +31,6 @@ func (s *UserService) Register(req *types.RegisterRequest) error {
 	safeNickname := strings.TrimSpace(req.Nickname)
 	safeEmail := strings.TrimSpace(req.Email)
 
-	// 验证用户输入是否包含恶意XML标签
-	if strings.Contains(safeUsername, "<") || strings.Contains(safeNickname, "<") || strings.Contains(safeEmail, "<") {
-		return errors.New("输入包含非法字符")
-	}
-
 	user := &models.User{
 		Username: safeUsername,
 		Nickname: safeNickname,

@@ -31,13 +31,6 @@ func (c *UserController) Register(ctx *gin.Context) {
 		return
 	}
 
-	// 额外的输入验证和净化 - 防止SQL和XSLT注入
-	if containsSQLInjection(req.Username) || containsSQLInjection(req.Password) ||
-		containsSQLInjection(req.Nickname) || containsSQLInjection(req.Email) {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "输入包含非法字符"})
-		return
-	}
-
 	if err := c.userService.Register(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -51,12 +44,6 @@ func (c *UserController) Login(ctx *gin.Context) {
 	var req types.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 额外的输入验证和净化 - 防止SQL和XSLT注入
-	if containsSQLInjection(req.Username) || containsSQLInjection(req.Password) {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "输入包含非法字符"})
 		return
 	}
 
