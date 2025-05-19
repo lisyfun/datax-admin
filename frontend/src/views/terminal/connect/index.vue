@@ -686,16 +686,55 @@ const copySelectionToClipboard = () => {
   if (!terminal || !terminal.hasSelection()) return;
 
   const selection = terminal.getSelection();
-  if (selection) {
+  if (!selection) return;
+
+  // 优先使用 Clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(selection)
       .then(() => {
         showCopiedFeedback();
       })
-      .catch(err => {
-        console.error('自动复制失败:', err);
+      .catch(() => {
+        // 降级处理
+        fallbackCopyTextToClipboard(selection);
       });
+  } else {
+    // 不支持 Clipboard API，直接降级
+    fallbackCopyTextToClipboard(selection);
   }
 };
+
+// 降级方案
+function fallbackCopyTextToClipboard(text: string) {
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  // 避免页面滚动
+  textArea.style.position = "fixed";
+  textArea.style.top = "0";
+  textArea.style.left = "0";
+  textArea.style.width = "2em";
+  textArea.style.height = "2em";
+  textArea.style.padding = "0";
+  textArea.style.border = "none";
+  textArea.style.outline = "none";
+  textArea.style.boxShadow = "none";
+  textArea.style.background = "transparent";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      showCopiedFeedback();
+    } else {
+      Message.error('复制失败，请手动复制');
+    }
+  } catch (err) {
+    Message.error('复制失败，请手动复制');
+  }
+  document.body.removeChild(textArea);
+}
 
 // 显示复制成功的反馈
 const showCopiedFeedback = () => {
@@ -710,20 +749,49 @@ const showCopiedFeedback = () => {
 const handleRightClick = async (e: MouseEvent) => {
   if (!connected.value || !terminal) return;
 
-  try {
-    const text = await navigator.clipboard.readText();
-    if (text && socket?.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'input', data: text }));
-
-      // 显示粘贴成功的反馈
-      showPasteTip.value = true;
-      setTimeout(() => {
-        showPasteTip.value = false;
-      }, 1000);
+  // 1. 优先 Clipboard API
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'input', data: text }));
+        showPasteTip.value = true;
+        setTimeout(() => { showPasteTip.value = false; }, 1000);
+      } else {
+        Message.warning('剪贴板为空，请先复制内容');
+      }
+      return;
+    } catch (err) {
+      // 失败降级
     }
-  } catch (err) {
-    console.error('粘贴失败:', err);
-    Message.error('粘贴失败，请检查浏览器权限');
+  }
+
+  // 2. 尝试 execCommand（大概率无效，但可尝试）
+  let pasted = false;
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    if (document.execCommand('paste')) {
+      const text = textArea.value;
+      if (text && socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'input', data: text }));
+        showPasteTip.value = true;
+        setTimeout(() => { showPasteTip.value = false; }, 1000);
+        pasted = true;
+      }
+    }
+    document.body.removeChild(textArea);
+  } catch (e) {
+    // 失败
+  }
+
+  if (!pasted) {
+    // 3. 最终提示用户手动粘贴
+    Message.warning('浏览器限制，无法自动粘贴，请使用快捷键 Ctrl+V / ⌘+V 粘贴');
+    terminal.focus();
   }
 };
 
