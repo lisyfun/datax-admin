@@ -790,7 +790,7 @@ const handleRightClick = async (e: MouseEvent) => {
 
   if (!pasted) {
     // 3. 最终提示用户手动粘贴
-    Message.warning('浏览器限制，无法自动粘贴，请使用快捷键 Ctrl+V / ⌘+V 粘贴');
+    Message.warning('浏览器限制，无法自动粘贴，请使用快捷键 shift+insert 粘贴');
     terminal.focus();
   }
 };
