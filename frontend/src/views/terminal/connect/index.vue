@@ -64,7 +64,7 @@
         <a-descriptions :column="2" :data="terminalInfoData" />
       </div>
 
-      <div ref="terminalContainer" class="terminal-container" :class="{ connected }" @click="handleTerminalClick" @contextmenu.prevent="handleRightClick">
+      <div ref="terminalContainer" class="terminal-container" :class="{ connected }" @click="handleTerminalClick" @contextmenu.prevent="handleRightClick" tabindex="0">
         <template v-if="!connected">
           <div class="terminal-placeholder">
             <icon-robot :style="{ fontSize: '48px', marginBottom: '16px' }" />
@@ -795,6 +795,42 @@ const handleRightClick = async (e: MouseEvent) => {
   }
 };
 
+// 粘贴事件处理
+const handlePasteEvent = (event: ClipboardEvent) => {
+  if (!connected.value || !terminal) return;
+  const text = event.clipboardData?.getData('text');
+  if (text && socket?.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: 'input', data: text }));
+    showPasteTip.value = true;
+    setTimeout(() => { showPasteTip.value = false; }, 1000);
+  }
+  event.preventDefault(); // 阻止默认的 ^V 行为
+};
+
+// 监听 Ctrl+V/⌘+V 粘贴
+const handleKeyDown = async (event: KeyboardEvent) => {
+  if (!connected.value || !terminal) return;
+
+  // Windows/Linux: Ctrl+V，Mac: Meta+V
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+    event.preventDefault();
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && socket?.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'input', data: text }));
+          showPasteTip.value = true;
+          setTimeout(() => { showPasteTip.value = false; }, 1000);
+        }
+      } catch (e) {
+        Message.warning('无法读取剪贴板内容，请检查浏览器权限');
+      }
+    } else {
+      Message.warning('当前浏览器不支持自动粘贴');
+    }
+  }
+};
+
 // 组件挂载
 onMounted(async () => {
   await fetchTerminalInfo();
@@ -803,6 +839,12 @@ onMounted(async () => {
   // 自动触发连接
   if (terminalInfo.value && terminalInfo.value.status === 'online') {
     handleConnect();
+  }
+
+  // 监听粘贴事件
+  if (terminalContainer.value) {
+    terminalContainer.value.addEventListener('paste', handlePasteEvent);
+    terminalContainer.value.addEventListener('keydown', handleKeyDown);
   }
 });
 
@@ -826,6 +868,11 @@ onBeforeUnmount(() => {
   }
   if (terminal) {
     terminal.dispose();
+  }
+  // 移除粘贴事件监听
+  if (terminalContainer.value) {
+    terminalContainer.value.removeEventListener('paste', handlePasteEvent);
+    terminalContainer.value.removeEventListener('keydown', handleKeyDown);
   }
 });
 </script>
