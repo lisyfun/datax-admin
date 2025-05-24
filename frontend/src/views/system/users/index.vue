@@ -192,7 +192,6 @@ import type { UserInfo } from '@/types/user';
 import type { RoleInfo } from '@/types/role';
 import * as userApi from '@/api/user';
 import * as roleApi from '@/api/role';
-import { encryptPassword } from '@/utils/crypto';
 import { usePageRefresh } from '@/composables/usePageRefresh';
 import {
   IconPlus,
@@ -392,7 +391,7 @@ const handleUserFormSubmit = async () => {
     } else {
       await userApi.register({
         username: userForm.username,
-        password: encryptPassword(userForm.password),
+        password: (userForm.password),
         nickname: userForm.nickname,
         email: userForm.email
       });
