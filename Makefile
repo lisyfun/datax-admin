@@ -2,9 +2,9 @@
 
 # 变量定义
 BINARY_NAME=datax-admin
-MAIN_PACKAGE=./backend
+MAIN_PACKAGE=./
 DIST_DIR=./bin
-FRONTEND_DIR=./frontend
+FRONTEND_DIR=./web
 DOCKER_IMAGE=datax-admin
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME=$(shell date '+%Y-%m-%d %H:%M:%S')
@@ -122,25 +122,25 @@ build-arm64: $(DIST_DIR)
 .PHONY: docker
 docker: build
 	@echo -e "$(YELLOW)构建 Docker 镜像 $(DOCKER_IMAGE):$(VERSION)...$(NC)"
-	docker build --platform linux/amd64 -f Dockerfile \
+	docker build --platform linux/amd64 -f docker/Dockerfile \
 		--build-arg BINARY_NAME=$(BINARY_NAME) \
 		--build-arg BINARY_VERSION=linux-amd64 \
 		--build-arg DATAX_VERSION=linux-amd64 \
-		--build-arg CONFIG_FILE=./backend/config.yaml \
+		--build-arg CONFIG_FILE=./config.yaml \
 		-t $(DOCKER_IMAGE):$(VERSION)-amd64 .
 	@echo -e "$(GREEN)Docker 镜像构建完成: $(DOCKER_IMAGE):$(VERSION)-amd64$(NC)"
-	docker save $(DOCKER_IMAGE):$(VERSION)-amd64 > $(DOCKER_IMAGE)-$(VERSION)-amd64.tar
+	docker save $(DOCKER_IMAGE):$(VERSION)-amd64 > docker/$(DOCKER_IMAGE)-$(VERSION)-amd64.tar
 	@echo -e "$(GREEN)Docker 镜像保存完成: $(DOCKER_IMAGE)-$(VERSION)-amd64.tar$(NC)"
 
 # 构建 Docker 镜像 (ARM64)
 .PHONY: docker-arm64
 docker-arm64: build-arm64
 	@echo -e "$(YELLOW)构建 ARM64 Docker 镜像 $(DOCKER_IMAGE):$(VERSION)-arm64$(NC)"
-	docker build -f Dockerfile \
+	docker build -f docker/Dockerfile \
 		--build-arg BINARY_NAME=$(BINARY_NAME) \
 		--build-arg BINARY_VERSION=linux-arm64 \
 		--build-arg DATAX_VERSION=linux-arm64 \
-		--build-arg CONFIG_FILE=./backend/config.yaml \
+		--build-arg CONFIG_FILE=./config.yaml \
 		-t $(DOCKER_IMAGE):$(VERSION)-arm64 .
 	@echo -e "$(GREEN)ARM64 Docker 镜像构建完成: $(DOCKER_IMAGE):$(VERSION)-arm64$(NC)"
 	# docker run -it -p 28080:80 $(DOCKER_IMAGE):$(VERSION)-arm64

@@ -18,25 +18,25 @@ RUN apk add --no-cache tzdata bash curl sshpass openssh-client && \
 ARG BINARY_NAME=datax-admin
 ARG BINARY_VERSION=linux-amd64
 ARG DATAX_VERSION=linux-amd64
-ARG CONFIG_FILE=./backend/config.yaml
+ARG CONFIG_FILE=./config.yaml
 
 
 # 复制前端构建产物
-COPY ./frontend/dist ./
+COPY ./web/dist ./
 # 复制错误页面
-COPY ./frontend/404.html ./404.html
-COPY ./frontend/403.html ./403.html
-COPY ./frontend/50x.html ./50x.html
+COPY ./web/404.html ./404.html
+COPY ./web/403.html ./403.html
+COPY ./web/50x.html ./50x.html
 
 # 复制后端二进制文件和配置
-COPY ./backend/bin/${BINARY_NAME}-${BINARY_VERSION} /app/${BINARY_NAME}
-COPY ./bin/datax-${DATAX_VERSION} /app/bin/datax
+COPY ./bin/${BINARY_NAME}-${BINARY_VERSION} /app/${BINARY_NAME}
+COPY ./datax/datax-${DATAX_VERSION} /app/bin/datax
 COPY ${CONFIG_FILE} /app/config.yaml
-COPY ./backend/rules /app/rules
+COPY ./rules /app/rules
 
 # 复制 Nginx 配置和启动脚本
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY start.sh /app/start.sh
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/start.sh /app/start.sh
 
 # 设置工作目录
 WORKDIR /app
