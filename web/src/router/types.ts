@@ -1,5 +1,4 @@
 import { Component } from 'vue';
-import type { RouteRecordRaw } from 'vue-router';
 
 export interface AppRouteRecordRaw {
   path: string;
