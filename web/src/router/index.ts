@@ -2,7 +2,7 @@ import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router
 import type { RouteRecordRaw } from 'vue-router';
 import type { AppRouteRecordRaw } from './types';
 import DefaultLayout from '@/layouts/default.vue';
-import { useUserStore } from '@/stores/modules/user';
+import { useUserStore } from '@/stores/user';
 
 export const appRoutes: AppRouteRecordRaw[] = [
   {

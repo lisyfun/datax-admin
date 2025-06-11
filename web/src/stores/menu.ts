@@ -1,23 +1,9 @@
 import { defineStore } from 'pinia';
-import * as menuApi from '@/api/menu';
-
-interface MenuItem {
-  id: number;
-  parent_id: number;
-  name: string;
-  path: string;
-  component: string;
-  icon: string;
-  sort: number;
-  status: number;
-  hidden: boolean;
-  cache: boolean;
-  type: number;
-  children?: MenuItem[];
-}
+import { getUserMenus, getMenuList } from '@/api/menu';
+import type { MenuResponse } from '@/api/menu';
 
 interface MenuState {
-  menuList: MenuItem[];
+  menuList: MenuResponse[];
   loading: boolean;
 }
 
@@ -28,8 +14,9 @@ export const useMenuStore = defineStore('menu', {
   }),
 
   getters: {
-    menuTree(): MenuItem[] {
-      const buildTree = (items: MenuItem[], parentId: number = 0): MenuItem[] => {
+    // 获取树形菜单
+    menuTree(): MenuResponse[] {
+      const buildTree = (items: MenuResponse[], parentId: number = 0): MenuResponse[] => {
         return items
           .filter(item => item.parent_id === parentId)
           .map(item => ({
@@ -44,42 +31,38 @@ export const useMenuStore = defineStore('menu', {
   },
 
   actions: {
+    // 获取用户菜单列表
     async fetchUserMenus() {
       this.loading = true;
       try {
-        const { data } = await menuApi.getUserMenus();
-
-        // Helper function to convert MenuResponse to MenuItem recursively
-        const convertToMenuItem = (item: menuApi.MenuResponse): MenuItem => {
-          const menuItem: MenuItem = {
-            id: item.id,
-            parent_id: item.parent_id,
-            name: item.name,
-            path: item.path,
-            component: item.component,
-            icon: item.icon,
-            sort: item.sort,
-            status: item.status,
-            hidden: Boolean(item.hidden),
-            cache: Boolean(item.cache),
-            type: item.type,
-          };
-
-          if (item.children && item.children.length > 0) {
-            menuItem.children = item.children.map(convertToMenuItem);
-          }
-
-          return menuItem;
-        };
-
-        // Convert the whole list
-        this.menuList = data.list.map(convertToMenuItem);
+        const { data } = await getUserMenus();
+        this.menuList = data.list;
       } catch (error) {
         console.error('获取用户菜单列表失败:', error);
         throw error;
       } finally {
         this.loading = false;
       }
+    },
+
+    // 获取所有菜单列表（用于菜单管理）
+    async fetchMenuList() {
+      this.loading = true;
+      try {
+        const { data } = await getMenuList();
+        this.menuList = data.list;
+      } catch (error) {
+        console.error('获取菜单列表失败:', error);
+        throw error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 重置状态
+    resetMenuState() {
+      this.menuList = [];
+      this.loading = false;
     },
   },
 });

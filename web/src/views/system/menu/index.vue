@@ -165,7 +165,7 @@ import type { TreeNodeData } from '@arco-design/web-vue';
 import { IconPlus, IconEdit, IconDelete, IconApps, IconUser, IconUserGroup, IconSafe, IconCalendar, IconUnorderedList, IconClockCircle, IconDashboard, IconDesktop, IconCloud, IconFile, IconBulb, IconCode, IconRobot, IconCommon, IconCommand, IconLock, IconList } from '@arco-design/web-vue/es/icon';
 import { getMenuList, createMenu, updateMenu, deleteMenu } from '@/api/menu';
 import type { MenuResponse, CreateMenuRequest, UpdateMenuRequest } from '@/api/menu';
-import { useMenuStore } from '@/stores/modules/menu';
+import { useMenuStore } from '@/stores/menu';
 
 // 搜索关键字
 const searchKeyword = ref('');

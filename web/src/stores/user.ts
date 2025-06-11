@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
+import * as userApi from '@/api/user';
 import { ref } from 'vue';
-import type { UserInfo } from '../types/user';
-import * as userApi from '../api/user';
+import type { UserInfo } from '@/types/user';
 
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>('');
@@ -55,3 +55,8 @@ export const useUserStore = defineStore('user', () => {
     logout,
   };
 });
+
+
+interface UserState {
+  userInfo: any | null;
+}

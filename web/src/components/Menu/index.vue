@@ -55,7 +55,7 @@
 <script lang="ts" setup>
 import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useMenuStore } from '@/stores/modules/menu';
+import { useMenuStore } from '@/stores/menu';
 
 const route = useRoute();
 const router = useRouter();
