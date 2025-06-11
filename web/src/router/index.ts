@@ -157,7 +157,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
           {
             path: 'kafka',
             name: 'Kafka',
-            component: () => import('@/views/kafka/index.vue'),
+            component: () => import('@/views/tools/kafka/index.vue'),
             meta: {
               title: 'KAFKA 管理',
               requiresAuth: true,
@@ -168,7 +168,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               {
                 path: 'cluster',
                 name: 'KafkaCluster',
-                component: () => import('@/views/kafka/cluster/index.vue'),
+                component: () => import('@/views/tools/kafka/cluster/index.vue'),
                 meta: {
                   title: '集群管理',
                   requiresAuth: true,
@@ -179,7 +179,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               {
                 path: 'cluster/:clusterId/topic',
                 name: 'KafkaTopic',
-                component: () => import('@/views/kafka/topic/index.vue'),
+                component: () => import('@/views/tools/kafka/topic/index.vue'),
                 meta: {
                   title: '主题管理',
                   requiresAuth: true,
@@ -190,7 +190,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               {
                 path: 'clusters/:clusterId/topics/:topicName/messages',
                 name: 'KafkaMessage',
-                component: () => import('@/views/kafka/topic/components/MessageList.vue'),
+                component: () => import('@/views/tools/kafka/topic/components/MessageList.vue'),
                 meta: {
                   title: '消息列表',
                   requiresAuth: true,
