@@ -375,7 +375,7 @@ func (s *JobService) executeJob(job *models.Job) {
 		if r := recover(); r != nil {
 			history.Status = 0
 			history.Error = fmt.Sprintf("任务执行panic: %v", r)
-			logger.Info("任务执行panic: [%s] (ID: %d): %v\n", job.Name, job.ID, r)
+			logger.Info("任务执行panic: [%s] (ID: %d): %v", job.Name, job.ID, r)
 		}
 
 		history.EndTime = time.Now()
@@ -390,7 +390,7 @@ func (s *JobService) executeJob(job *models.Job) {
 			if err := models.DB.Create(history).Error; err != nil {
 				if i == maxRetries-1 {
 					// 如果是最后一次重试，记录错误
-					logger.Info("保存任务历史记录失败 [%s] (ID: %d): %v\n", job.Name, job.ID, err)
+					logger.Info("保存任务历史记录失败 [%s] (ID: %d): %v", job.Name, job.ID, err)
 				}
 				// 等待一小段时间后重试
 				time.Sleep(time.Second * time.Duration(i+1))
