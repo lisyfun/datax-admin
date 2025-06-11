@@ -84,7 +84,7 @@ docker run -d \
 
 ## 配置说明
 
-系统配置文件位于 `backend/config.yaml`：
+系统配置文件位于 `config.yaml`：
 
 ```yaml
 server:
@@ -119,7 +119,7 @@ logger:
 
 ```
 datax-admin/
-├── frontend/                # 前端项目目录
+├── web/                     # 前端项目目录
 │   ├── src/
 │   │   ├── api/            # API 接口
 │   │   ├── assets/         # 静态资源
@@ -135,17 +135,23 @@ datax-admin/
 │   ├── package.json
 │   └── vite.config.ts
 │
-└── backend/                 # 后端项目目录
-    ├── config/             # 配置文件
-    ├── controllers/        # 控制器
-    ├── middleware/         # 中间件
-    ├── models/             # 数据模型
-    ├── routes/             # 路由配置
-    ├── services/           # 业务逻辑
-    ├── types/              # 类型定义
-    ├── utils/              # 工具函数
-    ├── go.mod
-    └── main.go
+├── config/                 # 配置文件
+├── controllers/            # 控制器
+├── datax/                  # DataX相关文件
+├── docker/                 # Docker相关文件
+├── middleware/             # 中间件
+├── models/                 # 数据模型
+├── routes/                 # 路由配置
+├── services/               # 业务逻辑
+├── types/                  # 类型定义
+├── utils/                  # 工具函数
+├── bin/                    # 可执行文件
+├── logs/                   # 日志文件
+├── rules/                  # 规则文件
+├── go.mod                  # Go 模块文件
+├── go.sum                  # Go 模块校验文件
+├── main.go                 # 主入口文件
+└── config.yaml             # 配置文件
 ```
 
 ## 开发指南
