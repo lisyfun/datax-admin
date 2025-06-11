@@ -1,7 +1,7 @@
 datax-admin.tar
 # 忽略后端日志文件
-backend/logs/
-backend/logs/*
+/logs/
+/logs/*
 */backend/logs/*
 ./.DS_Store
 *.tar
@@ -14,7 +14,13 @@ dist/
 .env.*
 *.log
 
-backend/bin/*
-backend/tmp/*
 bin/*
+bin/
 */bin/*
+tmp/
+*/tmp/*
+
+.cursor/
+.cursor/*
+.cursor/mcp.json
+.cursor/mcp.json
