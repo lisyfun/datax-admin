@@ -161,7 +161,7 @@ func (s *DashboardService) updateDashboardData() {
 	// 检查是否有错误
 	for err := range errChan {
 		// 只记录错误，不中断更新
-		logger.Info("Dashboard update error: %v\n", err)
+		logger.Info("Dashboard update error: %v", err)
 		return
 	}
 
