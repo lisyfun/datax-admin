@@ -32,8 +32,6 @@ func InitDB() {
 		logMode = logger.Warn
 	case "error":
 		logMode = logger.Error
-	case "debug":
-		logMode = logger.Info
 	}
 
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
