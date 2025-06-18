@@ -263,7 +263,7 @@ func (s *KafkaService) ListKafkaClusters(page, pageSize int, search string) (*Ka
 				// 获取信息成功
 			case <-ctx.Done():
 				// 超时，使用默认值或部分结果
-				logger.Info("获取集群 [%s] 详情超时\n", clusters[index].Name)
+				logger.Info("获取集群 [%s] 详情超时", clusters[index].Name)
 			}
 		}(i)
 	}
@@ -316,7 +316,7 @@ func (s *KafkaService) StartClusterHealthCheck(checkInterval time.Duration) {
 		for range ticker.C {
 			var clusters []models.KafkaCluster
 			if err := models.DB.Find(&clusters).Error; err != nil {
-				logger.Info("获取Kafka集群列表失败: %v\n", err)
+				logger.Info("获取Kafka集群列表失败: %v", err)
 				continue
 			}
 
@@ -347,10 +347,10 @@ func (s *KafkaService) StartClusterHealthCheck(checkInterval time.Duration) {
 					select {
 					case err := <-done:
 						if err != nil {
-							logger.Info("检查Kafka集群 [%s] 状态失败: %v\n", clusterCopy.Name, err)
+							logger.Info("检查Kafka集群 [%s] 状态失败: %v", clusterCopy.Name, err)
 						}
 					case <-ctx.Done():
-						logger.Info("检查Kafka集群 [%s] 状态超时\n", clusterCopy.Name)
+						logger.Info("检查Kafka集群 [%s] 状态超时", clusterCopy.Name)
 					}
 				}()
 			}
@@ -427,19 +427,19 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	}
 
 	// 记录请求参数
-	logger.Info("Kafka消费请求 - 集群: %d, 主题: %s, 分区: %d, 偏移量: %d, 数量: %d\n",
+	logger.Info("Kafka消费请求 - 集群: %d, 主题: %s, 分区: %d, 偏移量: %d, 数量: %d",
 		clusterID, topic, partition, offset, count)
 
 	// 获取分区最早和最新偏移量，用于校验
 	earliestOffset, latestOffset, err := s.GetPartitionOffsets(clusterID, topic, int32(partition))
 	if err != nil {
-		logger.Info("获取分区偏移量范围失败: %v\n", err)
+		logger.Info("获取分区偏移量范围失败: %v", err)
 	} else {
-		logger.Info("分区偏移量范围 - 最早: %d, 最新: %d\n", earliestOffset, latestOffset)
+		logger.Info("分区偏移量范围 - 最早: %d, 最新: %d", earliestOffset, latestOffset)
 
 		// 如果请求的偏移量小于最早可用偏移量，则使用最早偏移量
 		if offset < earliestOffset {
-			logger.Info("请求的偏移量(%d)小于最早可用偏移量(%d)，将使用最早偏移量\n", offset, earliestOffset)
+			logger.Info("请求的偏移量(%d)小于最早可用偏移量(%d)，将使用最早偏移量", offset, earliestOffset)
 			offset = earliestOffset
 		}
 
@@ -450,7 +450,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 			if adjustedOffset < earliestOffset {
 				adjustedOffset = earliestOffset
 			}
-			logger.Info("请求的偏移量(%d)大于或等于最新偏移量(%d)，调整为偏移量(%d)以获取最近的消息\n",
+			logger.Info("请求的偏移量(%d)大于或等于最新偏移量(%d)，调整为偏移量(%d)以获取最近的消息",
 				offset, latestOffset, adjustedOffset)
 			offset = adjustedOffset
 		}
@@ -458,7 +458,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 
 	// 创建 Kafka 读取器
 	brokers := strings.Split(cluster.BrokerServers, ",")
-	logger.Info("连接Kafka brokers: %v\n", brokers)
+	logger.Info("连接Kafka brokers: %v", brokers)
 
 	// 创建 dialer
 	dialer := &kafka.Dialer{
@@ -532,10 +532,10 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 
 			if err != nil {
 				if err != context.DeadlineExceeded {
-					logger.Info("读取Kafka消息失败: %v\n", err)
+					logger.Info("读取Kafka消息失败: %v", err)
 					errorChan <- err
 				} else {
-					logger.Info("读取Kafka消息超时，已读取 %d 条消息\n", i)
+					logger.Info("读取Kafka消息超时，已读取 %d 条消息", i)
 				}
 				return
 			}
@@ -543,7 +543,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 			// 记录消息偏移量与请求的起始偏移量的差值
 			offsetDiff := msg.Offset - offset
 			if i == 0 {
-				logger.Info("首条消息的偏移量: %d (与请求偏移量相差: %d)\n", msg.Offset, offsetDiff)
+				logger.Info("首条消息的偏移量: %d (与请求偏移量相差: %d)", msg.Offset, offsetDiff)
 			}
 
 			messageChan <- msg
@@ -559,7 +559,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		}
 
 		// 记录消息读取完成的时间
-		logger.Info("Kafka消息读取完成，耗时: %v\n", time.Since(startTime))
+		logger.Info("Kafka消息读取完成，耗时: %v", time.Since(startTime))
 	}()
 
 	// 主循环
@@ -600,7 +600,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		case err := <-errorChan:
 			// 如果有错误但已经读取了一些消息，则返回已读取的消息
 			if len(messages) > 0 {
-				logger.Info("遇到错误但已读取 %d 条消息，返回已读取消息: %v\n", len(messages), err)
+				logger.Info("遇到错误但已读取 %d 条消息，返回已读取消息: %v", len(messages), err)
 				return messages, nil
 			}
 			return nil, err
@@ -608,19 +608,19 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 		case <-noMessageTimer.C:
 			// 如果一段时间内没有新消息，提前返回
 			if len(messages) > 0 {
-				logger.Info("一段时间内没有新消息，提前返回 %d 条消息\n", len(messages))
+				logger.Info("一段时间内没有新消息，提前返回 %d 条消息", len(messages))
 				return messages, nil
 			}
-			logger.Info("未找到符合条件的消息\n")
+			logger.Info("未找到符合条件的消息")
 			return []KafkaMessage{}, nil
 
 		case <-ctx.Done():
 			// 上下文超时
 			if len(messages) > 0 {
-				logger.Info("请求超时，返回已读取的 %d 条消息\n", len(messages))
+				logger.Info("请求超时，返回已读取的 %d 条消息", len(messages))
 				return messages, nil
 			}
-			logger.Info("请求超时，未读取到任何消息\n")
+			logger.Info("请求超时，未读取到任何消息")
 			return []KafkaMessage{}, nil
 		}
 	}
@@ -629,7 +629,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 	if len(messages) > 0 {
 		firstOffset := messages[0].Offset
 		lastOffset := messages[len(messages)-1].Offset
-		logger.Info("返回消息偏移量范围: %d - %d, 总条数: %d\n", firstOffset, lastOffset, len(messages))
+		logger.Info("返回消息偏移量范围: %d - %d, 总条数: %d", firstOffset, lastOffset, len(messages))
 	}
 
 	return messages, nil
@@ -1105,14 +1105,14 @@ func (s *KafkaService) GetPartitionOffset(clusterID uint, topicName string, part
 			return 0, fmt.Errorf("获取最早偏移量失败: %v", offsetErr)
 		}
 		// 减少日志输出，只在调试模式下输出
-		// logger.Info("获取到最早偏移量: %d\n", offset)
+		logger.Info("获取到最早偏移量: %d", offset)
 	} else if offsetType == "latest" {
 		offset, offsetErr = conn.ReadLastOffset()
 		if offsetErr != nil {
 			return 0, fmt.Errorf("获取最新偏移量失败: %v", offsetErr)
 		}
 		// 减少日志输出，只在调试模式下输出
-		// logger.Info("获取到最新偏移量: %d\n", offset)
+		logger.Info("获取到最新偏移量: %d", offset)
 	} else {
 		return 0, fmt.Errorf("无效的偏移量类型: %s", offsetType)
 	}

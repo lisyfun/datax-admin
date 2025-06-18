@@ -394,15 +394,15 @@ func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 		// 如果没有提供offset或为-1，则表示使用默认值
 		// 在这种情况下，我们将在服务层确定是使用最早还是最新偏移量
 		offset = -1
-		logger.Info("未指定具体偏移量，使用默认值: %d\n", offset)
+		logger.Info("未指定具体偏移量，使用默认值: %d", offset)
 	} else {
 		// 解析指定的偏移量
 		offset, err = strconv.ParseInt(offsetParam, 10, 64)
 		if err != nil {
-			logger.Info("偏移量参数格式错误: %s, 将使用默认值 -1\n", offsetParam)
+			logger.Info("偏移量参数格式错误: %s, 将使用默认值 -1", offsetParam)
 			offset = -1
 		} else {
-			logger.Info("使用指定的偏移量: %d\n", offset)
+			logger.Info("使用指定的偏移量: %d", offset)
 		}
 	}
 
@@ -410,14 +410,14 @@ func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 	count, _ := strconv.Atoi(ctx.DefaultQuery("count", "10"))
 	if count > 100 {
 		count = 100 // 限制最大消息数量
-		logger.Info("请求的消息数量超过限制，已调整为最大值: %d\n", count)
+		logger.Info("请求的消息数量超过限制，已调整为最大值: %d", count)
 	}
 
 	keyFilter := ctx.Query("keyFilter")
 	valueFilter := ctx.Query("valueFilter")
 	groupId := ctx.Query("groupId") // 获取消费者组ID，目前未使用
 
-	logger.Info("接收到消费消息请求: 集群=%d, 主题=%s, 分区=%d, 偏移量=%d, 数量=%d, 键过滤=%s, 值过滤=%s, 消费组=%s\n",
+	logger.Info("接收到消费消息请求: 集群=%d, 主题=%s, 分区=%d, 偏移量=%d, 数量=%d, 键过滤=%s, 值过滤=%s, 消费组=%s",
 		id, topicName, partition, offset, count, keyFilter, valueFilter, groupId)
 
 	// 调用服务层方法获取消息
@@ -432,7 +432,7 @@ func (c *KafkaController) ConsumeMessages(ctx *gin.Context) {
 
 	// 记录性能日志
 	elapsed := time.Since(startTime)
-	logger.Info("消费消息完成: 集群=%d, 主题=%s, 分区=%d, 偏移量=%d, 数量=%d, 获取到 %d 条消息, 耗时: %v\n",
+	logger.Info("消费消息完成: 集群=%d, 主题=%s, 分区=%d, 偏移量=%d, 数量=%d, 获取到 %d 条消息, 耗时: %v",
 		id, topicName, partition, offset, count, len(messages), elapsed)
 
 	ctx.JSON(http.StatusOK, gin.H{

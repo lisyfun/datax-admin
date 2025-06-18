@@ -194,7 +194,7 @@ func (s *JobService) StartJob(jobID uint) error {
 		return err
 	}
 
-	logger.Info("任务 [%s] (ID: %d) 已添加到调度器, Cron表达式: %s\n", job.Name, job.ID, job.CronExpr)
+	logger.Info("任务 [%s] (ID: %d) 已添加到调度器, Cron表达式: %s", job.Name, job.ID, job.CronExpr)
 
 	// 更新状态
 	return models.DB.Model(&job).Update("status", models.JobStatusRunning).Error

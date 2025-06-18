@@ -164,7 +164,7 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 	// 延迟删除临时文件，但要等到命令执行完成后
 	defer func() {
 		if err := os.Remove(tmpFileName); err != nil {
-			logger.Info("删除临时文件失败: %v\n", err)
+			logger.Info("删除临时文件失败: %v", err)
 		}
 	}()
 
