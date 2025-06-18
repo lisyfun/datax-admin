@@ -53,6 +53,22 @@
               />
             </template>
           </a-table-column>
+          <a-table-column title="是否隐藏" align="center" v-if="showMenuFields">
+            <template #cell="{ record }">
+              <a-switch
+                :model-value="record.hidden === 1"
+                @update:model-value="(value) => handleHiddenChange(record, Boolean(value))"
+              />
+            </template>
+          </a-table-column>
+          <a-table-column title="是否缓存" align="center" v-if="showMenuFields">
+            <template #cell="{ record }">
+              <a-switch
+                :model-value="record.cache === 1"
+                @update:model-value="(value) => handleCacheChange(record, Boolean(value))"
+              />
+            </template>
+          </a-table-column>
           <a-table-column title="操作" align="center">
             <template #cell="{ record }">
               <a-space>
@@ -103,7 +119,7 @@
         <a-form-item field="parent_id" label="上级权限">
           <a-tree-select
             v-model="formData.parent_id"
-            :data="permissionTree"
+            :data="permissionTreeData"
             placeholder="请选择上级权限"
             allow-clear
           />
@@ -122,6 +138,20 @@
         <a-form-item field="sort" label="排序">
           <a-input-number v-model="formData.sort" placeholder="请输入排序" :min="0" />
         </a-form-item>
+        <template v-if="formData.type === 'menu'">
+          <a-form-item field="hidden" label="是否隐藏">
+            <a-radio-group v-model="formData.hidden">
+              <a-radio :value="0">显示</a-radio>
+              <a-radio :value="1">隐藏</a-radio>
+            </a-radio-group>
+          </a-form-item>
+          <a-form-item field="cache" label="是否缓存">
+            <a-radio-group v-model="formData.cache">
+              <a-radio :value="1">缓存</a-radio>
+              <a-radio :value="0">不缓存</a-radio>
+            </a-radio-group>
+          </a-form-item>
+        </template>
       </a-form>
     </a-modal>
   </div>
@@ -134,6 +164,7 @@ import type { FormInstance, FieldRule } from '@arco-design/web-vue';
 import { PermissionInfo } from '@/types/permission';
 import { convertToTreeData } from '@/types/permission';
 import * as permissionApi from '@/api/permission';
+import { useMenuStore } from '@/stores/menu';
 import {
   IconPlus,
   IconEdit,
@@ -142,7 +173,7 @@ import {
 
 // 表格数据
 const permissions = ref<PermissionInfo[]>([]);
-const permissionTree = computed(() => convertToTreeData(permissions.value));
+const permissionTreeData = computed(() => convertToTreeData(permissions.value));
 const loading = ref(false);
 
 // 表单相关
@@ -159,6 +190,8 @@ const formData = reactive({
   component: '',
   icon: '',
   sort: 0,
+  hidden: 0,
+  cache: 1,
 });
 
 const formRules: Record<string, FieldRule[]> = {
@@ -183,6 +216,22 @@ const formRules: Record<string, FieldRule[]> = {
 
 // 添加搜索相关变量
 const searchKeyword = ref('');
+
+// 控制菜单字段显示
+const showMenuFields = ref(true);
+
+// 菜单store
+const menuStore = useMenuStore();
+
+// 重新加载菜单的辅助函数
+const refreshUserMenus = async () => {
+  try {
+    await menuStore.fetchUserMenus();
+    console.log('用户菜单已刷新');
+  } catch (error) {
+    console.error('刷新用户菜单失败:', error);
+  }
+};
 
 // 添加搜索处理函数
 const handleSearch = () => {
@@ -213,6 +262,8 @@ const handleAdd = (parent?: PermissionInfo) => {
   formData.component = '';
   formData.icon = '';
   formData.sort = 0;
+  formData.hidden = 0;
+  formData.cache = 1;
   showPermissionForm.value = true;
 };
 
@@ -226,12 +277,68 @@ const handleStatusChange = async (record: PermissionInfo, value: boolean) => {
       path: record.path,
       component: record.component,
       icon: record.icon,
-      sort: record.sort
+      sort: record.sort,
+      hidden: record.hidden,
+      cache: record.cache
     });
     Message.success('状态更新成功');
     await fetchPermissions();
+    // 如果是菜单类型的权限，刷新用户菜单
+    if (record.type === 'menu') {
+      await refreshUserMenus();
+    }
   } catch (error) {
     Message.error('状态更新失败');
+  }
+};
+
+const handleHiddenChange = async (record: PermissionInfo, value: boolean) => {
+  try {
+    await permissionApi.updatePermission(record.id, {
+      name: record.name,
+      type: record.type,
+      status: record.status,
+      parent_id: record.parent_id,
+      path: record.path,
+      component: record.component,
+      icon: record.icon,
+      sort: record.sort,
+      hidden: value ? 1 : 0,
+      cache: record.cache
+    });
+    Message.success('隐藏状态更新成功');
+    await fetchPermissions();
+    // 如果是菜单类型的权限，刷新用户菜单
+    if (record.type === 'menu') {
+      await refreshUserMenus();
+    }
+  } catch (error) {
+    Message.error('隐藏状态更新失败');
+  }
+};
+
+const handleCacheChange = async (record: PermissionInfo, value: boolean) => {
+  try {
+    await permissionApi.updatePermission(record.id, {
+      name: record.name,
+      type: record.type,
+      status: record.status,
+      parent_id: record.parent_id,
+      path: record.path,
+      component: record.component,
+      icon: record.icon,
+      sort: record.sort,
+      hidden: record.hidden,
+      cache: value ? 1 : 0
+    });
+    Message.success('缓存状态更新成功');
+    await fetchPermissions();
+    // 如果是菜单类型的权限，刷新用户菜单
+    if (record.type === 'menu') {
+      await refreshUserMenus();
+    }
+  } catch (error) {
+    Message.error('缓存状态更新失败');
   }
 };
 
@@ -247,6 +354,8 @@ const handleEdit = (record: PermissionInfo) => {
   formData.component = record.component || '';
   formData.icon = record.icon || '';
   formData.sort = record.sort;
+  formData.hidden = record.hidden;
+  formData.cache = record.cache;
   showPermissionForm.value = true;
 };
 
@@ -256,6 +365,10 @@ const handleDelete = async (record: PermissionInfo) => {
     await permissionApi.deletePermission(record.id);
     Message.success('删除成功');
     await fetchPermissions();
+    // 如果是菜单类型的权限，刷新用户菜单
+    if (record.type === 'menu') {
+      await refreshUserMenus();
+    }
   } catch (error: any) {
     Message.error(error.response?.data?.error || '删除失败');
   }
@@ -277,6 +390,8 @@ const handlePermissionFormSubmit = async () => {
         component: formData.component,
         icon: formData.icon,
         sort: formData.sort,
+        hidden: formData.hidden,
+        cache: formData.cache,
       });
     } else {
       await permissionApi.createPermission({
@@ -288,11 +403,17 @@ const handlePermissionFormSubmit = async () => {
         component: formData.component,
         icon: formData.icon,
         sort: formData.sort,
+        hidden: formData.hidden,
+        cache: formData.cache,
       });
     }
     Message.success(isEdit.value ? '编辑成功' : '新增成功');
     showPermissionForm.value = false;
     await fetchPermissions();
+    // 如果是菜单类型的权限，刷新用户菜单
+    if (formData.type === 'menu') {
+      await refreshUserMenus();
+    }
   } catch (error: any) {
     if (error.response?.data?.error) {
       Message.error(error.response.data.error);

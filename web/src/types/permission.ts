@@ -12,6 +12,8 @@ export interface PermissionInfo {
   icon: string;
   sort: number;
   status: number;
+  hidden: number;
+  cache: number;
   children?: PermissionInfo[];
 }
 
@@ -36,6 +38,8 @@ export interface CreatePermissionParams {
   component?: string;
   icon?: string;
   sort: number;
+  hidden: number;
+  cache: number;
 }
 
 export interface UpdatePermissionParams {
@@ -48,6 +52,8 @@ export interface UpdatePermissionParams {
   icon?: string;
   sort?: number;
   status?: number;
+  hidden?: number;
+  cache?: number;
 }
 
 export interface PermissionListParams {

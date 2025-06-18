@@ -10,6 +10,8 @@ type CreatePermissionRequest struct {
 	Component string `json:"component" binding:"max=200"`
 	Icon      string `json:"icon" binding:"max=50"`
 	Sort      int    `json:"sort" binding:"min=0"`
+	Hidden    int    `json:"hidden" binding:"oneof=0 1"`
+	Cache     int    `json:"cache" binding:"oneof=0 1"`
 }
 
 // UpdatePermissionRequest 更新权限请求
@@ -22,6 +24,8 @@ type UpdatePermissionRequest struct {
 	Icon      string `json:"icon" binding:"max=50"`
 	Sort      int    `json:"sort" binding:"min=0"`
 	Status    int    `json:"status" binding:"oneof=0 1"`
+	Hidden    int    `json:"hidden" binding:"oneof=0 1"`
+	Cache     int    `json:"cache" binding:"oneof=0 1"`
 }
 
 // PermissionResponse 权限响应
@@ -36,6 +40,8 @@ type PermissionResponse struct {
 	Icon      string               `json:"icon"`
 	Sort      int                  `json:"sort"`
 	Status    int                  `json:"status"`
+	Hidden    int                  `json:"hidden"`
+	Cache     int                  `json:"cache"`
 	Children  []PermissionResponse `json:"children,omitempty"`
 }
 

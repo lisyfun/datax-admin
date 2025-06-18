@@ -63,37 +63,7 @@
         :hide-trigger="true"
         breakpoint="xxl"
       >
-        <a-menu
-          :selected-keys="selectedKeys"
-          :default-open-keys="openKeys"
-          :style="{ width: '100%' }"
-          @menu-item-click="handleMenuClick"
-        >
-          <template v-for="(item, index) in menuItems" :key="index">
-            <template v-if="!item.children">
-              <a-menu-item :key="item.key">
-                <template #icon>
-                  <component :is="item.icon" />
-                </template>
-                {{ item.title }}
-              </a-menu-item>
-            </template>
-            <template v-else>
-              <a-sub-menu :key="item.key">
-                <template #icon>
-                  <component :is="item.icon" />
-                </template>
-                <template #title>{{ item.title }}</template>
-                <a-menu-item v-for="child in item.children" :key="child.key">
-                  <template #icon>
-                    <component :is="child.icon" />
-                  </template>
-                  {{ child.title }}
-                </a-menu-item>
-              </a-sub-menu>
-            </template>
-          </template>
-        </a-menu>
+        <Menu />
       </a-layout-sider>
       <a-layout-content class="layout-content">
         <div class="content-wrapper">
@@ -143,9 +113,12 @@ import {
 } from '@arco-design/web-vue/es/icon';
 import * as userApi from '@/api/user';
 import { appRoutes } from '../router';
+import Menu from '@/components/Menu/index.vue';
+import { useMenuStore } from '@/stores/menu';
 
 const router = useRouter();
 const route = useRoute();
+const menuStore = useMenuStore();
 const collapsed = ref(false);
 const isDarkMode = ref(false);
 const isFullscreen = ref(false);
@@ -318,8 +291,9 @@ const handleRefresh = async () => {
 // 提供刷新方法给所有子组件
 provide('triggerRefresh', handleRefresh);
 
-onMounted(() => {
-  fetchUserInfo();
+onMounted(async () => {
+  await fetchUserInfo();
+  await menuStore.fetchUserMenus(); // 加载用户菜单
   initTheme();
   document.addEventListener('fullscreenchange', handleFullscreenChange);
 });

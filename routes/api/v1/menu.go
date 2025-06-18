@@ -14,5 +14,5 @@ func RegisterMenuRoutes(authenticated *gin.RouterGroup) {
 	authenticated.PUT("/menus/:id", menuController.UpdateMenu)
 	authenticated.DELETE("/menus/:id", menuController.DeleteMenu)
 	authenticated.GET("/menus", menuController.GetMenuList)
-	authenticated.GET("/user/menus", menuController.GetUserMenus)
+	// 注意：/user/menus 路由已移至权限路由中，由权限管理统一处理菜单功能
 }

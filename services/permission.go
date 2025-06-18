@@ -31,6 +31,8 @@ func (s *PermissionService) CreatePermission(req *types.CreatePermissionRequest)
 		Icon:      req.Icon,
 		Sort:      req.Sort,
 		Status:    1,
+		Hidden:    req.Hidden,
+		Cache:     req.Cache,
 	}
 
 	return models.DB.Create(permission).Error
@@ -47,6 +49,8 @@ func (s *PermissionService) UpdatePermission(id uint, req *types.UpdatePermissio
 		"icon":      req.Icon,
 		"sort":      req.Sort,
 		"status":    req.Status,
+		"hidden":    req.Hidden,
+		"cache":     req.Cache,
 	}
 
 	return models.DB.Model(&models.Permission{}).Where("id = ?", id).Updates(updates).Error
@@ -93,7 +97,7 @@ func (s *PermissionService) GetPermissionTree(req *types.PermissionListRequest) 
 
 	// 构建权限树
 	permMap := make(map[uint]*types.PermissionResponse)
-	var rootPerms []types.PermissionResponse
+	var rootPermIDs []uint
 
 	// 第一次遍历，创建所有节点
 	for _, p := range permissions {
@@ -108,11 +112,13 @@ func (s *PermissionService) GetPermissionTree(req *types.PermissionListRequest) 
 			Icon:      p.Icon,
 			Sort:      p.Sort,
 			Status:    p.Status,
+			Hidden:    p.Hidden,
+			Cache:     p.Cache,
 			Children:  make([]types.PermissionResponse, 0),
 		}
 		permMap[p.ID] = &perm
 		if p.ParentID == nil {
-			rootPerms = append(rootPerms, perm)
+			rootPermIDs = append(rootPermIDs, p.ID)
 		}
 	}
 
@@ -122,6 +128,14 @@ func (s *PermissionService) GetPermissionTree(req *types.PermissionListRequest) 
 			if parent, ok := permMap[*p.ParentID]; ok {
 				parent.Children = append(parent.Children, *permMap[p.ID])
 			}
+		}
+	}
+
+	// 构建根节点列表
+	var rootPerms []types.PermissionResponse
+	for _, rootID := range rootPermIDs {
+		if rootPerm, ok := permMap[rootID]; ok {
+			rootPerms = append(rootPerms, *rootPerm)
 		}
 	}
 
@@ -136,6 +150,7 @@ func (s *PermissionService) GetUserPermissions(userID uint) ([]types.PermissionR
 		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
 		Joins("JOIN user_roles ON user_roles.role_id = role_permissions.role_id").
 		Where("user_roles.user_id = ? AND permissions.status = 1", userID).
+		Order("permissions.sort").
 		Find(&permissions).Error
 
 	if err != nil {
@@ -155,8 +170,75 @@ func (s *PermissionService) GetUserPermissions(userID uint) ([]types.PermissionR
 			Icon:      p.Icon,
 			Sort:      p.Sort,
 			Status:    p.Status,
+			Hidden:    p.Hidden,
+			Cache:     p.Cache,
 		}
 	}
 
 	return result, nil
+}
+
+// GetUserMenus 获取用户的菜单权限（树形结构）
+func (s *PermissionService) GetUserMenus(userID uint) (*types.PermissionTreeResponse, error) {
+	var permissions []models.Permission
+
+	// 临时简化：先获取所有菜单类型的权限，后续可以根据用户角色进行过滤
+	err := models.DB.Where("status = 1 AND type = 'menu' AND hidden = 0").
+		Order("sort").
+		Find(&permissions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 如果没有找到任何权限，返回空列表
+	if len(permissions) == 0 {
+		return &types.PermissionTreeResponse{List: []types.PermissionResponse{}}, nil
+	}
+
+	// 构建权限树
+	permMap := make(map[uint]*types.PermissionResponse)
+	var rootPermIDs []uint
+
+	// 第一次遍历，创建所有节点
+	for _, p := range permissions {
+		perm := types.PermissionResponse{
+			ID:        p.ID,
+			Name:      p.Name,
+			Code:      p.Code,
+			Type:      p.Type,
+			ParentID:  p.ParentID,
+			Path:      p.Path,
+			Component: p.Component,
+			Icon:      p.Icon,
+			Sort:      p.Sort,
+			Status:    p.Status,
+			Hidden:    p.Hidden,
+			Cache:     p.Cache,
+			Children:  make([]types.PermissionResponse, 0),
+		}
+		permMap[p.ID] = &perm
+		if p.ParentID == nil {
+			rootPermIDs = append(rootPermIDs, p.ID)
+		}
+	}
+
+	// 第二次遍历，构建树形结构
+	for _, p := range permissions {
+		if p.ParentID != nil {
+			if parent, ok := permMap[*p.ParentID]; ok {
+				parent.Children = append(parent.Children, *permMap[p.ID])
+			}
+		}
+	}
+
+	// 构建根节点列表
+	var rootPerms []types.PermissionResponse
+	for _, rootID := range rootPermIDs {
+		if rootPerm, ok := permMap[rootID]; ok {
+			rootPerms = append(rootPerms, *rootPerm)
+		}
+	}
+
+	return &types.PermissionTreeResponse{List: rootPerms}, nil
 }

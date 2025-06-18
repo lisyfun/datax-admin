@@ -25,3 +25,7 @@ export function getPermissionTree() {
 export function getUserPermissions() {
   return request.get('/user/permissions');
 }
+
+export function getUserMenus() {
+  return request.get<PermissionTreeResult>('/user/menus');
+}

@@ -103,3 +103,15 @@ func (c *PermissionController) GetUserPermissions(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"permissions": permissions})
 }
+
+// GetUserMenus 获取用户菜单
+func (c *PermissionController) GetUserMenus(ctx *gin.Context) {
+	userID := ctx.GetUint("userID")
+	menus, err := c.permissionService.GetUserMenus(userID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, menus)
+}
