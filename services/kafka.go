@@ -1099,21 +1099,22 @@ func (s *KafkaService) GetPartitionOffset(clusterID uint, topicName string, part
 	var offsetErr error
 
 	// 根据类型获取偏移量
-	if offsetType == "earliest" {
+	switch offsetType {
+	case "earliest":
 		offset, offsetErr = conn.ReadFirstOffset()
 		if offsetErr != nil {
 			return 0, fmt.Errorf("获取最早偏移量失败: %v", offsetErr)
 		}
 		// 减少日志输出，只在调试模式下输出
 		logger.Info("获取到最早偏移量: %d", offset)
-	} else if offsetType == "latest" {
+	case "latest":
 		offset, offsetErr = conn.ReadLastOffset()
 		if offsetErr != nil {
 			return 0, fmt.Errorf("获取最新偏移量失败: %v", offsetErr)
 		}
 		// 减少日志输出，只在调试模式下输出
 		logger.Info("获取到最新偏移量: %d", offset)
-	} else {
+	default:
 		return 0, fmt.Errorf("无效的偏移量类型: %s", offsetType)
 	}
 
