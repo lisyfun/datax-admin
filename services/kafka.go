@@ -232,18 +232,22 @@ func (s *KafkaService) ListKafkaClusters(page, pageSize int, search string) (*Ka
 				// 尝试获取主题数量
 				topics, err := conn.ReadPartitions()
 				if err == nil {
-					// 统计唯一的 topic 名称
+					// 统计唯一的 topic 名称，排除 __consumer_offsets
 					topicMap := make(map[string]bool)
 					for _, p := range topics {
+						// 跳过 __consumer_offsets 主题
+						if p.Topic == "__consumer_offsets" {
+							continue
+						}
 						topicMap[p.Topic] = true
 					}
 					clusters[index].TopicCount = len(topicMap)
 				}
 
-				// 查询数据库获取主题数量作为备选
+				// 查询数据库获取主题数量作为备选，排除 __consumer_offsets
 				var topicCount int64
 				if err := models.DB.Model(&models.KafkaTopic{}).
-					Where("cluster_id = ?", clusters[index].ID).
+					Where("cluster_id = ? AND name != ?", clusters[index].ID, "__consumer_offsets").
 					Count(&topicCount).Error; err == nil && topicCount > 0 &&
 					(clusters[index].TopicCount == 0 || topicCount > int64(clusters[index].TopicCount)) {
 					clusters[index].TopicCount = int(topicCount)
