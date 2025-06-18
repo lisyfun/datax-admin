@@ -121,6 +121,53 @@ export const appRoutes: AppRouteRecordRaw[] = [
         ],
       },
       {
+            path: 'kafka',
+            name: 'Kafka',
+            component: () => import('@/views/kafka/index.vue'),
+            meta: {
+              title: 'KAFKA 管理',
+              requiresAuth: true,
+              icon: 'icon-apps',
+               order: 3,
+            },
+            redirect: '/kafka/cluster',
+            children: [
+              {
+                path: 'cluster',
+                name: 'KafkaCluster',
+                component: () => import('@/views/kafka/cluster/index.vue'),
+                meta: {
+                  title: '集群管理',
+                  requiresAuth: true,
+                  roles: ['*'],
+                  icon: 'icon-apps',
+                },
+              },
+              {
+                path: 'cluster/:clusterId/topic',
+                name: 'KafkaTopic',
+                component: () => import('@/views/kafka/topic/index.vue'),
+                meta: {
+                  title: '主题管理',
+                  requiresAuth: true,
+                  roles: ['*'],
+                  hideInMenu: true,
+                },
+              },
+              {
+                path: 'clusters/:clusterId/topics/:topicName/messages',
+                name: 'KafkaMessage',
+                component: () => import('@/views/kafka/topic/components/MessageList.vue'),
+                meta: {
+                  title: '消息列表',
+                  requiresAuth: true,
+                  roles: ['*'],
+                  hideInMenu: true,
+                },
+              },
+            ],
+          },
+      {
         path: 'tools',
         name: 'Tools',
         component: () => import('@/views/tools/index.vue'),
@@ -129,7 +176,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
           title: '工具箱',
           requiresAuth: true,
           icon: 'icon-common',
-          order: 3,
+          order: 4,
         },
         children: [
           {
@@ -154,52 +201,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               roles: ['*'],
             },
           },
-          {
-            path: 'kafka',
-            name: 'Kafka',
-            component: () => import('@/views/tools/kafka/index.vue'),
-            meta: {
-              title: 'KAFKA 管理',
-              requiresAuth: true,
-              icon: 'icon-apps',
-            },
-            redirect: '/tools/kafka/cluster',
-            children: [
-              {
-                path: 'cluster',
-                name: 'KafkaCluster',
-                component: () => import('@/views/tools/kafka/cluster/index.vue'),
-                meta: {
-                  title: '集群管理',
-                  requiresAuth: true,
-                  roles: ['*'],
-                  icon: 'icon-apps',
-                },
-              },
-              {
-                path: 'cluster/:clusterId/topic',
-                name: 'KafkaTopic',
-                component: () => import('@/views/tools/kafka/topic/index.vue'),
-                meta: {
-                  title: '主题管理',
-                  requiresAuth: true,
-                  roles: ['*'],
-                  hideInMenu: true,
-                },
-              },
-              {
-                path: 'clusters/:clusterId/topics/:topicName/messages',
-                name: 'KafkaMessage',
-                component: () => import('@/views/tools/kafka/topic/components/MessageList.vue'),
-                meta: {
-                  title: '消息列表',
-                  requiresAuth: true,
-                  roles: ['*'],
-                  hideInMenu: true,
-                },
-              },
-            ],
-          },
+          
         ],
       },
       {

@@ -13,7 +13,7 @@
           </template>
         </a-button>
         <a-breadcrumb class="breadcrumb">
-          <template v-for="(item, index) in breadcrumbItems" :key="index">
+          <template v-for="item in breadcrumbItems" :key="item">
             <a-breadcrumb-item>{{ item }}</a-breadcrumb-item>
           </template>
         </a-breadcrumb>
@@ -79,24 +79,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch, onUnmounted, provide } from 'vue';
+import { ref, computed, onMounted, onUnmounted, provide } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { Message, Modal } from '@arco-design/web-vue';
 import {
-  IconApps,
   IconUser,
-  IconUserGroup,
-  IconSafe,
-  IconCalendar,
-  IconUnorderedList,
-  IconClockCircle,
-  IconDashboard,
-  IconDesktop,
-  IconCloud,
-  IconFile,
-  IconBulb,
-  IconCode,
-  IconRobot,
   IconDown,
   IconRefresh,
   IconFullscreen,
@@ -104,15 +91,10 @@ import {
   IconMenuFold,
   IconMenuUnfold,
   IconExport,
-  IconCommon,
   IconMoonFill,
   IconSunFill,
-  IconCommand,
-  IconLock,
-  IconList,
 } from '@arco-design/web-vue/es/icon';
 import * as userApi from '@/api/user';
-import { appRoutes } from '../router';
 import Menu from '@/components/Menu/index.vue';
 import { useMenuStore } from '@/stores/menu';
 
@@ -127,54 +109,7 @@ const isRefreshing = ref(false);
 // 提供collapsed状态给子组件
 provide('collapsed', collapsed);
 
-interface MenuItem {
-  key: string;
-  title: string;
-  icon?: string;
-  children?: MenuItem[];
-}
 
-// 图标映射
-const iconMap: Record<string, any> = {
-  'icon-dashboard': IconDashboard,
-  'icon-apps': IconApps,
-  'icon-user': IconUser,
-  'icon-user-group': IconUserGroup,
-  'icon-safe': IconSafe,
-  'icon-calendar': IconCalendar,
-  'icon-unordered-list': IconUnorderedList,
-  'icon-clock-circle': IconClockCircle,
-  'icon-desktop': IconDesktop,
-  'icon-cloud': IconCloud,
-  'icon-file': IconFile,
-  'icon-bulb': IconBulb,
-  'icon-code': IconCode,
-  'icon-robot': IconRobot,
-  'icon-common': IconCommon,
-  'icon-command': IconCommand,
-  'icon-lock': IconLock,
-  'icon-menu': IconList,
-};
-
-// 生成菜单项
-const menuItems = computed(() => {
-  const generateMenus = (routes: any[], parentPath = ''): MenuItem[] => {
-    return routes
-      .filter(route => !route.meta?.hideInMenu)
-      .sort((a, b) => (a.meta?.order || 0) - (b.meta?.order || 0))
-      .map(route => {
-        const fullPath = parentPath + '/' + route.path;
-        const menuItem: MenuItem = {
-          key: fullPath.replace('//', '/'), // 处理可能的双斜杠
-          title: route.meta?.title || route.name,
-          icon: route.meta?.icon ? iconMap[route.meta.icon] : undefined,
-          children: route.children ? generateMenus(route.children, fullPath) : undefined
-        };
-        return menuItem;
-      });
-  };
-  return generateMenus(appRoutes[2].children || []); // 只生成主布局下的路由
-});
 
 // 初始化主题
 const initTheme = () => {
@@ -257,19 +192,7 @@ const handleLogout = () => {
   });
 };
 
-// 菜单相关
-const selectedKeys = computed(() => {
-  return [route.path];
-});
 
-const openKeys = computed(() => {
-  const paths = route.path.split('/').filter(Boolean);
-  return paths.slice(0, -1).map((_, index) => '/' + paths.slice(0, index + 1).join('/'));
-});
-
-const handleMenuClick = (key: string) => {
-  router.push(key);
-};
 
 // 处理页面刷新
 const handleRefresh = async () => {
@@ -341,8 +264,8 @@ onUnmounted(() => {
 :deep(.arco-breadcrumb) {
   font-size: 14px;
   letter-spacing: 0.2px;
-  height: 45px;
-  line-height: 45px;
+  height: 40px;
+  line-height: 40px;
 }
 
 :deep(.arco-menu-icon),
@@ -496,33 +419,227 @@ onUnmounted(() => {
   .arco-menu-item-inner,
   .arco-sub-menu-title {
     padding: 0 !important;
+    justify-content: center !important;
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .arco-menu-icon,
+  .arco-sub-menu-icon {
+    margin: 0 !important;
+    display: flex;
     justify-content: center;
+    align-items: center;
     width: 100%;
   }
 
+  .arco-menu-title {
+    display: none;
+  }
+
+  .arco-sub-menu-suffix {
+    display: none;
+  }
 }
 
 
-/* 基础菜单样式 */
+/* 基础菜单样式 - 统一所有菜单项 */
 :deep(.arco-menu-item),
-:deep(.arco-sub-menu-title) {
-  display: flex;
-  align-items: center;
-  height: 45px;
-  line-height: 45px;
+:deep(.arco-sub-menu-title),
+:deep(.arco-menu-inline-header) {
+  display: flex !important;
+  align-items: center !important;
+  height: 40px !important;
+  line-height: 40px !important;
   text-align: left;
+  padding: 0 16px !important;
+  box-sizing: border-box !important;
+}
+
+/* 特别针对有图标的菜单项 */
+:deep(.arco-menu-item.arco-menu-has-icon) {
+  padding: 0 16px !important;
 }
 
 :deep(.arco-menu-item-inner) {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 0 !important;
 }
 
 :deep(.arco-menu-title) {
   text-align: left;
   justify-content: flex-start;
+}
+
+/* 确保收起状态下图标完全居中 - 统一所有类型 */
+:deep(.arco-menu-collapse .arco-menu-item),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-has-icon),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-pop),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-pop-header),
+:deep(.arco-menu-collapse .arco-sub-menu-title),
+:deep(.arco-menu-collapse .arco-menu-inline-header) {
+  padding: 0 !important;
+  margin: 2px 4px !important;
+  justify-content: center !important;
+  border-radius: 6px !important;
+  height: 40px !important;
+  width: calc(100% - 8px) !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 收起状态下的菜单项内容样式 */
+:deep(.arco-menu-collapse .arco-menu-item-inner),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-has-icon .arco-menu-item-inner),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-pop .arco-menu-item-inner),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-pop-header .arco-menu-item-inner),
+:deep(.arco-menu-collapse .arco-sub-menu-title),
+:deep(.arco-menu-collapse .arco-menu-inline-header) {
+  justify-content: center !important;
+  padding: 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+:deep(.arco-menu-collapse .arco-menu-icon),
+:deep(.arco-menu-collapse .arco-sub-menu-icon) {
+  margin: 0 !important;
+  width: auto !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* 收起状态下的悬停效果 */
+:deep(.arco-menu-collapse .arco-menu-item:hover),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-has-icon:hover),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-pop:hover),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-pop-header:hover),
+:deep(.arco-menu-collapse .arco-sub-menu-title:hover),
+:deep(.arco-menu-collapse .arco-menu-inline-header:hover) {
+  background-color: rgba(var(--primary-6), 0.1) !important;
+}
+
+/* 收起状态下的选中效果 */
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-selected),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-has-icon.arco-menu-selected),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-pop.arco-menu-selected),
+:deep(.arco-menu-collapse .arco-menu-item.arco-menu-pop-header.arco-menu-selected),
+:deep(.arco-menu-collapse .arco-sub-menu-title.arco-sub-menu-open),
+:deep(.arco-menu-collapse .arco-menu-inline-header.arco-menu-selected) {
+  background-color: rgba(var(--primary-6), 0.15) !important;
+  color: rgb(var(--primary-6)) !important;
+}
+
+/* 强制重置收起状态下的所有菜单项样式 - 最高优先级 */
+:deep(.arco-menu.arco-menu-collapse .arco-menu-item),
+:deep(.arco-menu.arco-menu-collapse .arco-menu-item.arco-menu-has-icon),
+:deep(.arco-menu.arco-menu-collapse .arco-menu-item.arco-menu-pop),
+:deep(.arco-menu.arco-menu-collapse .arco-menu-item.arco-menu-pop-header) {
+  margin: 2px 4px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  display: flex !important;
+  align-items: center !important;
+  border-radius: 6px !important;
+  height: 40px !important;
+  width: calc(100% - 8px) !important;
+  box-sizing: border-box !important;
+}
+
+:deep(.arco-menu.arco-menu-collapse .arco-menu-item .arco-menu-item-inner),
+:deep(.arco-menu.arco-menu-collapse .arco-menu-item.arco-menu-has-icon .arco-menu-item-inner),
+:deep(.arco-menu.arco-menu-collapse .arco-menu-item.arco-menu-pop .arco-menu-item-inner),
+:deep(.arco-menu.arco-menu-collapse .arco-menu-item.arco-menu-pop-header .arco-menu-item-inner) {
+  justify-content: center !important;
+  padding: 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 通用的收起状态菜单项样式 - 覆盖所有可能的类组合 */
+:deep(.arco-menu-collapse [class*="arco-menu-item"]) {
+  margin: 2px 4px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  display: flex !important;
+  align-items: center !important;
+  border-radius: 6px !important;
+  height: 40px !important;
+  width: calc(100% - 8px) !important;
+  box-sizing: border-box !important;
+}
+
+:deep(.arco-menu-collapse [class*="arco-menu-item"] .arco-menu-item-inner) {
+  justify-content: center !important;
+  padding: 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 最强制的样式 - 使用更高的特异性 */
+:deep(.arco-menu.arco-menu-collapse > .arco-menu-item),
+:deep(.arco-menu.arco-menu-collapse > [class*="arco-menu-item"]) {
+  margin: 2px 4px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  display: flex !important;
+  align-items: center !important;
+  border-radius: 6px !important;
+  height: 40px !important;
+  width: calc(100% - 8px) !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+}
+
+:deep(.arco-menu.arco-menu-collapse > .arco-menu-item .arco-menu-item-inner),
+:deep(.arco-menu.arco-menu-collapse > [class*="arco-menu-item"] .arco-menu-item-inner) {
+  justify-content: center !important;
+  padding: 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 终极解决方案 - 覆盖所有直接子元素 */
+:deep(.arco-menu-collapse > *) {
+  margin: 2px 4px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  display: flex !important;
+  align-items: center !important;
+  border-radius: 6px !important;
+  height: 40px !important;
+  width: calc(100% - 8px) !important;
+  box-sizing: border-box !important;
+}
+
+:deep(.arco-menu-collapse > * .arco-menu-item-inner) {
+  justify-content: center !important;
+  padding: 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* 确保所有菜单图标对齐 */
+:deep(.arco-menu-icon),
+:deep(.arco-sub-menu-icon) {
+  margin-right: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 16px !important;
+  height: 16px !important;
+  flex-shrink: 0 !important;
 }
 
 .layout-content {
