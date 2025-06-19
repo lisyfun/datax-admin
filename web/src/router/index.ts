@@ -201,7 +201,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               roles: ['*'],
             },
           },
-          
+
         ],
       },
       {
@@ -250,13 +250,13 @@ export const appRoutes: AppRouteRecordRaw[] = [
             },
           },
           {
-            path: 'menu',
-            name: 'Menu',
-            component: () => import('@/views/system/menu/index.vue'),
+            path: 'logs',
+            name: 'OperationLogs',
+            component: () => import('@/views/system/logs/index.vue'),
             meta: {
-              title: '菜单管理',
+              title: '操作管理',
               requiresAuth: true,
-              icon: 'icon-menu',
+              icon: 'icon-file',
               roles: ['admin'],
             },
           },

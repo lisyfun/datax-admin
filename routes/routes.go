@@ -56,6 +56,7 @@ func SetupRoutes(r *gin.Engine) {
 				v1.RegisterJobRoutes(authenticated)
 				v1.RegisterTerminalRoutes(authenticated)
 				v1.RegisterKafkaRoutes(authenticated)
+				v1.RegisterOperationLogRoutes(authenticated)
 			}
 		}
 	}

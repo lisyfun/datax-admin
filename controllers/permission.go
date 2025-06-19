@@ -29,10 +29,41 @@ func (c *PermissionController) CreatePermission(ctx *gin.Context) {
 		return
 	}
 
+	// 记录操作日志
+	operatorID := ctx.GetUint("userID")
+	operatorName := ctx.GetString("username")
+
 	if err := c.permissionService.CreatePermission(&req); err != nil {
+		// 记录失败日志
+		services.LogOperation(
+			operatorID,
+			operatorName,
+			"permission",
+			"create",
+			"创建权限失败: "+req.Name,
+			ctx.ClientIP(),
+			ctx.GetHeader("User-Agent"),
+			req,
+			0,
+			err.Error(),
+		)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 记录成功日志
+	services.LogOperation(
+		operatorID,
+		operatorName,
+		"permission",
+		"create",
+		"创建权限成功: "+req.Name,
+		ctx.ClientIP(),
+		ctx.GetHeader("User-Agent"),
+		req,
+		1,
+		"",
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "创建成功"})
 }
@@ -51,10 +82,41 @@ func (c *PermissionController) UpdatePermission(ctx *gin.Context) {
 		return
 	}
 
+	// 记录操作日志
+	operatorID := ctx.GetUint("userID")
+	operatorName := ctx.GetString("username")
+
 	if err := c.permissionService.UpdatePermission(uint(id), &req); err != nil {
+		// 记录失败日志
+		services.LogOperation(
+			operatorID,
+			operatorName,
+			"permission",
+			"update",
+			"更新权限失败: "+req.Name,
+			ctx.ClientIP(),
+			ctx.GetHeader("User-Agent"),
+			req,
+			0,
+			err.Error(),
+		)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 记录成功日志
+	services.LogOperation(
+		operatorID,
+		operatorName,
+		"permission",
+		"update",
+		"更新权限成功: "+req.Name,
+		ctx.ClientIP(),
+		ctx.GetHeader("User-Agent"),
+		req,
+		1,
+		"",
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }
@@ -67,10 +129,41 @@ func (c *PermissionController) DeletePermission(ctx *gin.Context) {
 		return
 	}
 
+	// 记录操作日志
+	operatorID := ctx.GetUint("userID")
+	operatorName := ctx.GetString("username")
+
 	if err := c.permissionService.DeletePermission(uint(id)); err != nil {
+		// 记录失败日志
+		services.LogOperation(
+			operatorID,
+			operatorName,
+			"permission",
+			"delete",
+			"删除权限失败",
+			ctx.ClientIP(),
+			ctx.GetHeader("User-Agent"),
+			map[string]interface{}{"permission_id": id},
+			0,
+			err.Error(),
+		)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 记录成功日志
+	services.LogOperation(
+		operatorID,
+		operatorName,
+		"permission",
+		"delete",
+		"删除权限成功",
+		ctx.ClientIP(),
+		ctx.GetHeader("User-Agent"),
+		map[string]interface{}{"permission_id": id},
+		1,
+		"",
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "删除成功"})
 }

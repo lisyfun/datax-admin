@@ -29,10 +29,41 @@ func (c *RoleController) CreateRole(ctx *gin.Context) {
 		return
 	}
 
+	// 记录操作日志
+	operatorID := ctx.GetUint("userID")
+	operatorName := ctx.GetString("username")
+
 	if err := c.roleService.CreateRole(&req); err != nil {
+		// 记录失败日志
+		services.LogOperation(
+			operatorID,
+			operatorName,
+			"role",
+			"create",
+			"创建角色失败: "+req.Name,
+			ctx.ClientIP(),
+			ctx.GetHeader("User-Agent"),
+			req,
+			0,
+			err.Error(),
+		)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 记录成功日志
+	services.LogOperation(
+		operatorID,
+		operatorName,
+		"role",
+		"create",
+		"创建角色成功: "+req.Name,
+		ctx.ClientIP(),
+		ctx.GetHeader("User-Agent"),
+		req,
+		1,
+		"",
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "创建成功"})
 }
@@ -51,10 +82,41 @@ func (c *RoleController) UpdateRole(ctx *gin.Context) {
 		return
 	}
 
+	// 记录操作日志
+	operatorID := ctx.GetUint("userID")
+	operatorName := ctx.GetString("username")
+
 	if err := c.roleService.UpdateRole(uint(id), &req); err != nil {
+		// 记录失败日志
+		services.LogOperation(
+			operatorID,
+			operatorName,
+			"role",
+			"update",
+			"更新角色失败: "+req.Name,
+			ctx.ClientIP(),
+			ctx.GetHeader("User-Agent"),
+			req,
+			0,
+			err.Error(),
+		)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 记录成功日志
+	services.LogOperation(
+		operatorID,
+		operatorName,
+		"role",
+		"update",
+		"更新角色成功: "+req.Name,
+		ctx.ClientIP(),
+		ctx.GetHeader("User-Agent"),
+		req,
+		1,
+		"",
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }
@@ -67,10 +129,41 @@ func (c *RoleController) DeleteRole(ctx *gin.Context) {
 		return
 	}
 
+	// 记录操作日志
+	operatorID := ctx.GetUint("userID")
+	operatorName := ctx.GetString("username")
+
 	if err := c.roleService.DeleteRole(uint(id)); err != nil {
+		// 记录失败日志
+		services.LogOperation(
+			operatorID,
+			operatorName,
+			"role",
+			"delete",
+			"删除角色失败",
+			ctx.ClientIP(),
+			ctx.GetHeader("User-Agent"),
+			map[string]interface{}{"role_id": id},
+			0,
+			err.Error(),
+		)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 记录成功日志
+	services.LogOperation(
+		operatorID,
+		operatorName,
+		"role",
+		"delete",
+		"删除角色成功",
+		ctx.ClientIP(),
+		ctx.GetHeader("User-Agent"),
+		map[string]interface{}{"role_id": id},
+		1,
+		"",
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "删除成功"})
 }
@@ -106,10 +199,41 @@ func (c *RoleController) UpdateRolePermissions(ctx *gin.Context) {
 		return
 	}
 
+	// 记录操作日志
+	operatorID := ctx.GetUint("userID")
+	operatorName := ctx.GetString("username")
+
 	if err := c.roleService.UpdateRolePermissions(uint(id), &req); err != nil {
+		// 记录失败日志
+		services.LogOperation(
+			operatorID,
+			operatorName,
+			"role",
+			"update",
+			"更新角色权限失败",
+			ctx.ClientIP(),
+			ctx.GetHeader("User-Agent"),
+			req,
+			0,
+			err.Error(),
+		)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 记录成功日志
+	services.LogOperation(
+		operatorID,
+		operatorName,
+		"role",
+		"update",
+		"更新角色权限成功",
+		ctx.ClientIP(),
+		ctx.GetHeader("User-Agent"),
+		req,
+		1,
+		"",
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }
@@ -145,10 +269,41 @@ func (c *RoleController) UpdateUserRoles(ctx *gin.Context) {
 		return
 	}
 
+	// 记录操作日志
+	operatorID := ctx.GetUint("userID")
+	operatorName := ctx.GetString("username")
+
 	if err := c.roleService.UpdateUserRoles(uint(id), &req); err != nil {
+		// 记录失败日志
+		services.LogOperation(
+			operatorID,
+			operatorName,
+			"user",
+			"update",
+			"更新用户角色失败",
+			ctx.ClientIP(),
+			ctx.GetHeader("User-Agent"),
+			req,
+			0,
+			err.Error(),
+		)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 记录成功日志
+	services.LogOperation(
+		operatorID,
+		operatorName,
+		"user",
+		"update",
+		"更新用户角色成功",
+		ctx.ClientIP(),
+		ctx.GetHeader("User-Agent"),
+		req,
+		1,
+		"",
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }

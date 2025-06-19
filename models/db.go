@@ -35,7 +35,8 @@ func InitDB() {
 	}
 
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logMode),
+		Logger:                                   logger.Default.LogMode(logMode),
+		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 
 	if err != nil {
@@ -53,4 +54,39 @@ func InitDB() {
 	sqlDB.SetConnMaxLifetime(time.Hour * time.Duration(config.GlobalConfig.Database.MaxLifetime))
 
 	customLogger.Info("数据库连接成功")
+
+	// 自动迁移数据库表结构
+	if err := AutoMigrate(); err != nil {
+		customLogger.Fatal("数据库表结构迁移失败: %v", err)
+	}
+}
+
+// AutoMigrate 自动迁移数据库表结构
+func AutoMigrate() error {
+	// 逐个迁移表，避免外键约束问题
+	models := []any{
+		&User{},
+		&Role{},
+		&UserRole{},
+		&Permission{},
+		&RolePermission{},
+		&Job{},
+		&JobHistory{},
+		&Terminal{},
+		&LoginLog{},
+		&KafkaCluster{},
+		&KafkaTopic{},
+		&OperationLog{},
+	}
+
+	for _, model := range models {
+		if err := DB.AutoMigrate(model); err != nil {
+			customLogger.Error("迁移表失败: %v, 模型: %T", err, model)
+			// 继续迁移其他表，不中断整个过程
+			continue
+		}
+	}
+
+	customLogger.Info("数据库表结构迁移完成")
+	return nil
 }
