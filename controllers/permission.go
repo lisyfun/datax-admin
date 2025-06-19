@@ -200,6 +200,12 @@ func (c *PermissionController) GetUserPermissions(ctx *gin.Context) {
 // GetUserMenus 获取用户菜单
 func (c *PermissionController) GetUserMenus(ctx *gin.Context) {
 	userID := ctx.GetUint("userID")
+
+	if userID == 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "用户ID无效"})
+		return
+	}
+
 	menus, err := c.permissionService.GetUserMenus(userID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

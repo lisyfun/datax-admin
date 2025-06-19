@@ -13,15 +13,36 @@ import (
 func InitSession() gin.HandlerFunc {
 	authConfig := config.GlobalConfig.Auth
 
-	// 默认配置，用于配置不可用时
-	defaultSecret := authConfig.Secret
-	defaultMaxAge := authConfig.Expiration // 1天
+	// 使用固定的32字节密钥
+	secret := "a266d59b88e44d618aaab77bac0f7a50"
+	if authConfig.Secret != "" {
+		secret = authConfig.Secret
+	}
 
-	store := cookie.NewStore([]byte(defaultSecret))
+	// 确保密钥长度为32字节
+	if len(secret) != 32 {
+		if len(secret) > 32 {
+			secret = secret[:32]
+		} else {
+			// 填充到32字节
+			for len(secret) < 32 {
+				secret += "0"
+			}
+		}
+	}
+
+	defaultMaxAge := authConfig.Expiration
+	if defaultMaxAge == 0 {
+		defaultMaxAge = 86400 // 默认1天
+	}
+
+	store := cookie.NewStore([]byte(secret))
 	store.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   defaultMaxAge,
 		HttpOnly: true,
+		Secure:   false, // 开发环境设为false
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	return sessions.Sessions("datax_session", store)
@@ -30,7 +51,14 @@ func InitSession() gin.HandlerFunc {
 // SessionAuth Session认证中间件
 func SessionAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 安全地获取session
 		session := sessions.Default(c)
+		if session == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Session初始化失败"})
+			c.Abort()
+			return
+		}
+
 		userID := session.Get("userID")
 
 		if userID == nil {
@@ -40,6 +68,8 @@ func SessionAuth() gin.HandlerFunc {
 				Path:     "/",
 				MaxAge:   -1, // 立即过期
 				HttpOnly: true,
+				Secure:   false,
+				SameSite: http.SameSiteLaxMode,
 			})
 			_ = session.Save()
 
@@ -49,7 +79,22 @@ func SessionAuth() gin.HandlerFunc {
 		}
 
 		// 将用户信息存储到上下文中，与JWT方式保持一致
-		c.Set("userID", userID)
+		// 确保userID是uint类型
+		var uid uint
+		switch v := userID.(type) {
+		case uint:
+			uid = v
+		case int:
+			uid = uint(v)
+		case float64:
+			uid = uint(v)
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "用户ID类型错误"})
+			c.Abort()
+			return
+		}
+
+		c.Set("userID", uid)
 		c.Set("username", session.Get("username"))
 		c.Next()
 	}

@@ -13,7 +13,7 @@ db:
   max_idle_conns: 10
   max_open_conns: 100
   conn_max_lifetime: 3600
-  log_mode: warn
+  log_mode: info
   charset: utf8mb4
 
 datax:
@@ -27,7 +27,7 @@ logger:
   max_age: 30       # 日志文件保留的最大天数
   compress: true    # 是否压缩旧日志文件
 
-# 新增Redis配置
+# 认证配置
 auth:
-  secret: "a266d59b-88e4-4d61-8aaa-b77bac0f7a50"    # Session密钥
+  secret: "a266d59b88e44d618aaab77bac0f7a50"    # Session密钥
   expiration: 86400                # Session过期时间(秒)，86400=1天

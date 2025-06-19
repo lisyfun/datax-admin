@@ -65,9 +65,25 @@ func (c *UserController) Login(ctx *gin.Context) {
 
 	// 设置Session
 	session := sessions.Default(ctx)
+	if session == nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Session初始化失败"})
+		return
+	}
+
+	// 检查session是否有效
+	defer func() {
+		if r := recover(); r != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Session操作失败"})
+			return
+		}
+	}()
+
 	session.Set("userID", resp.User.ID)
 	session.Set("username", resp.User.Username)
-	session.Save()
+	if err := session.Save(); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Session保存失败"})
+		return
+	}
 
 	ctx.JSON(http.StatusOK, resp)
 }
@@ -324,13 +340,17 @@ func (c *UserController) Logout(ctx *gin.Context) {
 
 	// 清除 Session
 	session := sessions.Default(ctx)
-	session.Clear()
-	session.Options(sessions.Options{
-		Path:     "/",
-		MaxAge:   -1, // 立即过期
-		HttpOnly: true,
-	})
-	_ = session.Save()
+	if session != nil {
+		session.Clear()
+		session.Options(sessions.Options{
+			Path:     "/",
+			MaxAge:   -1, // 立即过期
+			HttpOnly: true,
+			Secure:   false,
+			SameSite: http.SameSiteLaxMode,
+		})
+		_ = session.Save()
+	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "登出成功"})
 }

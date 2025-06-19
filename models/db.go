@@ -88,5 +88,6 @@ func AutoMigrate() error {
 	}
 
 	customLogger.Info("数据库表结构迁移完成")
+
 	return nil
 }

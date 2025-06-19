@@ -31,16 +31,39 @@ func (s *UserService) Register(req *types.RegisterRequest) error {
 	safeNickname := strings.TrimSpace(req.Nickname)
 	safeEmail := strings.TrimSpace(req.Email)
 
-	user := &models.User{
-		Username: safeUsername,
-		Nickname: safeNickname,
-		Email:    safeEmail,
-	}
-	if err := user.SetPassword(req.Password); err != nil {
-		return err
-	}
+	// 开启事务
+	return models.DB.Transaction(func(tx *gorm.DB) error {
+		user := &models.User{
+			Username: safeUsername,
+			Nickname: safeNickname,
+			Email:    safeEmail,
+		}
+		if err := user.SetPassword(req.Password); err != nil {
+			return err
+		}
 
-	return models.DB.Create(user).Error
+		// 创建用户
+		if err := tx.Create(user).Error; err != nil {
+			return err
+		}
+
+		// 查找默认角色（普通用户角色）
+		var defaultRole models.Role
+		if err := tx.Where("code = ? AND status = 1", "user").First(&defaultRole).Error; err != nil {
+			// 如果没有找到默认角色，尝试查找第一个可用角色
+			if err := tx.Where("status = 1").First(&defaultRole).Error; err != nil {
+				// 如果没有任何角色，跳过角色分配
+				return nil
+			}
+		}
+
+		// 为用户分配默认角色
+		userRole := &models.UserRole{
+			UserID: user.ID,
+			RoleID: defaultRole.ID,
+		}
+		return tx.Create(userRole).Error
+	})
 }
 
 // Login 用户登录

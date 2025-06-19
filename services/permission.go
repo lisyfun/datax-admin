@@ -4,6 +4,7 @@ import (
 	"datax-admin/models"
 	"datax-admin/types"
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -182,13 +183,31 @@ func (s *PermissionService) GetUserPermissions(userID uint) ([]types.PermissionR
 func (s *PermissionService) GetUserMenus(userID uint) (*types.PermissionTreeResponse, error) {
 	var permissions []models.Permission
 
-	// 临时简化：先获取所有菜单类型的权限，后续可以根据用户角色进行过滤
-	err := models.DB.Where("status = 1 AND type = 'menu' AND hidden = 0").
-		Order("sort").
-		Find(&permissions).Error
+	// 分两步查询：
+	// 1. 先获取用户有权限的所有菜单（包括隐藏的，用于构建完整的树结构）
+	var allUserPermissions []models.Permission
+	err := models.DB.Distinct("permissions.*").
+		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
+		Joins("JOIN user_roles ON user_roles.role_id = role_permissions.role_id").
+		Where("user_roles.user_id = ? AND permissions.status = 1 AND permissions.type = 'menu'", userID).
+		Order("permissions.sort").
+		Find(&allUserPermissions).Error
 
 	if err != nil {
+		fmt.Printf("DEBUG: GetUserMenus Service - DB error: %v\n", err)
 		return nil, err
+	}
+
+	// 2. 过滤出非隐藏的权限用于显示
+	permissions = make([]models.Permission, 0)
+	hiddenParentIDs := make(map[uint]bool) // 记录隐藏的父级权限ID
+
+	for _, p := range allUserPermissions {
+		if p.Hidden == 0 {
+			permissions = append(permissions, p)
+		} else {
+			hiddenParentIDs[p.ID] = true
+		}
 	}
 
 	// 如果没有找到任何权限，返回空列表
@@ -218,8 +237,30 @@ func (s *PermissionService) GetUserMenus(userID uint) (*types.PermissionTreeResp
 			Children:  make([]types.PermissionResponse, 0),
 		}
 		permMap[p.ID] = &perm
+
+		// 判断是否为根权限：没有父级ID
 		if p.ParentID == nil {
 			rootPermIDs = append(rootPermIDs, p.ID)
+		}
+	}
+
+	// 检查是否所有权限都有父级但父级权限不在当前权限列表中
+	if len(rootPermIDs) == 0 {
+		for _, p := range permissions {
+			if p.ParentID != nil {
+				// 检查父级权限是否在当前权限列表中
+				parentExists := false
+				for _, parent := range permissions {
+					if parent.ID == *p.ParentID {
+						parentExists = true
+						break
+					}
+				}
+				// 如果父级权限不存在，将当前权限作为根权限
+				if !parentExists {
+					rootPermIDs = append(rootPermIDs, p.ID)
+				}
+			}
 		}
 	}
 
@@ -240,5 +281,6 @@ func (s *PermissionService) GetUserMenus(userID uint) (*types.PermissionTreeResp
 		}
 	}
 
+	fmt.Printf("DEBUG: Final root permissions count: %d\n", len(rootPerms))
 	return &types.PermissionTreeResponse{List: rootPerms}, nil
 }

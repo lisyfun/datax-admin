@@ -26,6 +26,9 @@ func SetupRoutes(r *gin.Engine) {
 	// 初始化Session中间件 (新增)
 	r.Use(middleware.InitSession())
 
+	// 添加加密中间件
+	r.Use(middleware.CryptoMiddleware())
+
 	// WebSocket 路由 - 不需要认证
 	wsGroup := r.Group(config.GlobalConfig.Server.BasePath + "/ws")
 	v1.RegisterWebSocketRoutes(wsGroup)
@@ -52,7 +55,6 @@ func SetupRoutes(r *gin.Engine) {
 				v1.RegisterUserRoutes(authenticated)
 				v1.RegisterRoleRoutes(authenticated)
 				v1.RegisterPermissionRoutes(authenticated)
-				// v1.RegisterMenuRoutes(authenticated) // 菜单功能已统一由权限管理接管
 				v1.RegisterJobRoutes(authenticated)
 				v1.RegisterTerminalRoutes(authenticated)
 				v1.RegisterKafkaRoutes(authenticated)

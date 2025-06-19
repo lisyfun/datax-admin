@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import { Message } from '@arco-design/web-vue';
 import router from '@/router';
+import { encryptData, decryptData, isEncryptionEnabled, type EncryptedResponse } from '@/utils/crypto';
 
 // 创建 axios 实例
 const request = axios.create({
@@ -17,7 +18,24 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // 移除 JWT token 认证相关代码
+    // 如果启用了加密
+    if (isEncryptionEnabled()) {
+      // 设置加密标识头，表示客户端支持加密响应
+      config.headers = config.headers || {};
+      config.headers['Accept-Encryption'] = 'true';
+
+      // 如果有请求数据且是POST/PUT/PATCH方法，则加密请求数据
+      if (config.data && (config.method === 'post' || config.method === 'put' || config.method === 'patch')) {
+        try {
+          // 加密请求数据
+          config.data = encryptData(config.data);
+        } catch (error) {
+          console.error('请求数据加密失败:', error);
+          // 如果加密失败，继续使用原始数据
+        }
+      }
+    }
+
     return config;
   },
   (error) => {
@@ -28,6 +46,20 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   (response: AxiosResponse) => {
+    // 如果响应包含加密标识，尝试解密
+    if (response.headers['content-encryption'] === 'true' && isEncryptionEnabled()) {
+      try {
+        const encryptedResponse = response.data as EncryptedResponse;
+        if (encryptedResponse.data && encryptedResponse.signature && encryptedResponse.timestamp) {
+          // 解密响应数据
+          response.data = decryptData(encryptedResponse);
+        }
+      } catch (error) {
+        console.error('响应数据解密失败:', error);
+        // 如果解密失败，使用原始数据
+      }
+    }
+
     return response;
   },
   (error) => {

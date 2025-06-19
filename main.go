@@ -2,6 +2,7 @@ package main
 
 import (
 	"datax-admin/config"
+	"datax-admin/middleware"
 	"datax-admin/models"
 	"datax-admin/routes"
 	"datax-admin/services"
@@ -23,6 +24,11 @@ func main() {
 
 	// 初始化数据库
 	models.InitDB()
+
+	// 初始化加密中间件
+	if err := middleware.InitCrypto(); err != nil {
+		logger.Fatal("加密中间件初始化失败: %v", err)
+	}
 
 	// 初始化任务调度器并加载运行中的任务
 	jobService := services.GetJobService()
