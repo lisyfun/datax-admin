@@ -40,13 +40,23 @@
           </a-sub-menu>
         </template>
       </a-sub-menu>
-      <!-- 没有子菜单的情况 -->
-      <a-menu-item v-else :key="`item-${menu.id}`">
+      <!-- 没有子菜单的情况 - 伪装成有子菜单以保持样式一致，但阻止展开 -->
+      <a-sub-menu
+        v-else
+        :key="`fake-sub-${menu.id}`"
+        class="fake-sub-menu"
+        @click.prevent="handleFakeSubMenuClick(menu)"
+        @mousedown.prevent
+        @mouseup.prevent
+      >
         <template #icon>
           <component v-if="menu.icon && iconMap[menu.icon]" :is="iconMap[menu.icon]" />
         </template>
-        {{ menu.name }}
-      </a-menu-item>
+        <template #title>
+          <span @click.stop.prevent="handleFakeSubMenuClick(menu)">{{ menu.name }}</span>
+        </template>
+        <!-- 不添加任何子菜单项，这样就不会展开 -->
+      </a-sub-menu>
     </template>
   </a-menu>
 </template>
@@ -359,6 +369,31 @@ const handleSubMenuClick = (key: string) => {
   }
 
   console.log('子菜单点击，key:', key, '父级菜单:', getParentKeys(menuTree.value, menuId), '当前展开的菜单:', openKeys.value);
+};
+
+// 处理伪装子菜单的点击事件
+const handleFakeSubMenuClick = async (menu: any) => {
+  console.log('伪装子菜单点击:', menu.name);
+
+  // 阻止菜单展开到openKeys中
+  const fakeKey = `fake-sub-${menu.id}`;
+  const index = openKeys.value.indexOf(fakeKey);
+  if (index > -1) {
+    openKeys.value.splice(index, 1);
+  }
+
+  // 直接跳转到对应页面
+  if (menu.path) {
+    const fullPath = buildFullPath(menu);
+    await router.push(fullPath);
+    selectedKeys.value = [`item-${menu.id}`];
+
+    // 标记为手动点击
+    isManualClick.value = true;
+    setTimeout(() => {
+      isManualClick.value = false;
+    }, 100);
+  }
 };
 
 // 根据 key 查找菜单项
@@ -762,5 +797,67 @@ watch(
 
 :deep(.arco-icon) {
   font-size: 16px;
+}
+
+/* 隐藏伪装子菜单的箭头 */
+:deep(.arco-sub-menu[data-key^="fake-sub-"] .arco-sub-menu-suffix),
+:deep(.arco-sub-menu[data-key^="fake-sub-"] .arco-sub-menu-arrow) {
+  display: none !important;
+}
+
+/* 通过key属性隐藏伪装子菜单的箭头 */
+:deep([data-key^="fake-sub-"] .arco-sub-menu-suffix),
+:deep([data-key^="fake-sub-"] .arco-sub-menu-arrow) {
+  display: none !important;
+}
+
+/* 通过class隐藏伪装子菜单的箭头 */
+:deep(.fake-sub-menu .arco-sub-menu-suffix),
+:deep(.fake-sub-menu .arco-sub-menu-arrow),
+:deep(.fake-sub-menu .arco-icon-down),
+:deep(.fake-sub-menu .arco-icon-right) {
+  display: none !important;
+}
+
+/* 伪装子菜单的特殊处理 - 保留箭头但阻止展开 */
+:deep(.fake-sub-menu .arco-sub-menu-title) {
+  cursor: pointer !important;
+}
+
+/* 阻止伪装子菜单展开 */
+:deep(.fake-sub-menu) {
+  pointer-events: auto !important;
+}
+
+:deep(.fake-sub-menu .arco-sub-menu-title) {
+  pointer-events: auto !important;
+}
+
+/* 确保伪装子菜单不会显示子菜单内容 */
+:deep(.fake-sub-menu .arco-sub-menu-inline) {
+  display: none !important;
+}
+
+/* 完全禁用伪装子菜单的展开动画和行为 */
+:deep(.fake-sub-menu) {
+  transition: none !important;
+}
+
+:deep(.fake-sub-menu .arco-sub-menu-title) {
+  transition: none !important;
+}
+
+/* 阻止伪装子菜单的默认点击行为 */
+:deep(.fake-sub-menu .arco-sub-menu-title::before) {
+  display: none !important;
+}
+
+/* 确保伪装子菜单永远不会有展开状态 */
+:deep(.fake-sub-menu.arco-sub-menu-open) {
+  background: transparent !important;
+}
+
+:deep(.fake-sub-menu.arco-sub-menu-open .arco-sub-menu-title) {
+  background: transparent !important;
 }
 </style>

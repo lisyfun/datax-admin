@@ -815,13 +815,4 @@ onUnmounted(() => {
   height: calc(100vh - 64px);
 }
 
-/* 当侧边栏收起时的样式 */
-/* .layout-sider.collapsed + .layout-content {
-  margin-left: 64px;
-} */
-
-.arco-menu-inner + .arco-menu-has-icon{
-  padding-left: 22px;
-}
-
 </style>
