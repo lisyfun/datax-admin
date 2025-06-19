@@ -187,7 +187,7 @@ func (s *PermissionService) GetUserMenus(userID uint) (*types.PermissionTreeResp
 	// 1. 先获取用户有权限的所有菜单（包括隐藏的，用于构建完整的树结构）
 	var allUserPermissions []models.Permission
 	err := models.DB.Distinct("permissions.*").
-		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
+		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id and role_permissions.deleted_at IS NULL").
 		Joins("JOIN user_roles ON user_roles.role_id = role_permissions.role_id").
 		Where("user_roles.user_id = ? AND permissions.status = 1 AND permissions.type = 'menu'", userID).
 		Order("permissions.sort").

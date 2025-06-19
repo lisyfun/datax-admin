@@ -134,6 +134,7 @@ import { convertToTreeData } from '@/types/permission';
 import * as roleApi from '@/api/role';
 import * as permissionApi from '@/api/permission';
 import { usePageRefresh } from '@/composables/usePageRefresh';
+import { useMenuStore } from '@/stores/menu';
 import {
   IconPlus,
   IconEdit,
@@ -143,6 +144,9 @@ import {
 
 // 组件状态控制
 const isUnmounted = ref(false);
+
+// 菜单store
+const menuStore = useMenuStore();
 
 // 表格数据
 const roles = ref<RoleInfo[]>([]);
@@ -176,6 +180,16 @@ const permissionLoading = ref(false);
 
 // 初始化标志
 const initialized = ref(false);
+
+// 重新加载菜单的辅助函数
+const refreshUserMenus = async () => {
+  try {
+    await menuStore.fetchUserMenus();
+    console.log('用户菜单已刷新');
+  } catch (error) {
+    console.error('刷新用户菜单失败:', error);
+  }
+};
 
 // 获取角色列表
 const fetchRoles = async () => {
@@ -446,6 +460,8 @@ const handlePermissionFormSubmit = async () => {
       showPermissionForm.value = false;
       permissionForm.roleId = 0;
       permissionForm.permissionIds = [];
+      // 刷新用户菜单，确保权限变更立即生效
+      await refreshUserMenus();
     }
   } catch (error: any) {
     if (!isUnmounted.value) {
