@@ -23,16 +23,11 @@ ARG CONFIG_FILE=./config.yaml
 
 # 复制前端构建产物
 COPY ./web/dist ./
-# 复制错误页面
-COPY ./web/404.html ./404.html
-COPY ./web/403.html ./403.html
-COPY ./web/50x.html ./50x.html
 
 # 复制后端二进制文件和配置
 COPY ./bin/${BINARY_NAME}-${BINARY_VERSION} /app/${BINARY_NAME}
 COPY ./datax/datax-${DATAX_VERSION} /app/bin/datax
 COPY ${CONFIG_FILE} /app/config.yaml
-COPY ./rules /app/rules
 
 # 复制 Nginx 配置和启动脚本
 COPY docker/nginx.conf /etc/nginx/nginx.conf
