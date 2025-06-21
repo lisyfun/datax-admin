@@ -9,10 +9,13 @@ export const usePermissionStore = defineStore('permission', () => {
 
   async function getUserPermissions() {
     const res = await permissionApi.getUserPermissions();
-    permissions.value = res.data.permissions;
+    permissions.value = res.data.permissions || [];
     // 过滤出菜单权限并构建树形结构
     const menus = permissions.value.filter(p => p.type === 'menu');
     menuTree.value = buildMenuTree(menus);
+    console.log('用户权限已加载:', permissions.value.length, '个权限');
+    console.log('菜单权限:', menus.length, '个');
+    console.log('按钮权限:', permissions.value.filter(p => p.type === 'button').length, '个');
   }
 
   async function getPermissionTree() {
@@ -46,7 +49,10 @@ export const usePermissionStore = defineStore('permission', () => {
   }
 
   function hasPermission(code: string): boolean {
-    return permissions.value.some(p => p.code === code);
+    const permission = permissions.value.find(p => p.code === code);
+    // 权限必须存在且不能被隐藏
+    const result = permission && permission.hidden === 0;
+    return !!result;
   }
 
   return {

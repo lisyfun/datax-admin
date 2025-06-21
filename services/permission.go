@@ -96,28 +96,43 @@ func (s *PermissionService) GetPermissionTree(req *types.PermissionListRequest) 
 		return nil, err
 	}
 
-	// 构建权限树
-	permMap := make(map[uint]*types.PermissionResponse)
+	fmt.Printf("DEBUG: GetPermissionTree - Total permissions found: %d\n", len(permissions))
+	for _, p := range permissions {
+		if p.ParentID != nil && *p.ParentID == 7 {
+			fmt.Printf("DEBUG: Terminal child permission: ID=%d, Name=%s, Code=%s\n", p.ID, p.Name, p.Code)
+		}
+	}
+
+	// 构建权限树 - 使用临时结构来正确处理指针引用
+	type tempPermission struct {
+		*types.PermissionResponse
+		Children []*tempPermission
+	}
+
+	permMap := make(map[uint]*tempPermission)
 	var rootPermIDs []uint
 
 	// 第一次遍历，创建所有节点
 	for _, p := range permissions {
-		perm := types.PermissionResponse{
-			ID:        p.ID,
-			Name:      p.Name,
-			Code:      p.Code,
-			Type:      p.Type,
-			ParentID:  p.ParentID,
-			Path:      p.Path,
-			Component: p.Component,
-			Icon:      p.Icon,
-			Sort:      p.Sort,
-			Status:    p.Status,
-			Hidden:    p.Hidden,
-			Cache:     p.Cache,
-			Children:  make([]types.PermissionResponse, 0),
+		perm := &tempPermission{
+			PermissionResponse: &types.PermissionResponse{
+				ID:        p.ID,
+				Name:      p.Name,
+				Code:      p.Code,
+				Type:      p.Type,
+				ParentID:  p.ParentID,
+				Path:      p.Path,
+				Component: p.Component,
+				Icon:      p.Icon,
+				Sort:      p.Sort,
+				Status:    p.Status,
+				Hidden:    p.Hidden,
+				Cache:     p.Cache,
+				Children:  make([]types.PermissionResponse, 0),
+			},
+			Children: make([]*tempPermission, 0),
 		}
-		permMap[p.ID] = &perm
+		permMap[p.ID] = perm
 		if p.ParentID == nil {
 			rootPermIDs = append(rootPermIDs, p.ID)
 		}
@@ -127,16 +142,37 @@ func (s *PermissionService) GetPermissionTree(req *types.PermissionListRequest) 
 	for _, p := range permissions {
 		if p.ParentID != nil {
 			if parent, ok := permMap[*p.ParentID]; ok {
-				parent.Children = append(parent.Children, *permMap[p.ID])
+				if child, childOk := permMap[p.ID]; childOk {
+					parent.Children = append(parent.Children, child)
+					fmt.Printf("DEBUG: Added child %s (ID:%d) to parent %s (ID:%d), parent children count: %d\n",
+						child.Name, child.ID, parent.Name, parent.ID, len(parent.Children))
+				}
 			}
 		}
+	}
+
+	// 递归函数将临时结构转换为最终结构
+	var convertToFinal func(*tempPermission) types.PermissionResponse
+	convertToFinal = func(temp *tempPermission) types.PermissionResponse {
+		result := *temp.PermissionResponse
+		result.Children = make([]types.PermissionResponse, len(temp.Children))
+		for i, child := range temp.Children {
+			result.Children[i] = convertToFinal(child)
+		}
+		return result
 	}
 
 	// 构建根节点列表
 	var rootPerms []types.PermissionResponse
 	for _, rootID := range rootPermIDs {
 		if rootPerm, ok := permMap[rootID]; ok {
-			rootPerms = append(rootPerms, *rootPerm)
+			finalPerm := convertToFinal(rootPerm)
+			fmt.Printf("DEBUG: Root permission: %s (ID:%d), children count: %d\n", finalPerm.Name, finalPerm.ID, len(finalPerm.Children))
+			// 打印子权限详情
+			for i, child := range finalPerm.Children {
+				fmt.Printf("DEBUG: - Child %d: %s (ID:%d)\n", i, child.Name, child.ID)
+			}
+			rootPerms = append(rootPerms, finalPerm)
 		}
 	}
 
@@ -215,28 +251,36 @@ func (s *PermissionService) GetUserMenus(userID uint) (*types.PermissionTreeResp
 		return &types.PermissionTreeResponse{List: []types.PermissionResponse{}}, nil
 	}
 
-	// 构建权限树
-	permMap := make(map[uint]*types.PermissionResponse)
+	// 构建权限树 - 使用临时结构来正确处理指针引用
+	type tempPermission struct {
+		*types.PermissionResponse
+		Children []*tempPermission
+	}
+
+	permMap := make(map[uint]*tempPermission)
 	var rootPermIDs []uint
 
 	// 第一次遍历，创建所有节点
 	for _, p := range permissions {
-		perm := types.PermissionResponse{
-			ID:        p.ID,
-			Name:      p.Name,
-			Code:      p.Code,
-			Type:      p.Type,
-			ParentID:  p.ParentID,
-			Path:      p.Path,
-			Component: p.Component,
-			Icon:      p.Icon,
-			Sort:      p.Sort,
-			Status:    p.Status,
-			Hidden:    p.Hidden,
-			Cache:     p.Cache,
-			Children:  make([]types.PermissionResponse, 0),
+		perm := &tempPermission{
+			PermissionResponse: &types.PermissionResponse{
+				ID:        p.ID,
+				Name:      p.Name,
+				Code:      p.Code,
+				Type:      p.Type,
+				ParentID:  p.ParentID,
+				Path:      p.Path,
+				Component: p.Component,
+				Icon:      p.Icon,
+				Sort:      p.Sort,
+				Status:    p.Status,
+				Hidden:    p.Hidden,
+				Cache:     p.Cache,
+				Children:  make([]types.PermissionResponse, 0),
+			},
+			Children: make([]*tempPermission, 0),
 		}
-		permMap[p.ID] = &perm
+		permMap[p.ID] = perm
 
 		// 判断是否为根权限：没有父级ID
 		if p.ParentID == nil {
@@ -268,16 +312,29 @@ func (s *PermissionService) GetUserMenus(userID uint) (*types.PermissionTreeResp
 	for _, p := range permissions {
 		if p.ParentID != nil {
 			if parent, ok := permMap[*p.ParentID]; ok {
-				parent.Children = append(parent.Children, *permMap[p.ID])
+				if child, childOk := permMap[p.ID]; childOk {
+					parent.Children = append(parent.Children, child)
+				}
 			}
 		}
+	}
+
+	// 递归函数将临时结构转换为最终结构
+	var convertToFinal func(*tempPermission) types.PermissionResponse
+	convertToFinal = func(temp *tempPermission) types.PermissionResponse {
+		result := *temp.PermissionResponse
+		result.Children = make([]types.PermissionResponse, len(temp.Children))
+		for i, child := range temp.Children {
+			result.Children[i] = convertToFinal(child)
+		}
+		return result
 	}
 
 	// 构建根节点列表
 	var rootPerms []types.PermissionResponse
 	for _, rootID := range rootPermIDs {
 		if rootPerm, ok := permMap[rootID]; ok {
-			rootPerms = append(rootPerms, *rootPerm)
+			rootPerms = append(rootPerms, convertToFinal(rootPerm))
 		}
 	}
 

@@ -10,7 +10,7 @@
             style="width: 300px"
             @search="handleSearch"
           />
-          <a-button type="primary" @click="handleAdd">
+          <a-button type="primary" @click="handleAdd" v-permission="'system.roles.create'">
             <template #icon><IconPlus /></template>
             新增角色
           </a-button>
@@ -44,11 +44,11 @@
           <a-table-column title="操作" align="center">
             <template #cell="{ record }">
               <a-space>
-                <a-button type="text" size="small" @click="handleEdit(record)">
+                <a-button type="text" size="small" @click="handleEdit(record)" v-permission="'system.roles.update'">
                   <template #icon><IconEdit /></template>
                   编辑
                 </a-button>
-                <a-button type="text" size="small" @click="handleAssignPermissions(record)">
+                <a-button type="text" size="small" @click="handleAssignPermissions(record)" v-permission="'system.roles.permission'">
                   <template #icon><IconSafe /></template>
                   分配权限
                 </a-button>
@@ -56,7 +56,7 @@
                   content="确定要删除该角色吗？"
                   @ok="handleDelete(record)"
                 >
-                  <a-button type="text" status="danger" size="small">
+                  <a-button type="text" status="danger" size="small" v-permission="'system.roles.delete'">
                     <template #icon><IconDelete /></template>
                     删除
                   </a-button>
@@ -135,6 +135,7 @@ import * as roleApi from '@/api/role';
 import * as permissionApi from '@/api/permission';
 import { usePageRefresh } from '@/composables/usePageRefresh';
 import { useMenuStore } from '@/stores/menu';
+import { usePermissionStore } from '@/stores/permission';
 import {
   IconPlus,
   IconEdit,
@@ -147,6 +148,7 @@ const isUnmounted = ref(false);
 
 // 菜单store
 const menuStore = useMenuStore();
+const permissionStore = usePermissionStore();
 
 // 表格数据
 const roles = ref<RoleInfo[]>([]);
@@ -181,13 +183,22 @@ const permissionLoading = ref(false);
 // 初始化标志
 const initialized = ref(false);
 
-// 重新加载菜单的辅助函数
+// 重新加载菜单和权限的辅助函数
 const refreshUserMenus = async () => {
   try {
     await menuStore.fetchUserMenus();
     console.log('用户菜单已刷新');
   } catch (error) {
     console.error('刷新用户菜单失败:', error);
+  }
+};
+
+const refreshUserPermissions = async () => {
+  try {
+    await permissionStore.getUserPermissions();
+    console.log('用户权限已刷新');
+  } catch (error) {
+    console.error('刷新用户权限失败:', error);
   }
 };
 
@@ -460,8 +471,9 @@ const handlePermissionFormSubmit = async () => {
       showPermissionForm.value = false;
       permissionForm.roleId = 0;
       permissionForm.permissionIds = [];
-      // 刷新用户菜单，确保权限变更立即生效
+      // 刷新用户菜单和权限，确保权限变更立即生效
       await refreshUserMenus();
+      await refreshUserPermissions();
     }
   } catch (error: any) {
     if (!isUnmounted.value) {

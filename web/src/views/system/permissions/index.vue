@@ -10,7 +10,7 @@
             style="width: 300px"
             @search="handleSearch"
           />
-          <a-button type="primary" @click="() => handleAdd()">
+          <a-button type="primary" @click="() => handleAdd()" v-permission="'system.permissions.create'">
             <template #icon><IconPlus /></template>
             新增权限
           </a-button>
@@ -72,11 +72,11 @@
           <a-table-column title="操作" align="center">
             <template #cell="{ record }">
               <a-space>
-                <a-button type="text" size="small" @click="() => handleAdd(record)">
+                <a-button type="text" size="small" @click="() => handleAdd(record)" v-permission="'system.permissions.create'">
                   <template #icon><IconPlus /></template>
                   新增子权限
                 </a-button>
-                <a-button type="text" size="small" @click="() => handleEdit(record)">
+                <a-button type="text" size="small" @click="() => handleEdit(record)" v-permission="'system.permissions.update'">
                   <template #icon><IconEdit /></template>
                   编辑
                 </a-button>
@@ -84,7 +84,7 @@
                   content="确定要删除该权限吗？"
                   @ok="() => handleDelete(record)"
                 >
-                  <a-button type="text" status="danger" size="small">
+                  <a-button type="text" status="danger" size="small" v-permission="'system.permissions.delete'">
                     <template #icon><IconDelete /></template>
                     删除
                   </a-button>
@@ -165,6 +165,7 @@ import { PermissionInfo } from '@/types/permission';
 import { convertToTreeData } from '@/types/permission';
 import * as permissionApi from '@/api/permission';
 import { useMenuStore } from '@/stores/menu';
+import { usePermissionStore } from '@/stores/permission';
 import {
   IconPlus,
   IconEdit,
@@ -222,14 +223,24 @@ const showMenuFields = ref(true);
 
 // 菜单store
 const menuStore = useMenuStore();
+const permissionStore = usePermissionStore();
 
-// 重新加载菜单的辅助函数
+// 重新加载菜单和权限的辅助函数
 const refreshUserMenus = async () => {
   try {
     await menuStore.fetchUserMenus();
     console.log('用户菜单已刷新');
   } catch (error) {
     console.error('刷新用户菜单失败:', error);
+  }
+};
+
+const refreshUserPermissions = async () => {
+  try {
+    await permissionStore.getUserPermissions();
+    console.log('用户权限已刷新');
+  } catch (error) {
+    console.error('刷新用户权限失败:', error);
   }
 };
 
@@ -244,6 +255,17 @@ const fetchPermissions = async () => {
     loading.value = true;
     const response = await permissionApi.getPermissionTree();
     permissions.value = response.data.list;
+
+    // 调试：打印权限数据
+    console.log('前端接收到的权限数据:', response.data.list);
+
+    // 查找终端列表权限
+    const terminalList = response.data.list.find((p: any) => p.code === 'terminal.list');
+    if (terminalList) {
+      console.log('终端列表权限:', terminalList);
+      console.log('终端列表子权限数量:', terminalList.children?.length || 0);
+      console.log('终端列表子权限:', terminalList.children);
+    }
   } catch (error) {
     Message.error('获取权限列表失败');
   } finally {
@@ -283,9 +305,11 @@ const handleStatusChange = async (record: PermissionInfo, value: boolean) => {
     });
     Message.success('状态更新成功');
     await fetchPermissions();
-    // 如果是菜单类型的权限，刷新用户菜单
+    // 刷新用户菜单和权限
     if (record.type === 'menu') {
       await refreshUserMenus();
+    } else if (record.type === 'button') {
+      await refreshUserPermissions();
     }
   } catch (error) {
     Message.error('状态更新失败');
@@ -308,9 +332,11 @@ const handleHiddenChange = async (record: PermissionInfo, value: boolean) => {
     });
     Message.success('隐藏状态更新成功');
     await fetchPermissions();
-    // 如果是菜单类型的权限，刷新用户菜单
+    // 刷新用户菜单和权限
     if (record.type === 'menu') {
       await refreshUserMenus();
+    } else if (record.type === 'button') {
+      await refreshUserPermissions();
     }
   } catch (error) {
     Message.error('隐藏状态更新失败');
@@ -333,9 +359,11 @@ const handleCacheChange = async (record: PermissionInfo, value: boolean) => {
     });
     Message.success('缓存状态更新成功');
     await fetchPermissions();
-    // 如果是菜单类型的权限，刷新用户菜单
+    // 刷新用户菜单和权限
     if (record.type === 'menu') {
       await refreshUserMenus();
+    } else if (record.type === 'button') {
+      await refreshUserPermissions();
     }
   } catch (error) {
     Message.error('缓存状态更新失败');
@@ -365,9 +393,11 @@ const handleDelete = async (record: PermissionInfo) => {
     await permissionApi.deletePermission(record.id);
     Message.success('删除成功');
     await fetchPermissions();
-    // 如果是菜单类型的权限，刷新用户菜单
+    // 刷新用户菜单和权限
     if (record.type === 'menu') {
       await refreshUserMenus();
+    } else if (record.type === 'button') {
+      await refreshUserPermissions();
     }
   } catch (error: any) {
     Message.error(error.response?.data?.error || '删除失败');
@@ -410,9 +440,11 @@ const handlePermissionFormSubmit = async () => {
     Message.success(isEdit.value ? '编辑成功' : '新增成功');
     showPermissionForm.value = false;
     await fetchPermissions();
-    // 如果是菜单类型的权限，刷新用户菜单
+    // 刷新用户菜单和权限
     if (formData.type === 'menu') {
       await refreshUserMenus();
+    } else if (formData.type === 'button') {
+      await refreshUserPermissions();
     }
   } catch (error: any) {
     if (error.response?.data?.error) {

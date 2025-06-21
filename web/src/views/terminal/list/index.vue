@@ -40,7 +40,7 @@
               离线
             </a-option>
           </a-select>
-          <a-button type="primary" @click="handleAdd">
+          <a-button type="primary" @click="handleAdd" v-permission="'terminal.list.create'">
             <template #icon><icon-plus /></template>
             新建终端
           </a-button>
@@ -48,6 +48,7 @@
             type="primary"
             status="success"
             @click="handleBatchUpload"
+            v-permission="'terminal.list.create'"
           >
             <template #icon><icon-upload /></template>
             批量上传 {{ selectedKeys.length ? `(${selectedKeys.length})` : '' }}
@@ -146,6 +147,7 @@
                     shape="circle"
                     @click="handleConnect(record)"
                     class="action-button"
+                    v-permission="'terminal.list.connect'"
                   >
                     <template #icon>
                       <icon-link />
@@ -160,6 +162,7 @@
                     status="success"
                     @click="handleUpload(record)"
                     class="action-button"
+                    v-permission="'terminal.list.upload'"
                   >
                     <template #icon>
                       <icon-upload />
@@ -174,6 +177,7 @@
                     status="warning"
                     @click="handleDownload(record)"
                     class="action-button"
+                    v-permission="'terminal.list.download'"
                   >
                     <template #icon>
                       <icon-download />
@@ -188,6 +192,7 @@
                     status="warning"
                     @click="handleEdit(record)"
                     class="action-button"
+                    v-permission="'terminal.list.update'"
                   >
                     <template #icon>
                       <icon-edit />
@@ -200,6 +205,7 @@
                     type="warning"
                     position="left"
                     @ok="handleDelete(record)"
+                    v-permission="'terminal.list.delete'"
                   >
                     <a-button
                       type="primary"

@@ -31,7 +31,7 @@
         </a-col>
         <a-divider style="height: 32px" direction="vertical" />
         <a-col :flex="'86px'" style="text-align: right">
-          <a-button type="primary" @click="openForm()">
+          <a-button type="primary" @click="openForm()" v-permission="'tools.kafka.cluster.create'">
             <template #icon>
               <icon-plus />
             </template>
@@ -74,11 +74,11 @@
         </template>
         <template #operations="{ record }">
           <a-space>
-            <a-button type="text" size="small" @click="openForm(record)">
+            <a-button type="text" size="small" @click="openForm(record)" v-permission="'tools.kafka.cluster.update'">
               <icon-edit />
               编辑
             </a-button>
-            <a-popconfirm content="确定要删除该集群吗？" @ok="handleDelete(record)">
+            <a-popconfirm content="确定要删除该集群吗？" @ok="handleDelete(record)" v-permission="'tools.kafka.cluster.delete'">
               <a-button type="text" status="danger" size="small">
                 <icon-delete />
                 删除

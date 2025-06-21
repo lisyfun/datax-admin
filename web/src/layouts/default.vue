@@ -97,10 +97,12 @@ import {
 import * as userApi from '@/api/user';
 import Menu from '@/components/Menu/index.vue';
 import { useMenuStore } from '@/stores/menu';
+import { usePermissionStore } from '@/stores/permission';
 
 const router = useRouter();
 const route = useRoute();
 const menuStore = useMenuStore();
+const permissionStore = usePermissionStore();
 const collapsed = ref(false);
 const isDarkMode = ref(false);
 const isFullscreen = ref(false);
@@ -217,6 +219,7 @@ provide('triggerRefresh', handleRefresh);
 onMounted(async () => {
   await fetchUserInfo();
   await menuStore.fetchUserMenus(); // 加载用户菜单
+  await permissionStore.getUserPermissions(); // 加载用户权限
   initTheme();
   document.addEventListener('fullscreenchange', handleFullscreenChange);
 });

@@ -22,11 +22,11 @@
             <a-option :value="1">运行中</a-option>
             <a-option :value="0">已停止</a-option>
           </a-select>
-          <a-button type="primary" @click="handleCreate">
+          <a-button type="primary" @click="handleCreate" v-permission="'job.list.create'">
             <template #icon><icon-plus /></template>
             新建任务
           </a-button>
-          <a-button type="primary" status="success" @click="handleBatchExecute" :disabled="!selectedKeys.length">
+          <a-button type="primary" status="success" @click="handleBatchExecute" :disabled="!selectedKeys.length" v-permission="'job.list.execute'">
             <template #icon><icon-play-circle /></template>
             批量执行一次
           </a-button>
@@ -67,7 +67,7 @@
         </template>
         <template #operations="{ record }">
           <a-space :size="4">
-            <a-button type="text" size="mini" @click="handleEdit(record)">
+            <a-button type="text" size="mini" @click="handleEdit(record)" v-permission="'job.list.update'">
               <template #icon><icon-edit /></template>
               编辑
             </a-button>
@@ -76,6 +76,7 @@
               size="mini"
               status="success"
               @click="handleExecute(record)"
+              v-permission="'job.list.execute'"
             >
               <template #icon><icon-play-circle /></template>
               执行
@@ -85,6 +86,7 @@
               type="text"
               size="mini"
               @click="handleStart(record)"
+              v-permission="'job.list.update'"
             >
               <template #icon><icon-play-circle /></template>
               启动
@@ -95,6 +97,7 @@
               size="mini"
               status="warning"
               @click="handleStop(record)"
+              v-permission="'job.list.update'"
             >
               <template #icon><icon-pause-circle /></template>
               停止
@@ -103,6 +106,7 @@
               type="text"
               size="mini"
               @click="handleHistory(record)"
+              v-permission="'job.history.query'"
             >
               <template #icon><icon-history /></template>
               历史
@@ -110,6 +114,7 @@
             <a-popconfirm
               content="确定要删除该任务吗？"
               @ok="handleDelete(record)"
+              v-permission="'job.list.delete'"
             >
               <a-button type="text" size="mini" status="danger">
                 <template #icon><icon-delete /></template>

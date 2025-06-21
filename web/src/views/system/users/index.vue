@@ -10,7 +10,7 @@
             style="width: 300px"
             @search="handleSearch"
           />
-          <a-button type="primary" @click="handleAdd">
+          <a-button type="primary" @click="handleAdd" v-permission="'system.users.create'">
             <template #icon><IconPlus /></template>
             新增用户
           </a-button>
@@ -61,25 +61,26 @@
           <a-table-column title="操作" align="center" :width="300">
             <template #cell="{ record }">
               <a-space>
-                <a-button type="text" size="small" @click="handleEdit(record)">
+                <a-button type="text" size="small" @click="handleEdit(record)" v-permission="'system.users.update'">
                   <template #icon><IconEdit /></template>
                   编辑
                 </a-button>
-                <a-button type="text" size="small" @click="handleAssignRoles(record)">
+                <a-button type="text" size="small" @click="handleAssignRoles(record)" v-permission="'system.users.update'">
                   <template #icon><IconUserGroup /></template>
                   分配角色
                 </a-button>
-                <a-button type="text" size="small" @click="handleChangePassword(record)">
+                <a-button type="text" size="small" @click="handleChangePassword(record)" v-permission="'system.users.update'">
                   <template #icon><IconLock /></template>
                   修改密码
                 </a-button>
-                <a-button type="text" size="small" @click="handleResetPassword(record)">
+                <a-button type="text" size="small" @click="handleResetPassword(record)" v-permission="'system.users.update'">
                   <template #icon><IconRefresh /></template>
                   重置密码
                 </a-button>
                 <a-popconfirm
                   content="确定要删除该用户吗？"
                   @ok="handleDelete(record)"
+                  v-permission="'system.users.delete'"
                 >
                   <a-button type="text" status="danger" size="small">
                     <template #icon><IconDelete /></template>
