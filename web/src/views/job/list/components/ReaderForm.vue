@@ -47,6 +47,16 @@
         allow-clear
       />
     </a-form-item>
+    <a-form-item
+      v-if="modelValue.name === 'postgresqlreader'"
+      label="Schema"
+    >
+      <a-input
+        v-model="modelValue.parameter.schema"
+        placeholder="请输入Schema名称，默认为public"
+        allow-clear
+      />
+    </a-form-item>
     <a-form-item label="表名" required>
       <a-input
         v-model="modelValue.parameter.table"
@@ -101,6 +111,7 @@ interface ReaderConfig {
     host: string;
     port: number;
     database: string;
+    schema?: string;
     table: string;
     columns: string[];
     selectSql?: string;
