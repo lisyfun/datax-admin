@@ -289,7 +289,17 @@
             </template>
           </a-input>
         </a-form-item>
-        <a-form-item field="password" label="密码">
+        <a-form-item field="authType" label="认证方式" :rules="[{ required: true, message: '请选择认证方式' }]">
+          <a-radio-group v-model="formData.authType">
+            <a-radio value="password">密码认证</a-radio>
+            <a-radio value="key">密钥文件认证</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <a-form-item
+          v-if="formData.authType === 'password'"
+          field="password"
+          label="密码"
+        >
           <a-input-password
             v-model="formData.password"
             :placeholder="formData.id ? '不修改请留空' : '请输入密码'"
@@ -302,6 +312,46 @@
           <template #extra>
             <span class="form-extra-tip">{{ formData.id ? '如不修改密码请留空' : '请输入SSH登录密码' }}</span>
           </template>
+        </a-form-item>
+        <a-form-item
+          v-if="formData.authType === 'key'"
+          field="keyFile"
+          label="密钥文件"
+        >
+          <a-upload
+            :file-list="keyFileList"
+            :show-file-list="false"
+            :auto-upload="false"
+            @change="handleKeyFileChange"
+            accept=".pem,.key,.ppk"
+          >
+            <template #upload-button>
+              <a-button>
+                <template #icon>
+                  <icon-upload />
+                </template>
+                选择密钥文件
+              </a-button>
+            </template>
+          </a-upload>
+          <div v-if="keyFileName" style="margin-top: 8px; color: #165dff;">
+            已选择: {{ keyFileName }}
+          </div>
+        </a-form-item>
+        <a-form-item
+          v-if="formData.authType === 'key'"
+          field="keyPassphrase"
+          label="密钥密码"
+        >
+          <a-input-password
+            v-model="formData.keyPassphrase"
+            placeholder="如果密钥文件有密码请输入"
+            allow-clear
+          >
+            <template #prefix>
+              <icon-lock />
+            </template>
+          </a-input-password>
         </a-form-item>
       </a-form>
       <template #footer>
@@ -492,6 +542,8 @@ const uploadVisible = ref(false);
 const uploadLoading = ref(false);
 const currentTerminal = ref<TerminalInfo | null>(null);
 const fileList = ref<FileItem[]>([]);
+const keyFileList = ref<FileItem[]>([]);
+const keyFileName = ref('');
 const uploadPath = ref('/tmp');
 const tableData = ref<TerminalInfo[]>([]);
 const selectedKeys = ref<(string | number)[]>([]);
@@ -533,7 +585,10 @@ const formData = reactive({
   host: '',
   port: 22,
   username: '',
+  authType: 'password' as 'password' | 'key',
   password: '',
+  keyFile: '',
+  keyPassphrase: '',
 });
 
 // 表单验证规则
@@ -593,6 +648,24 @@ const formatDate = (date: string) => {
   });
 };
 
+// 处理密钥文件上传
+const handleKeyFileChange = (fileList: FileItem[]) => {
+  if (fileList.length > 0) {
+    const file = fileList[0];
+    keyFileName.value = file.name || '';
+
+    // 读取文件内容
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      formData.keyFile = e.target?.result as string;
+    };
+    reader.readAsText(file.file as File);
+  } else {
+    keyFileName.value = '';
+    formData.keyFile = '';
+  }
+};
+
 // 新建终端
 const handleAdd = () => {
   formTitle.value = '新建终端';
@@ -601,7 +674,12 @@ const handleAdd = () => {
   formData.host = '';
   formData.port = 22;
   formData.username = '';
+  formData.authType = 'password';
   formData.password = '';
+  formData.keyFile = '';
+  formData.keyPassphrase = '';
+  keyFileList.value = [];
+  keyFileName.value = '';
   visible.value = true;
 };
 
@@ -613,7 +691,16 @@ const handleEdit = (record: TerminalInfo) => {
   formData.host = record.host;
   formData.port = record.port;
   formData.username = record.username;
+  formData.authType = record.authType || 'password';
   formData.password = '';
+  formData.keyFile = record.keyFile || '';
+  formData.keyPassphrase = record.keyPassphrase || '';
+  keyFileList.value = [];
+  if (record.keyFile) {
+    keyFileName.value = '已设置密钥文件';
+  } else {
+    keyFileName.value = '';
+  }
   visible.value = true;
 };
 
@@ -798,7 +885,10 @@ const handleSubmit = async () => {
         host: formData.host,
         port: formData.port,
         username: formData.username,
+        authType: formData.authType,
         password: formData.password || undefined,
+        keyFile: formData.keyFile,
+        keyPassphrase: formData.keyPassphrase,
       });
       Message.success('更新成功');
     } else {
@@ -807,7 +897,10 @@ const handleSubmit = async () => {
         host: formData.host,
         port: formData.port,
         username: formData.username,
+        authType: formData.authType,
         password: formData.password,
+        keyFile: formData.keyFile,
+        keyPassphrase: formData.keyPassphrase,
       });
       Message.success('创建成功');
     }
@@ -828,6 +921,11 @@ const handleSubmit = async () => {
 const handleCancel = () => {
   visible.value = false;
   formRef.value.resetFields();
+  keyFileList.value = [];
+  keyFileName.value = '';
+  formData.authType = 'password';
+  formData.keyFile = '';
+  formData.keyPassphrase = '';
 };
 
 // 文件列表相关

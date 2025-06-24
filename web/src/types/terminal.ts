@@ -5,6 +5,10 @@ export interface TerminalInfo {
   host: string;
   port: number;
   username: string;
+  authType: 'password' | 'key';
+  password?: string;
+  keyFile?: string;
+  keyPassphrase?: string;
   status: 'online' | 'offline';
   lastSeen: string;
   createdAt: string;
@@ -16,7 +20,10 @@ export interface CreateTerminalData {
   host: string;
   port: number;
   username: string;
-  password: string;
+  authType: 'password' | 'key';
+  password?: string;
+  keyFile?: string;
+  keyPassphrase?: string;
 }
 
 // 更新终端请求参数
@@ -25,7 +32,10 @@ export interface UpdateTerminalData {
   host: string;
   port: number;
   username: string;
+  authType: 'password' | 'key';
   password?: string;
+  keyFile?: string;
+  keyPassphrase?: string;
 }
 
 // 终端列表请求参数

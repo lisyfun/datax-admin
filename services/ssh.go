@@ -27,7 +27,7 @@ type SSHClient struct {
 	password   string // 添加密码字段
 }
 
-// NewSSHClient 创建新的SSH客户端
+// NewSSHClient 创建新的SSH客户端（密码认证）
 func NewSSHClient(host string, port int, username, password string) (*SSHClient, error) {
 	config := &ssh.ClientConfig{
 		User: username,
@@ -106,6 +106,112 @@ func NewSSHClient(host string, port int, username, password string) (*SSHClient,
 		stderr:     stderr,
 		password:   password, // 保存密码
 	}, nil
+}
+
+// NewSSHClientWithKey 创建新的SSH客户端（密钥认证）
+func NewSSHClientWithKey(host string, port int, username, keyContent, keyPassphrase string) (*SSHClient, error) {
+	// 解析私钥
+	var signer ssh.Signer
+	var err error
+
+	if keyPassphrase != "" {
+		// 带密码的私钥
+		signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(keyContent), []byte(keyPassphrase))
+	} else {
+		// 不带密码的私钥
+		signer, err = ssh.ParsePrivateKey([]byte(keyContent))
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("解析私钥失败: %v", err)
+	}
+
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         30 * time.Second,
+	}
+
+	addr := fmt.Sprintf("%s:%d", host, port)
+	client, err := ssh.Dial("tcp", addr, config)
+	if err != nil {
+		return nil, fmt.Errorf("SSH连接失败: %v", err)
+	}
+
+	session, err := client.NewSession()
+	if err != nil {
+		client.Close()
+		return nil, fmt.Errorf("创建SSH会话失败: %v", err)
+	}
+
+	// 创建SFTP客户端
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		session.Close()
+		client.Close()
+		return nil, fmt.Errorf("创建SFTP客户端失败: %v", err)
+	}
+
+	// 请求伪终端
+	if err := session.RequestPty("xterm", 40, 80, ssh.TerminalModes{
+		ssh.ECHO:          1,
+		ssh.TTY_OP_ISPEED: 14400,
+		ssh.TTY_OP_OSPEED: 14400,
+	}); err != nil {
+		session.Close()
+		client.Close()
+		return nil, fmt.Errorf("请求伪终端失败: %v", err)
+	}
+
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		session.Close()
+		client.Close()
+		return nil, fmt.Errorf("获取标准输入失败: %v", err)
+	}
+
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		session.Close()
+		client.Close()
+		return nil, fmt.Errorf("获取标准输出失败: %v", err)
+	}
+
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		session.Close()
+		client.Close()
+		return nil, fmt.Errorf("获取标准错误失败: %v", err)
+	}
+
+	// 启动shell
+	if err := session.Shell(); err != nil {
+		session.Close()
+		client.Close()
+		return nil, fmt.Errorf("启动Shell失败: %v", err)
+	}
+
+	return &SSHClient{
+		client:     client,
+		session:    session,
+		sftpClient: sftpClient,
+		stdin:      stdin,
+		stdout:     stdout,
+		stderr:     stderr,
+		password:   "", // 密钥认证不需要密码
+	}, nil
+}
+
+// NewSSHClientWithAuth 根据认证类型创建SSH客户端
+func NewSSHClientWithAuth(host string, port int, username, authType, password, keyContent, keyPassphrase string) (*SSHClient, error) {
+	if authType == "key" {
+		return NewSSHClientWithKey(host, port, username, keyContent, keyPassphrase)
+	} else {
+		return NewSSHClient(host, port, username, password)
+	}
 }
 
 // Write 写入数据到SSH会话

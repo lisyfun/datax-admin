@@ -4,6 +4,7 @@ import (
 	"datax-admin/config"
 	customLogger "datax-admin/utils/logger"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -81,7 +82,10 @@ func AutoMigrate() error {
 
 	for _, model := range models {
 		if err := DB.AutoMigrate(model); err != nil {
-			customLogger.Error("迁移表失败: %v, 模型: %T", err, model)
+			// 忽略外键约束删除错误，这些通常是无害的
+			if !isIgnorableError(err) {
+				customLogger.Error("迁移表失败: %v, 模型: %T", err, model)
+			}
 			// 继续迁移其他表，不中断整个过程
 			continue
 		}
@@ -90,4 +94,28 @@ func AutoMigrate() error {
 	customLogger.Info("数据库表结构迁移完成")
 
 	return nil
+}
+
+// isIgnorableError 检查是否是可以忽略的错误
+func isIgnorableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+	// 忽略外键约束删除错误
+	ignorablePatterns := []string{
+		"Can't DROP",
+		"check that column/key exists",
+		"uni_users_username",
+		"uni_terminals_name",
+	}
+
+	for _, pattern := range ignorablePatterns {
+		if strings.Contains(errStr, pattern) {
+			return true
+		}
+	}
+
+	return false
 }

@@ -4,20 +4,26 @@ import "time"
 
 // CreateTerminalRequest 创建终端请求
 type CreateTerminalRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Host     string `json:"host" binding:"required"`
-	Port     int    `json:"port" binding:"required"`
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password"`
+	Name          string `json:"name" binding:"required"`
+	Host          string `json:"host" binding:"required"`
+	Port          int    `json:"port" binding:"required"`
+	Username      string `json:"username" binding:"required"`
+	AuthType      string `json:"authType" binding:"required,oneof=password key"`
+	Password      string `json:"password"`
+	KeyFile       string `json:"keyFile"`
+	KeyPassphrase string `json:"keyPassphrase"`
 }
 
 // UpdateTerminalRequest 更新终端请求
 type UpdateTerminalRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Host     string `json:"host" binding:"required"`
-	Port     int    `json:"port" binding:"required"`
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password,omitempty"`
+	Name          string `json:"name" binding:"required"`
+	Host          string `json:"host" binding:"required"`
+	Port          int    `json:"port" binding:"required"`
+	Username      string `json:"username" binding:"required"`
+	AuthType      string `json:"authType" binding:"required,oneof=password key"`
+	Password      string `json:"password,omitempty"`
+	KeyFile       string `json:"keyFile"`
+	KeyPassphrase string `json:"keyPassphrase"`
 }
 
 // TerminalListRequest 终端列表请求
@@ -31,15 +37,18 @@ type TerminalListRequest struct {
 
 // TerminalInfo 终端信息
 type TerminalInfo struct {
-	ID        uint      `json:"id"`
-	Name      string    `json:"name"`
-	Host      string    `json:"host"`
-	Port      int       `json:"port"`
-	Username  string    `json:"username"`
-	Password  string    `json:"password,omitempty"`
-	Status    string    `json:"status"`
-	LastSeen  time.Time `json:"lastSeen"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID            uint      `json:"id"`
+	Name          string    `json:"name"`
+	Host          string    `json:"host"`
+	Port          int       `json:"port"`
+	Username      string    `json:"username"`
+	AuthType      string    `json:"authType"`
+	Password      string    `json:"password,omitempty"`
+	KeyFile       string    `json:"keyFile,omitempty"`
+	KeyPassphrase string    `json:"keyPassphrase,omitempty"`
+	Status        string    `json:"status"`
+	LastSeen      time.Time `json:"lastSeen"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 // TerminalListResponse 终端列表响应

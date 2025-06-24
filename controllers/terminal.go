@@ -189,7 +189,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 
 	logger.Info("正在创建SSH连接, Host: %s, Port: %d", terminal.Host, terminal.Port)
 	// 创建SSH连接
-	sshClient, err := services.NewSSHClient(terminal.Host, terminal.Port, terminal.Username, terminal.Password)
+	sshClient, err := services.NewSSHClientWithAuth(terminal.Host, terminal.Port, terminal.Username, terminal.AuthType, terminal.Password, terminal.KeyFile, terminal.KeyPassphrase)
 	if err != nil {
 		logger.Error("SSH连接失败: %v", err)
 		ws.WriteJSON(map[string]any{
@@ -330,7 +330,7 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 	}
 
 	// 创建SSH客户端
-	sshClient, err := services.NewSSHClient(terminal.Host, terminal.Port, terminal.Username, terminal.Password)
+	sshClient, err := services.NewSSHClientWithAuth(terminal.Host, terminal.Port, terminal.Username, terminal.AuthType, terminal.Password, terminal.KeyFile, terminal.KeyPassphrase)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "SSH连接失败"})
 		return
@@ -409,7 +409,7 @@ func (c *TerminalController) DownloadFile(ctx *gin.Context) {
 		return
 	}
 
-	sshClient, err := services.NewSSHClient(terminal.Host, terminal.Port, terminal.Username, terminal.Password)
+	sshClient, err := services.NewSSHClientWithAuth(terminal.Host, terminal.Port, terminal.Username, terminal.AuthType, terminal.Password, terminal.KeyFile, terminal.KeyPassphrase)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create SSH client"})
 		return
@@ -457,7 +457,7 @@ func (c *TerminalController) GetFileList(ctx *gin.Context) {
 	}
 
 	// 创建SSH客户端
-	sshClient, err := services.NewSSHClient(terminal.Host, terminal.Port, terminal.Username, terminal.Password)
+	sshClient, err := services.NewSSHClientWithAuth(terminal.Host, terminal.Port, terminal.Username, terminal.AuthType, terminal.Password, terminal.KeyFile, terminal.KeyPassphrase)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "SSH连接失败"})
 		return

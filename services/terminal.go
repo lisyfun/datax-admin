@@ -21,12 +21,15 @@ func NewTerminalService() *TerminalService {
 // CreateTerminal 创建终端
 func (s *TerminalService) CreateTerminal(req *types.CreateTerminalRequest) error {
 	terminal := &models.Terminal{
-		Name:     req.Name,
-		Host:     req.Host,
-		Port:     req.Port,
-		Username: req.Username,
-		Password: req.Password,
-		Status:   "offline",
+		Name:          req.Name,
+		Host:          req.Host,
+		Port:          req.Port,
+		Username:      req.Username,
+		AuthType:      req.AuthType,
+		Password:      req.Password,
+		KeyFile:       req.KeyFile,
+		KeyPassphrase: req.KeyPassphrase,
+		Status:        "offline",
 	}
 
 	return models.DB.Create(terminal).Error
@@ -35,10 +38,13 @@ func (s *TerminalService) CreateTerminal(req *types.CreateTerminalRequest) error
 // UpdateTerminal 更新终端
 func (s *TerminalService) UpdateTerminal(id uint, req *types.UpdateTerminalRequest) error {
 	updates := map[string]any{
-		"name":     req.Name,
-		"host":     req.Host,
-		"port":     req.Port,
-		"username": req.Username,
+		"name":           req.Name,
+		"host":           req.Host,
+		"port":           req.Port,
+		"username":       req.Username,
+		"auth_type":      req.AuthType,
+		"key_file":       req.KeyFile,
+		"key_passphrase": req.KeyPassphrase,
 	}
 
 	if req.Password != "" {
@@ -98,14 +104,17 @@ func (s *TerminalService) GetTerminalList(req *types.TerminalListRequest) (*type
 	list := make([]types.TerminalInfo, len(terminals))
 	for i, terminal := range terminals {
 		list[i] = types.TerminalInfo{
-			ID:        terminal.ID,
-			Name:      terminal.Name,
-			Host:      terminal.Host,
-			Port:      terminal.Port,
-			Username:  terminal.Username,
-			Status:    terminal.Status,
-			LastSeen:  terminal.LastSeen,
-			CreatedAt: terminal.CreatedAt,
+			ID:            terminal.ID,
+			Name:          terminal.Name,
+			Host:          terminal.Host,
+			Port:          terminal.Port,
+			Username:      terminal.Username,
+			AuthType:      terminal.AuthType,
+			KeyFile:       terminal.KeyFile,
+			KeyPassphrase: terminal.KeyPassphrase,
+			Status:        terminal.Status,
+			LastSeen:      terminal.LastSeen,
+			CreatedAt:     terminal.CreatedAt,
 		}
 	}
 
@@ -141,14 +150,17 @@ func (s *TerminalService) GetTerminalByID(id uint) (*types.TerminalInfo, error) 
 	}
 
 	return &types.TerminalInfo{
-		ID:        terminal.ID,
-		Name:      terminal.Name,
-		Host:      terminal.Host,
-		Port:      terminal.Port,
-		Username:  terminal.Username,
-		Password:  terminal.Password,
-		Status:    terminal.Status,
-		LastSeen:  terminal.LastSeen,
-		CreatedAt: terminal.CreatedAt,
+		ID:            terminal.ID,
+		Name:          terminal.Name,
+		Host:          terminal.Host,
+		Port:          terminal.Port,
+		Username:      terminal.Username,
+		AuthType:      terminal.AuthType,
+		Password:      terminal.Password,
+		KeyFile:       terminal.KeyFile,
+		KeyPassphrase: terminal.KeyPassphrase,
+		Status:        terminal.Status,
+		LastSeen:      terminal.LastSeen,
+		CreatedAt:     terminal.CreatedAt,
 	}, nil
 }
