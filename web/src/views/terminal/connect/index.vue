@@ -804,7 +804,7 @@ const handlePasteEvent = (event: ClipboardEvent) => {
     showPasteTip.value = true;
     setTimeout(() => { showPasteTip.value = false; }, 1000);
   }
-  event.preventDefault(); // 阻止默认的 ^V 行为
+  // event.preventDefault(); // 阻止默认的 ^V 行为
 };
 
 // 监听 Ctrl+V/⌘+V 粘贴
