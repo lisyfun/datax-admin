@@ -432,7 +432,6 @@ const handleSubmit = async () => {
 
   try {
     await formRef.value.validate();
-    console.log('提交前的表单数据:', JSON.stringify(form, null, 2));
 
     let params: JobShellParams | JobHTTPParams | JobDataXParams;
     if (form.type === 'shell') {

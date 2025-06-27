@@ -296,7 +296,6 @@ const initTerminal = () => {
   // 等待DOM元素准备好
   const terminalElement = document.getElementById('terminal');
   if (!terminalElement) {
-    console.error('终端DOM元素未找到');
     return;
   }
 
@@ -328,7 +327,7 @@ const initTerminal = () => {
     const webglAddon = new WebglAddon();
     terminal.loadAddon(webglAddon);
   } catch (e) {
-    console.warn('WebGL渲染初始化失败，将使用Canvas渲染', e);
+    // WebGL渲染初始化失败，将使用Canvas渲染
   }
 
   // 监听选择事件，自动复制选中的内容
@@ -417,13 +416,11 @@ const initTerminal = () => {
 // 连接终端
 const handleConnect = async () => {
   if (!terminalInfo.value) {
-    console.error('终端信息未获取到');
     return;
   }
 
   try {
     connecting.value = true;
-    console.log('终端信息:', terminalInfo.value);
 
     // 如果已经连接，先断开现有连接
     if (connected.value) {
@@ -446,7 +443,6 @@ const handleConnect = async () => {
     await nextTick();
 
     // 重新初始化终端
-    console.log('初始化终端实例');
     initTerminal();
     if (!terminal) {
       throw new Error('终端初始化失败');
@@ -454,7 +450,6 @@ const handleConnect = async () => {
 
     // 关闭已存在的连接
     if (socket) {
-      console.log('关闭已存在的WebSocket连接');
       socket.close();
     }
 
@@ -464,17 +459,9 @@ const handleConnect = async () => {
     const basePath = window.location.pathname.split('/')[1] || '';
     const wsUrl = `${wsProtocol}//${wsHost}/${basePath ? basePath + '/' : ''}ws/terminals/${terminalId.value}`;
 
-    console.log('WebSocket连接URL:', wsUrl);
-    console.log('终端ID:', terminalId.value);
-
     socket = new WebSocket(wsUrl);
-    console.log('WebSocket实例已创建');
 
     socket.onopen = () => {
-      console.log('WebSocket连接已建立:', {
-        readyState: socket?.readyState,
-        timestamp: new Date().toISOString()
-      });
       connected.value = true;
       Message.success('终端连接成功');
       terminal?.focus();
@@ -488,7 +475,6 @@ const handleConnect = async () => {
             rows: terminal.rows,
           }),
         };
-        console.log('发送终端大小数据:', resizeData);
         socket.send(JSON.stringify(resizeData));
       }
     };
@@ -501,25 +487,18 @@ const handleConnect = async () => {
             terminal?.write(data.data);
             break;
           case 'error':
-            console.error('服务器返回错误:', data.data);
             Message.error(data.data);
             break;
           default:
-            console.log('收到未知类型的消息:', data);
+            // 收到未知类型的消息，静默处理
+            break;
         }
       } catch (error) {
-        console.error('解析WebSocket消息失败:', error, event.data);
+        // 解析WebSocket消息失败，静默处理
       }
     };
 
     socket.onclose = (event) => {
-      console.log('WebSocket连接已关闭:', {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
-        timestamp: new Date().toISOString()
-      });
-
       // 只有在非用户主动关闭的情况下才处理重连
       if (event.code !== 1000) {
         connected.value = false;
@@ -534,17 +513,11 @@ const handleConnect = async () => {
     };
 
     socket.onerror = (error) => {
-      console.error('WebSocket连接错误:', {
-        error,
-        readyState: socket?.readyState,
-        timestamp: new Date().toISOString()
-      });
       connected.value = false;
       Message.error('终端连接失败');
     };
 
   } catch (error) {
-    console.error('连接终端失败:', error);
     Message.error('连接终端失败');
     connected.value = false;  // 连接失败时重置状态
   } finally {
@@ -647,7 +620,6 @@ const handleReconnect = () => {
     }
 
     reconnectAttempts++;
-    console.log(`尝试重连 (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
 
     // 重新创建WebSocket连接
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -658,7 +630,6 @@ const handleReconnect = () => {
     socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
-      console.log('重连成功');
       connected.value = true;
       reconnectAttempts = 0;
       Message.success('终端重新连接成功');
@@ -666,15 +637,14 @@ const handleReconnect = () => {
     };
 
     socket.onclose = (event) => {
-      console.log('重连失败:', event.code, event.reason);
       if (event.code !== 1000) {
         // 如果不是主动关闭，继续尝试重连
         setTimeout(attemptReconnect, RECONNECT_INTERVAL);
       }
     };
 
-    socket.onerror = (error) => {
-      console.error('重连过程中发生错误:', error);
+    socket.onerror = () => {
+      // 重连过程中发生错误，静默处理
     };
   };
 

@@ -264,7 +264,6 @@ const getCurrentTheme = () => {
 
 const initChart = () => {
   if (chartRef.value) {
-    console.log('初始化图表，容器宽度:', chartRef.value.offsetWidth);
     if (chart) {
       chart.dispose();
     }
@@ -473,7 +472,7 @@ const fetchDashboardData = async () => {
       initChart();
     }, 300);
   } catch (error) {
-    console.error('获取仪表盘数据失败:', error);
+    // 获取仪表盘数据失败，静默处理
   }
 };
 

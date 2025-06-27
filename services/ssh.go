@@ -271,14 +271,11 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 		return fmt.Errorf("创建临时文件失败: %v", err)
 	}
 	tempPath := tempFile.Name()
-	fmt.Printf("创建临时文件: %s\n", tempPath)
 	// 注意：这里不再使用defer删除临时文件，因为异步上传还需要使用
 
 	// 保存文件到临时目录
-	fmt.Println("开始保存文件到临时目录...")
 	buf := make([]byte, 1024*1024) // 1MB缓冲区
 	var total int64
-	startTime := time.Now()
 
 	for {
 		n, err := src.Read(buf)
@@ -305,14 +302,9 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 			progressCb(total, fileSize)
 		}
 
-		// 每传输10MB记录一次进度
+		// 每传输10MB记录一次进度（静默处理，不输出日志）
 		if total%(10*1024*1024) == 0 {
-			elapsed := time.Since(startTime)
-			speed := float64(total) / elapsed.Seconds() / 1024 / 1024 // MB/s
-			fmt.Printf("已保存到临时文件: %.2f MB, 总大小: %.2f MB, 速度: %.2f MB/s\n",
-				float64(total)/1024/1024,
-				float64(fileSize)/1024/1024,
-				speed)
+			// 进度检查点，但不输出日志
 		}
 	}
 
@@ -332,13 +324,11 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 		addr := c.client.RemoteAddr().String()
 		host, portStr, err := net.SplitHostPort(addr)
 		if err != nil {
-			fmt.Printf("解析地址失败: %v\n", err)
 			os.Remove(tempPath)
 			return
 		}
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
-			fmt.Printf("解析端口失败: %v\n", err)
 			os.Remove(tempPath)
 			return
 		}
@@ -346,11 +336,9 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 		// 获取临时文件的绝对路径
 		absTempPath, err := filepath.Abs(tempPath)
 		if err != nil {
-			fmt.Printf("获取临时文件绝对路径失败: %v\n", err)
 			os.Remove(tempPath)
 			return
 		}
-		fmt.Printf("使用临时文件绝对路径: %s\n", absTempPath)
 
 		// 根据认证类型构建不同的scp命令
 		var cmd *exec.Cmd
@@ -358,7 +346,6 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 			// 密钥认证：创建临时密钥文件
 			keyFile, err := os.CreateTemp("", "ssh-key-*.tmp")
 			if err != nil {
-				fmt.Printf("创建临时密钥文件失败: %v\n", err)
 				os.Remove(tempPath)
 				return
 			}
@@ -366,7 +353,6 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 
 			// 写入密钥内容
 			if _, err := keyFile.WriteString(c.keyContent); err != nil {
-				fmt.Printf("写入密钥文件失败: %v\n", err)
 				keyFile.Close()
 				os.Remove(tempPath)
 				os.Remove(keyPath)
@@ -376,7 +362,6 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 
 			// 设置密钥文件权限为600
 			if err := os.Chmod(keyPath, 0600); err != nil {
-				fmt.Printf("设置密钥文件权限失败: %v\n", err)
 				os.Remove(tempPath)
 				os.Remove(keyPath)
 				return
@@ -384,18 +369,15 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 
 			// 使用密钥文件的scp命令
 			scpCmd := fmt.Sprintf("scp -i %s -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", keyPath, port, absTempPath, c.client.User(), host, destPath)
-			fmt.Printf("执行scp命令(密钥认证): %s\n", scpCmd)
 			cmd = exec.Command("bash", "-c", scpCmd)
 
 			// 执行命令后删除密钥文件
 			defer func() {
 				os.Remove(keyPath)
-				fmt.Printf("临时密钥文件已删除: %s\n", keyPath)
 			}()
 		} else {
 			// 密码认证：使用sshpass
 			scpCmd := fmt.Sprintf("sshpass -p '%s' scp -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", c.password, port, absTempPath, c.client.User(), host, destPath)
-			fmt.Printf("执行scp命令(密码认证): %s\n", scpCmd)
 			cmd = exec.Command("bash", "-c", scpCmd)
 		}
 
@@ -403,31 +385,15 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 		cmd.Stderr = os.Stderr
 
 		if err := cmd.Run(); err != nil {
-			fmt.Printf("文件上传失败: %v\n", err)
 			os.Remove(tempPath)
 			return
 		}
 
 		// 上传成功后删除临时文件
 		os.Remove(tempPath)
-		fmt.Printf("临时文件已删除: %s\n", tempPath)
-
-		elapsed := time.Since(startTime)
-		speed := float64(total) / elapsed.Seconds() / 1024 / 1024 // MB/s
-		fmt.Printf("文件上传完成: %.2f MB, 耗时: %.2f 秒, 平均速度: %.2f MB/s\n",
-			float64(total)/1024/1024,
-			elapsed.Seconds(),
-			speed)
 	}()
 
 	// 本地保存完成后立即返回成功
-	elapsed := time.Since(startTime)
-	speed := float64(total) / elapsed.Seconds() / 1024 / 1024 // MB/s
-	fmt.Printf("文件已保存到临时目录: %.2f MB, 耗时: %.2f 秒, 速度: %.2f MB/s\n",
-		float64(total)/1024/1024,
-		elapsed.Seconds(),
-		speed)
-
 	return nil
 }
 
@@ -464,16 +430,9 @@ func (c *SSHClient) DownloadFile(filePath string, writer io.Writer) error {
 	}
 	defer srcFile.Close()
 
-	// 获取文件大小
-	fileInfo, err := srcFile.Stat()
-	if err != nil {
-		return fmt.Errorf("获取文件信息失败: %v", err)
-	}
-
 	// 创建缓冲区
 	buf := make([]byte, 32*1024) // 32KB缓冲区
 	var total int64
-	startTime := time.Now()
 
 	// 读取并写入文件
 	for {
@@ -494,23 +453,11 @@ func (c *SSHClient) DownloadFile(filePath string, writer io.Writer) error {
 
 		total += int64(n)
 
-		// 每传输10MB记录一次进度
+		// 每传输10MB记录一次进度（静默处理，不输出日志）
 		if total%(10*1024*1024) == 0 {
-			elapsed := time.Since(startTime)
-			speed := float64(total) / elapsed.Seconds() / 1024 / 1024 // MB/s
-			fmt.Printf("已下载: %.2f MB, 总大小: %.2f MB, 速度: %.2f MB/s\n",
-				float64(total)/1024/1024,
-				float64(fileInfo.Size())/1024/1024,
-				speed)
+			// 进度检查点，但不输出日志
 		}
 	}
-
-	elapsed := time.Since(startTime)
-	speed := float64(total) / elapsed.Seconds() / 1024 / 1024 // MB/s
-	fmt.Printf("文件下载完成: %.2f MB, 耗时: %.2f 秒, 平均速度: %.2f MB/s\n",
-		float64(total)/1024/1024,
-		elapsed.Seconds(),
-		speed)
 
 	return nil
 }
@@ -535,12 +482,10 @@ func (c *SSHClient) GetFileList(dirPath string) ([]FileInfo, error) {
 	// 首先尝试使用SSH命令获取完整的文件列表（包括隐藏文件）
 	fileList, err := c.getFileListBySSH(dirPath)
 	if err == nil && len(fileList) > 0 {
-		fmt.Printf("通过SSH命令获取到 %d 个文件\n", len(fileList))
 		return fileList, nil
 	}
 
 	// 如果SSH命令失败，回退到SFTP方式
-	fmt.Printf("SSH命令获取文件列表失败，回退到SFTP方式: %v\n", err)
 
 	if c.sftpClient == nil {
 		return nil, fmt.Errorf("SFTP客户端未创建")
@@ -551,9 +496,6 @@ func (c *SSHClient) GetFileList(dirPath string) ([]FileInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("读取目录失败: %v", err)
 	}
-
-	// 添加调试信息
-	fmt.Printf("目录 %s 中找到 %d 个条目\n", dirPath, len(entries))
 
 	// 转换为FileInfo结构
 	var sftpFileList []FileInfo
@@ -567,12 +509,8 @@ func (c *SSHClient) GetFileList(dirPath string) ([]FileInfo, error) {
 			IsDir:   entry.IsDir(),
 		}
 		sftpFileList = append(sftpFileList, fileInfo)
-
-		// 添加调试信息
-		fmt.Printf("文件: %s, 大小: %d, 是否目录: %t\n", entry.Name(), entry.Size(), entry.IsDir())
 	}
 
-	fmt.Printf("返回 %d 个文件信息\n", len(sftpFileList))
 	return sftpFileList, nil
 }
 

@@ -379,17 +379,7 @@ const fetchMessages = async () => {
       actualOffset = 0;
     }
 
-    console.log('开始获取消息，参数:', {
-      clusterId,
-      topicName,
-      partition: searchForm.partition,
-      offset: actualOffset,
-      count: searchForm.count,
-      keyFilter: searchForm.keyFilter,
-      valueFilter: searchForm.valueFilter,
-      groupId: searchForm.groupId,
-      offsetReset: searchForm.offsetReset,
-    });
+
 
     // 设置请求超时
     const controller = new AbortController();

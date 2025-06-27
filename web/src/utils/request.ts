@@ -33,7 +33,6 @@ request.interceptors.request.use(
             config.data = encryptData(config.data);
           }
         } catch (error) {
-          console.error('请求数据加密失败:', error);
           // 如果加密失败，继续使用原始数据
         }
       }
@@ -58,7 +57,6 @@ request.interceptors.response.use(
           response.data = decryptData(encryptedResponse);
         }
       } catch (error) {
-        console.error('响应数据解密失败:', error);
         // 如果解密失败，使用原始数据
       }
     }

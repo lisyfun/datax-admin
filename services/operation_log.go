@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-
 )
 
 // OperationLogService 操作日志服务
@@ -83,7 +82,7 @@ func (s *OperationLogService) ClearLogs(beforeDays int) error {
 	if beforeDays <= 0 {
 		return fmt.Errorf("天数必须大于0")
 	}
-	
+
 	beforeTime := time.Now().AddDate(0, 0, -beforeDays)
 	return models.DB.Where("created_at < ?", beforeTime).Delete(&models.OperationLog{}).Error
 }
@@ -112,7 +111,7 @@ func LogOperation(userID uint, username, module, action, description, ip, userAg
 
 	service := NewOperationLogService()
 	if err := service.CreateLog(log); err != nil {
-		// 记录日志失败不应该影响主要业务逻辑，只记录错误
-		fmt.Printf("记录操作日志失败: %v\n", err)
+		// 记录日志失败不应该影响主要业务逻辑，静默处理
+		// 可以考虑使用专门的日志系统记录此类错误
 	}
 }
