@@ -4,7 +4,6 @@ import (
 	"datax-admin/models"
 	"datax-admin/types"
 	"errors"
-	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -96,13 +95,6 @@ func (s *PermissionService) GetPermissionTree(req *types.PermissionListRequest) 
 		return nil, err
 	}
 
-	fmt.Printf("DEBUG: GetPermissionTree - Total permissions found: %d\n", len(permissions))
-	for _, p := range permissions {
-		if p.ParentID != nil && *p.ParentID == 7 {
-			fmt.Printf("DEBUG: Terminal child permission: ID=%d, Name=%s, Code=%s\n", p.ID, p.Name, p.Code)
-		}
-	}
-
 	// 构建权限树 - 使用临时结构来正确处理指针引用
 	type tempPermission struct {
 		*types.PermissionResponse
@@ -144,8 +136,6 @@ func (s *PermissionService) GetPermissionTree(req *types.PermissionListRequest) 
 			if parent, ok := permMap[*p.ParentID]; ok {
 				if child, childOk := permMap[p.ID]; childOk {
 					parent.Children = append(parent.Children, child)
-					fmt.Printf("DEBUG: Added child %s (ID:%d) to parent %s (ID:%d), parent children count: %d\n",
-						child.Name, child.ID, parent.Name, parent.ID, len(parent.Children))
 				}
 			}
 		}
@@ -167,11 +157,6 @@ func (s *PermissionService) GetPermissionTree(req *types.PermissionListRequest) 
 	for _, rootID := range rootPermIDs {
 		if rootPerm, ok := permMap[rootID]; ok {
 			finalPerm := convertToFinal(rootPerm)
-			fmt.Printf("DEBUG: Root permission: %s (ID:%d), children count: %d\n", finalPerm.Name, finalPerm.ID, len(finalPerm.Children))
-			// 打印子权限详情
-			for i, child := range finalPerm.Children {
-				fmt.Printf("DEBUG: - Child %d: %s (ID:%d)\n", i, child.Name, child.ID)
-			}
 			rootPerms = append(rootPerms, finalPerm)
 		}
 	}
@@ -230,7 +215,6 @@ func (s *PermissionService) GetUserMenus(userID uint) (*types.PermissionTreeResp
 		Find(&allUserPermissions).Error
 
 	if err != nil {
-		fmt.Printf("DEBUG: GetUserMenus Service - DB error: %v\n", err)
 		return nil, err
 	}
 
@@ -338,6 +322,5 @@ func (s *PermissionService) GetUserMenus(userID uint) (*types.PermissionTreeResp
 		}
 	}
 
-	fmt.Printf("DEBUG: Final root permissions count: %d\n", len(rootPerms))
 	return &types.PermissionTreeResponse{List: rootPerms}, nil
 }
