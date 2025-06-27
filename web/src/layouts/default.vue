@@ -266,16 +266,19 @@ onUnmounted(() => {
 :deep(.arco-menu-title),
 :deep(.arco-breadcrumb) {
   font-size: 14px;
-  letter-spacing: 0.2px;
-  height: 40px;
-  line-height: 40px;
+  letter-spacing: 0.3px;
+  height: 46px;
+  line-height: 46px;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 :deep(.arco-menu-icon),
 :deep(.arco-sub-menu-icon),
 :deep(.arco-menu-item-icon) {
-  font-size: 17px;
-  stroke-width: 3;
+  font-size: 18px;
+  stroke-width: 2.5;
   stroke: currentColor;
 }
 
@@ -444,6 +447,14 @@ onUnmounted(() => {
   .arco-sub-menu-suffix {
     display: none;
   }
+}
+
+/* 隐藏所有父菜单的箭头 */
+:deep(.arco-sub-menu-suffix),
+:deep(.arco-sub-menu-arrow),
+:deep(.arco-icon-down),
+:deep(.arco-icon-right) {
+  display: none !important;
 }
 
 

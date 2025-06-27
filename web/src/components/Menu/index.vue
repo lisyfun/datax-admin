@@ -18,23 +18,14 @@
             v-if="!child.children?.length"
             :key="`item-${child.id}`"
           >
-            <template #icon>
-              <component v-if="child.icon && iconMap[child.icon]" :is="iconMap[child.icon]" />
-            </template>
             {{ child.name }}
           </a-menu-item>
           <a-sub-menu v-else :key="`sub-${child.id}`">
-            <template #icon>
-              <component v-if="child.icon && iconMap[child.icon]" :is="iconMap[child.icon]" />
-            </template>
             <template #title>{{ child.name }}</template>
             <a-menu-item
               v-for="item in child.children"
               :key="`item-${item.id}`"
             >
-              <template #icon>
-                <component v-if="item.icon && iconMap[item.icon]" :is="iconMap[item.icon]" />
-              </template>
               {{ item.name }}
             </a-menu-item>
           </a-sub-menu>
@@ -540,45 +531,134 @@ watch(
 </script>
 
 <style scoped>
+/* 菜单容器整体美化 */
+:deep(.arco-menu) {
+  background: transparent !important;
+  border: none !important;
+  padding: 12px 0 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+}
+
+/* 菜单分组间距优化 */
+:deep(.arco-menu > .arco-sub-menu:not(:last-child)) {
+  margin-bottom: 8px !important;
+}
+
+/* 菜单项之间的间距 */
+:deep(.arco-menu > .arco-sub-menu) {
+  margin-bottom: 6px !important;
+}
+
 :deep(.arco-menu-inline-header) {
-  height: 40px;
-  line-height: 40px;
+  height: 46px;
+  line-height: 46px;
+}
+
+/* 菜单文字优化 */
+:deep(.arco-menu-title) {
+  font-weight: 500 !important;
+  letter-spacing: 0.3px !important;
+  color: var(--color-text-1) !important;
+}
+
+/* 子菜单容器间距优化 */
+:deep(.arco-sub-menu-inline) {
+  margin-top: 6px !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 4px !important;
 }
 
 /* 统一所有菜单项样式 */
 :deep(.arco-menu-item),
 :deep(.arco-sub-menu-title),
 :deep(.arco-menu-inline-header) {
-  height: 40px !important;
-  line-height: 40px !important;
-  margin: 2px 8px !important;
-  border-radius: 6px !important;
-  transition: all 0.2s ease;
-  padding: 0 16px !important;
+  height: 46px !important;
+  line-height: 46px !important;
+  margin: 4px 12px !important;
+  border-radius: 12px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  padding: 0 18px !important;
   display: flex !important;
   align-items: center !important;
   box-sizing: border-box !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  letter-spacing: 0.3px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  color: var(--color-text-1) !important;
+}
+
+/* 父菜单项渐变背景效果 */
+:deep(.arco-sub-menu-title::before) {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: -100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent) !important;
+  transition: left 0.5s ease !important;
+}
+
+:deep(.arco-sub-menu-title:hover::before) {
+  left: 100% !important;
 }
 
 /* 特别针对有图标的菜单项 */
 :deep(.arco-menu-item.arco-menu-has-icon),
 :deep(.arco-sub-menu-title) {
-  padding: 0 16px !important;
+  padding: 0 18px !important;
 }
 
+/* 菜单项文字渲染优化 */
+:deep(.arco-menu-item),
+:deep(.arco-sub-menu-title),
+:deep(.arco-menu-title) {
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* 父菜单悬停效果 */
 :deep(.arco-menu-item:hover),
 :deep(.arco-sub-menu-title:hover),
 :deep(.arco-menu-inline-header:hover) {
-  background-color: rgba(var(--primary-6), 0.1);
+  background: linear-gradient(135deg, var(--color-primary-light-1), var(--color-primary-light-2)) !important;
+  color: var(--color-primary-6) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 16px rgba(var(--primary-6), 0.15) !important;
 }
 
+/* 父菜单选中和展开状态 */
 :deep(.arco-menu-item.arco-menu-selected),
 :deep(.arco-sub-menu-title.arco-sub-menu-open),
 :deep(.arco-menu-inline-header.arco-menu-selected) {
-  background-color: rgba(var(--primary-6), 0.15);
-  border-radius: 6px;
-  color: rgb(var(--primary-6));
-  font-weight: 500;
+  background: linear-gradient(135deg, var(--color-primary-light-1), var(--color-primary-light-2)) !important;
+  color: var(--color-primary-6) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 20px rgba(var(--primary-6), 0.2) !important;
+}
+
+/* 菜单项图标美化 */
+:deep(.arco-menu-icon),
+:deep(.arco-sub-menu-icon) {
+  margin-right: 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+  flex-shrink: 0 !important;
+  transition: all 0.3s ease !important;
+  font-size: 18px !important;
+}
+
+/* 悬停时图标效果 */
+:deep(.arco-menu-item:hover .arco-menu-icon),
+:deep(.arco-sub-menu-title:hover .arco-sub-menu-icon) {
+  transform: scale(1.1) !important;
+  color: var(--color-primary-6) !important;
 }
 
 :deep(.arco-menu-item.arco-menu-selected::before),
@@ -586,8 +666,73 @@ watch(
   display: none;
 }
 
+/* 子菜单项样式 - 与父菜单文字对齐，无图标 */
 :deep(.arco-sub-menu-inline .arco-menu-item) {
-  margin: 2px 16px 2px 24px;
+  margin: 3px 12px 3px 12px !important;
+  padding: 0 18px 0 64px !important;
+  border-radius: 10px !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.2px !important;
+  color: var(--color-text-2) !important;
+  height: 38px !important;
+  line-height: 38px !important;
+}
+
+/* 子菜单项悬停效果 */
+:deep(.arco-sub-menu-inline .arco-menu-item:hover) {
+  background: linear-gradient(135deg, var(--color-primary-light-1), var(--color-primary-light-2)) !important;
+  color: var(--color-primary-6) !important;
+  transform: translateX(2px) !important;
+  box-shadow: 0 2px 8px rgba(var(--primary-6), 0.15) !important;
+}
+
+/* 子菜单项选中状态 */
+:deep(.arco-sub-menu-inline .arco-menu-item.arco-menu-selected) {
+  background: linear-gradient(135deg, var(--color-primary-light-1), var(--color-primary-light-2)) !important;
+  color: var(--color-primary-6) !important;
+  font-weight: 500 !important;
+  box-shadow: 0 2px 12px rgba(var(--primary-6), 0.2) !important;
+}
+
+/* 子菜单项前添加装饰性小点 */
+:deep(.arco-sub-menu-inline .arco-menu-item::before) {
+  content: '' !important;
+  position: absolute !important;
+  left: 40px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 5px !important;
+  height: 5px !important;
+  border-radius: 50% !important;
+  background: var(--color-text-4) !important;
+  transition: all 0.3s ease !important;
+  opacity: 0.6 !important;
+}
+
+/* 子菜单项悬停和选中时的小点样式 */
+:deep(.arco-sub-menu-inline .arco-menu-item:hover::before),
+:deep(.arco-sub-menu-inline .arco-menu-item.arco-menu-selected::before) {
+  background: var(--color-primary-6) !important;
+  width: 6px !important;
+  height: 6px !important;
+  box-shadow: 0 0 8px rgba(var(--primary-6), 0.4) !important;
+}
+
+/* 调整子菜单项文字位置，与父菜单文字对齐 */
+:deep(.arco-sub-menu-inline .arco-menu-item .arco-menu-item-inner) {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  height: 100% !important;
+}
+
+/* 隐藏子菜单项的图标 */
+:deep(.arco-sub-menu-inline .arco-menu-item .arco-menu-icon) {
+  display: none !important;
 }
 
 /* 收起状态下的菜单项样式 - 统一所有类型 */
@@ -597,14 +742,14 @@ watch(
 :deep(.arco-menu-collapse .arco-menu-item.arco-menu-pop-header),
 :deep(.arco-menu-collapse .arco-sub-menu-title),
 :deep(.arco-menu-collapse .arco-menu-inline-header) {
-  margin: 2px 4px !important;
+  margin: 4px 6px !important;
   padding: 0 !important;
   justify-content: center !important;
   display: flex !important;
   align-items: center !important;
-  border-radius: 6px !important;
-  height: 40px !important;
-  width: calc(100% - 8px) !important;
+  border-radius: 10px !important;
+  height: 44px !important;
+  width: calc(100% - 12px) !important;
   box-sizing: border-box !important;
 }
 
@@ -770,33 +915,46 @@ watch(
 
 /* 特别处理单独的菜单项（如仪表盘）确保与子菜单标题对齐 */
 :deep(.arco-menu-item:not(.arco-menu-indent-1):not(.arco-menu-indent-2)) {
-  margin: 2px 8px !important;
-  border-radius: 6px !important;
-  height: 40px !important;
-  line-height: 40px !important;
-  padding: 0 16px !important;
+  margin: 4px 12px !important;
+  border-radius: 12px !important;
+  height: 46px !important;
+  line-height: 46px !important;
+  padding: 0 18px !important;
 }
 
-:deep(.arco-menu-icon) {
-  margin-right: 8px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 16px !important;
-  height: 16px !important;
+/* 强制覆盖子菜单项的缩进样式 - 与父菜单文字精确对齐 */
+:deep(.arco-sub-menu-inline .arco-menu-item) {
+  margin: 3px 12px 3px 12px !important;
+  padding: 0 18px 0 64px !important;
+  border-radius: 10px !important;
+  height: 38px !important;
+  line-height: 38px !important;
 }
 
-:deep(.arco-sub-menu-icon) {
-  margin-right: 8px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 16px !important;
-  height: 16px !important;
+/* 确保子菜单项文字与父菜单文字对齐 - 最高优先级 */
+:deep(.arco-sub-menu .arco-sub-menu-inline .arco-menu-item) {
+  padding-left: 64px !important;
 }
+
+/* 覆盖任何可能的默认缩进 */
+:deep(.arco-menu-indent-1),
+:deep(.arco-menu-indent-2),
+:deep(.arco-menu-indent-3) {
+  padding-left: 64px !important;
+}
+
+/* 这些样式已经在上面定义过了，删除重复定义 */
 
 :deep(.arco-icon) {
   font-size: 16px;
+}
+
+/* 隐藏所有父菜单的箭头 */
+:deep(.arco-sub-menu-suffix),
+:deep(.arco-sub-menu-arrow),
+:deep(.arco-icon-down),
+:deep(.arco-icon-right) {
+  display: none !important;
 }
 
 /* 隐藏伪装子菜单的箭头 */
@@ -859,5 +1017,53 @@ watch(
 
 :deep(.fake-sub-menu.arco-sub-menu-open .arco-sub-menu-title) {
   background: transparent !important;
+}
+
+/* 子菜单展开动画优化 */
+:deep(.arco-sub-menu-inline) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow: hidden !important;
+}
+
+/* 菜单项进入动画 */
+:deep(.arco-menu-item),
+:deep(.arco-sub-menu-title) {
+  animation: menuItemFadeIn 0.3s ease-out !important;
+}
+
+@keyframes menuItemFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 菜单项点击反馈 */
+:deep(.arco-menu-item:active),
+:deep(.arco-sub-menu-title:active) {
+  transform: scale(0.98) !important;
+  transition: transform 0.1s ease !important;
+}
+
+/* 整体菜单滚动条美化 */
+:deep(.arco-menu::-webkit-scrollbar) {
+  width: 4px !important;
+}
+
+:deep(.arco-menu::-webkit-scrollbar-track) {
+  background: transparent !important;
+}
+
+:deep(.arco-menu::-webkit-scrollbar-thumb) {
+  background: rgba(var(--primary-6), 0.2) !important;
+  border-radius: 2px !important;
+}
+
+:deep(.arco-menu::-webkit-scrollbar-thumb:hover) {
+  background: rgba(var(--primary-6), 0.4) !important;
 }
 </style>
