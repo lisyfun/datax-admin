@@ -39,8 +39,37 @@ docker run -d \
   --name datax-admin \
   -p 28080:80 \
   -v $(pwd)/logs:/app/logs \
+  -e DB_HOST=localhost \
+  -e DB_PORT=3306 \
+  -e DB_USERNAME=root \
+  -e DB_PASSWORD=your_password \
+  -e DB_NAME=datax_admin \
+  -e JWT_SECRET=your-jwt-secret-key \
   lisongyu/datax-admin:latest
 ```
+
+**环境变量说明：**
+- `DB_HOST`: 数据库主机地址（默认：localhost）
+- `DB_PORT`: 数据库端口（默认：3306）
+- `DB_USERNAME`: 数据库用户名（默认：root）
+- `DB_PASSWORD`: 数据库密码（必须设置）
+- `DB_NAME`: 数据库名称（默认：datax_admin）
+- `JWT_SECRET`: JWT密钥（建议设置复杂密钥）
+
+**注意：** 请确保数据库已创建并可访问，系统会自动创建所需的表结构。
+
+### 数据库初始化
+
+在运行系统之前，请确保：
+
+1. MySQL 数据库服务已启动
+2. 创建数据库（如果不存在）：
+```sql
+CREATE DATABASE datax_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+3. 确保数据库用户有足够的权限访问该数据库
+
+系统首次启动时会自动创建所需的表结构和初始数据。
 
 访问 http://localhost:28080/datax 即可使用系统。
 
@@ -64,6 +93,12 @@ docker run -d \
   --name datax-admin \
   -p 28080:80 \
   -v $(pwd)/logs:/app/logs \
+  -e DB_HOST=localhost \
+  -e DB_PORT=3306 \
+  -e DB_USERNAME=root \
+  -e DB_PASSWORD=your_password \
+  -e DB_NAME=datax_admin \
+  -e JWT_SECRET=your-jwt-secret-key \
   datax-admin:$(VERSION)-arm64
 ```
 
@@ -77,12 +112,31 @@ docker run -d \
 - `make build` - 构建后端（当前平台）
 - `make build-frontend` - 构建前端
 - `make docker VERSION=v1.0.0` - 构建 Docker 镜像
-- `make docker-run VERSION=v1.0.0` - 运行 Docker 容器
+- `make docker-run VERSION=v1.0.0` - 运行 Docker 容器（需要配置环境变量）
 - `make clean` - 清理构建产物
 - `make help` - 显示帮助信息
 
 
 ## 配置说明
+
+### 环境变量配置（Docker 推荐）
+
+使用 Docker 运行时，可以通过环境变量进行配置：
+
+| 环境变量 | 说明 | 默认值 |
+|---------|------|--------|
+| `DB_HOST` | 数据库主机地址 | localhost |
+| `DB_PORT` | 数据库端口 | 3306 |
+| `DB_USERNAME` | 数据库用户名 | root |
+| `DB_PASSWORD` | 数据库密码 | 无（必须设置） |
+| `DB_NAME` | 数据库名称 | datax_admin |
+| `JWT_SECRET` | JWT密钥 | 无（建议设置） |
+| `SERVER_PORT` | 服务端口 | 28080 |
+| `DATAX_HOME` | DataX-Admin 可执行文件路径 | /app |
+| `DATAX_BIN` | DataX 可执行文件路径 | /app/bin/datax |
+| `DATAX_PYTHON` | Python 解释器路径 | python |
+
+### 配置文件（源码部署）
 
 系统配置文件位于 `config.yaml`：
 
