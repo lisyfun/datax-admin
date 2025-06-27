@@ -452,7 +452,10 @@
             </a-input>
           </a-space>
         </div>
-        <div class="file-list-content">
+        <div class="file-list-content" @scroll="handleScroll" ref="fileListContentRef">
+          <div class="file-list-info" v-if="totalFiles > 0">
+            <span>共 {{ totalFiles }} 个文件，已显示 {{ serverFileList.length }} 个</span>
+          </div>
           <a-table
             :data="serverFileList"
             :loading="fileListLoading"
@@ -460,7 +463,7 @@
             :bordered="false"
           >
             <template #columns>
-              <a-table-column title="文件名" data-index="name">
+              <a-table-column title="文件名" data-index="name" :width="300">
                 <template #cell="{ record }">
                   <a-space>
                     <icon-folder v-if="record.isDir" />
@@ -468,8 +471,9 @@
                     <a-button
                       type="text"
                       @click="handleFileClick(record)"
+                      class="file-name-button"
                     >
-                      {{ record.name }}
+                      <span class="file-name-text" :title="record.name">{{ record.name }}</span>
                     </a-button>
                   </a-space>
                 </template>
@@ -498,6 +502,24 @@
               </a-table-column>
             </template>
           </a-table>
+
+          <!-- 加载更多指示器 -->
+          <div v-if="loadingMore" class="loading-more">
+            <a-spin size="small" />
+            <span style="margin-left: 8px;">加载更多文件...</span>
+          </div>
+
+          <!-- 手动加载更多按钮 -->
+          <div v-else-if="hasMore && !loadingMore" class="load-more-button">
+            <a-button type="outline" @click="loadMoreFiles" :loading="loadingMore">
+              加载更多 (剩余 {{ totalFiles - serverFileList.length }} 个文件)
+            </a-button>
+          </div>
+
+          <!-- 没有更多数据提示 -->
+          <div v-else-if="!hasMore && serverFileList.length > 0" class="no-more-data">
+            <span>已显示全部文件</span>
+          </div>
         </div>
       </div>
     </a-modal>
@@ -931,8 +953,14 @@ const handleCancel = () => {
 // 文件列表相关
 const fileListVisible = ref(false);
 const fileListLoading = ref(false);
+const loadingMore = ref(false);
 const serverFileList = ref<FileInfo[]>([]);
 const currentPath = ref('.');
+const currentPage = ref(1);
+const pageSize = ref(100);
+const totalFiles = ref(0);
+const hasMore = ref(false);
+const fileListContentRef = ref<HTMLElement>();
 
 // 格式化文件大小
 const formatFileSize = (size: number) => {
@@ -942,18 +970,66 @@ const formatFileSize = (size: number) => {
   return (size / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 };
 
-// 获取文件列表
+// 获取文件列表（重置列表）
 const fetchFileList = async (path: string) => {
   if (!currentTerminal.value) return;
 
   fileListLoading.value = true;
+  currentPage.value = 1;
+
   try {
-    const res = await terminalApi.getFileList(currentTerminal.value.id, path);
-    serverFileList.value = res.data.data;
+    const res = await terminalApi.getFileList(currentTerminal.value.id, path, 1, pageSize.value);
+    console.log('API响应:', res);
+    console.log('文件列表数据:', res.data.data);
+    console.log('文件数量:', res.data.data?.length || 0);
+
+    serverFileList.value = res.data.data || [];
+    totalFiles.value = res.data.total || 0;
+    hasMore.value = res.data.hasMore || false;
+    currentPage.value = res.data.page || 1;
   } catch (error) {
+    console.error('获取文件列表失败:', error);
     Message.error('获取文件列表失败');
+    serverFileList.value = [];
+    totalFiles.value = 0;
+    hasMore.value = false;
   } finally {
     fileListLoading.value = false;
+  }
+};
+
+// 加载更多文件
+const loadMoreFiles = async () => {
+  if (!currentTerminal.value || !hasMore.value || loadingMore.value) return;
+
+  loadingMore.value = true;
+  const nextPage = currentPage.value + 1;
+
+  try {
+    const res = await terminalApi.getFileList(currentTerminal.value.id, currentPath.value, nextPage, pageSize.value);
+
+    // 追加新数据到现有列表
+    serverFileList.value.push(...(res.data.data || []));
+    hasMore.value = res.data.hasMore || false;
+    currentPage.value = res.data.page || nextPage;
+
+    console.log(`加载第${nextPage}页，新增${res.data.data?.length || 0}个文件`);
+  } catch (error) {
+    console.error('加载更多文件失败:', error);
+    Message.error('加载更多文件失败');
+  } finally {
+    loadingMore.value = false;
+  }
+};
+
+// 处理滚动事件
+const handleScroll = (event: Event) => {
+  const target = event.target as HTMLElement;
+  const { scrollTop, scrollHeight, clientHeight } = target;
+
+  // 当滚动到底部附近时（距离底部50px以内）触发加载更多
+  if (scrollHeight - scrollTop - clientHeight < 50) {
+    loadMoreFiles();
   }
 };
 
@@ -1033,6 +1109,11 @@ const handleFileListCancel = () => {
   serverFileList.value = [];
   currentPath.value = '.';
   currentTerminal.value = null;
+  // 重置分页状态
+  currentPage.value = 1;
+  totalFiles.value = 0;
+  hasMore.value = false;
+  loadingMore.value = false;
 };
 
 // 初始加载数据
@@ -1207,6 +1288,54 @@ fetchData();
     :deep(.arco-table) {
       .arco-table-th {
         background-color: var(--color-fill-2);
+      }
+    }
+
+    .file-list-info {
+      padding: 8px 16px;
+      background-color: var(--color-fill-1);
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: var(--color-text-3);
+    }
+
+    .loading-more {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      color: var(--color-text-3);
+    }
+
+    .load-more-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .no-more-data {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      color: var(--color-text-4);
+      font-size: 12px;
+    }
+
+    .file-name-button {
+      width: 100%;
+      text-align: left;
+      padding: 0;
+
+      .file-name-text {
+        display: block;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 240px; /* 留出图标和间距的空间 */
       }
     }
   }

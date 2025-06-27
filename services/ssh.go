@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -526,13 +527,23 @@ type FileInfo struct {
 
 // GetFileList 获取目录下的文件列表
 func (c *SSHClient) GetFileList(dirPath string) ([]FileInfo, error) {
-	if c.sftpClient == nil {
-		return nil, fmt.Errorf("SFTP客户端未创建")
-	}
-
 	// 如果目录路径为空，使用当前目录
 	if dirPath == "" {
 		dirPath = "."
+	}
+
+	// 首先尝试使用SSH命令获取完整的文件列表（包括隐藏文件）
+	fileList, err := c.getFileListBySSH(dirPath)
+	if err == nil && len(fileList) > 0 {
+		fmt.Printf("通过SSH命令获取到 %d 个文件\n", len(fileList))
+		return fileList, nil
+	}
+
+	// 如果SSH命令失败，回退到SFTP方式
+	fmt.Printf("SSH命令获取文件列表失败，回退到SFTP方式: %v\n", err)
+
+	if c.sftpClient == nil {
+		return nil, fmt.Errorf("SFTP客户端未创建")
 	}
 
 	// 获取目录下的文件列表
@@ -541,8 +552,11 @@ func (c *SSHClient) GetFileList(dirPath string) ([]FileInfo, error) {
 		return nil, fmt.Errorf("读取目录失败: %v", err)
 	}
 
+	// 添加调试信息
+	fmt.Printf("目录 %s 中找到 %d 个条目\n", dirPath, len(entries))
+
 	// 转换为FileInfo结构
-	var fileList []FileInfo
+	var sftpFileList []FileInfo
 	for _, entry := range entries {
 		fileInfo := FileInfo{
 			Name:    entry.Name(),
@@ -552,10 +566,14 @@ func (c *SSHClient) GetFileList(dirPath string) ([]FileInfo, error) {
 			ModTime: entry.ModTime(),
 			IsDir:   entry.IsDir(),
 		}
-		fileList = append(fileList, fileInfo)
+		sftpFileList = append(sftpFileList, fileInfo)
+
+		// 添加调试信息
+		fmt.Printf("文件: %s, 大小: %d, 是否目录: %t\n", entry.Name(), entry.Size(), entry.IsDir())
 	}
 
-	return fileList, nil
+	fmt.Printf("返回 %d 个文件信息\n", len(sftpFileList))
+	return sftpFileList, nil
 }
 
 // DownloadFileToLocal 先将远程文件下载到本地临时文件，返回本地路径和文件大小
@@ -613,4 +631,95 @@ func (c *SSHClient) DownloadFileToLocal(remotePath string) (localPath string, si
 	}
 
 	return localPath, fileInfo.Size(), nil
+}
+
+// getFileListBySSH 通过SSH命令获取文件列表（包括隐藏文件）
+func (c *SSHClient) getFileListBySSH(dirPath string) ([]FileInfo, error) {
+	if c.client == nil {
+		return nil, fmt.Errorf("SSH客户端未创建")
+	}
+
+	// 创建SSH会话
+	session, err := c.client.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("创建SSH会话失败: %v", err)
+	}
+	defer session.Close()
+
+	// 使用ls -la命令获取详细的文件列表（包括隐藏文件）
+	cmd := fmt.Sprintf("ls -la '%s' 2>/dev/null", dirPath)
+	output, err := session.Output(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("执行ls命令失败: %v", err)
+	}
+
+	// 解析ls命令的输出
+	return c.parseListOutput(string(output), dirPath)
+}
+
+// parseListOutput 解析ls -la命令的输出
+func (c *SSHClient) parseListOutput(output, dirPath string) ([]FileInfo, error) {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	var fileList []FileInfo
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// 跳过总计行和当前目录/父目录
+		if strings.HasPrefix(line, "total ") ||
+			strings.HasSuffix(line, " .") ||
+			strings.HasSuffix(line, " ..") {
+			continue
+		}
+
+		// 解析ls -la的输出格式
+		// 格式: drwxr-xr-x 2 user group 4096 Jan 1 12:00 filename
+		fields := strings.Fields(line)
+		if len(fields) < 9 {
+			continue
+		}
+
+		// 获取文件名（可能包含空格，所以需要特殊处理）
+		nameStartIndex := 8
+		fileName := strings.Join(fields[nameStartIndex:], " ")
+
+		// 跳过 . 和 .. 目录
+		if fileName == "." || fileName == ".." {
+			continue
+		}
+
+		// 解析文件大小
+		size, _ := strconv.ParseInt(fields[4], 10, 64)
+
+		// 解析修改时间
+		timeStr := strings.Join(fields[5:8], " ")
+		modTime, _ := time.Parse("Jan 2 15:04", timeStr)
+		if modTime.Year() == 0 {
+			modTime = modTime.AddDate(time.Now().Year(), 0, 0)
+		}
+
+		// 判断是否为目录
+		isDir := strings.HasPrefix(fields[0], "d")
+
+		// 解析文件权限（暂时使用默认值）
+		mode := os.FileMode(0644)
+		if isDir {
+			mode = os.FileMode(0755) | os.ModeDir
+		}
+
+		fileInfo := FileInfo{
+			Name:    fileName,
+			Path:    filepath.Join(dirPath, fileName),
+			Size:    size,
+			Mode:    mode,
+			ModTime: modTime,
+			IsDir:   isDir,
+		}
+		fileList = append(fileList, fileInfo)
+	}
+
+	return fileList, nil
 }

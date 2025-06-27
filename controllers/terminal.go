@@ -449,6 +449,16 @@ func (c *TerminalController) GetFileList(ctx *gin.Context) {
 		dirPath = "."
 	}
 
+	// 获取分页参数
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "100"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 1000 {
+		pageSize = 100
+	}
+
 	// 获取终端信息
 	terminal, err := c.terminalService.GetTerminalByID(uint(terminalID))
 	if err != nil {
@@ -471,5 +481,32 @@ func (c *TerminalController) GetFileList(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"data": fileList})
+	// 计算分页
+	total := len(fileList)
+	start := (page - 1) * pageSize
+	end := start + pageSize
+
+	// 确保索引不越界
+	if start >= total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+
+	// 获取当前页的数据
+	var pagedFileList []services.FileInfo
+	if start < total {
+		pagedFileList = fileList[start:end]
+	} else {
+		pagedFileList = []services.FileInfo{}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"data":     pagedFileList,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"hasMore":  end < total,
+	})
 }

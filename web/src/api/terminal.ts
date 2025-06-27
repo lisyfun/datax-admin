@@ -93,9 +93,15 @@ export default {
   },
 
   // 获取终端文件列表
-  getFileList(id: number, path: string = '.') {
-    return request.get<{ data: FileInfo[] }>(`/terminals/${id}/files`, {
-      params: { path },
+  getFileList(id: number, path: string = '.', page: number = 1, pageSize: number = 100) {
+    return request.get<{
+      data: FileInfo[],
+      total: number,
+      page: number,
+      pageSize: number,
+      hasMore: boolean
+    }>(`/terminals/${id}/files`, {
+      params: { path, page, pageSize },
     });
   },
 };
