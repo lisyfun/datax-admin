@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"datax-admin/config"
+	"datax-admin/models"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
@@ -90,6 +91,43 @@ func SessionAuth() gin.HandlerFunc {
 			uid = uint(v)
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "用户ID类型错误"})
+			c.Abort()
+			return
+		}
+
+		// 检查用户状态是否有效
+		var user models.User
+		if err := models.DB.First(&user, uid).Error; err != nil {
+			// 用户不存在，清除session
+			session.Clear()
+			session.Options(sessions.Options{
+				Path:     "/",
+				MaxAge:   -1,
+				HttpOnly: true,
+				Secure:   false,
+				SameSite: http.SameSiteLaxMode,
+			})
+			_ = session.Save()
+
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "用户不存在"})
+			c.Abort()
+			return
+		}
+
+		// 检查用户是否被禁用
+		if user.Status == 0 {
+			// 用户被禁用，清除session
+			session.Clear()
+			session.Options(sessions.Options{
+				Path:     "/",
+				MaxAge:   -1,
+				HttpOnly: true,
+				Secure:   false,
+				SameSite: http.SameSiteLaxMode,
+			})
+			_ = session.Save()
+
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "用户已被禁用"})
 			c.Abort()
 			return
 		}

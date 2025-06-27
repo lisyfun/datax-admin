@@ -83,6 +83,11 @@ func (s *UserService) Login(req *types.LoginRequest) (*types.LoginResponse, erro
 		return nil, errors.New("用户不存在")
 	}
 
+	// 检查用户状态
+	if user.Status == 0 {
+		return nil, errors.New("用户已被禁用")
+	}
+
 	if !utils.ComparePasswords(user.Password, safePassword) {
 		return nil, errors.New("密码错误")
 	}
