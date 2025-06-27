@@ -27,8 +27,11 @@ request.interceptors.request.use(
       // 如果有请求数据且是POST/PUT/PATCH方法，则加密请求数据
       if (config.data && (config.method === 'post' || config.method === 'put' || config.method === 'patch')) {
         try {
-          // 加密请求数据
-          config.data = encryptData(config.data);
+          // 检查是否是FormData，FormData不需要加密（文件上传等场景）
+          if (!(config.data instanceof FormData)) {
+            // 加密请求数据
+            config.data = encryptData(config.data);
+          }
         } catch (error) {
           console.error('请求数据加密失败:', error);
           // 如果加密失败，继续使用原始数据

@@ -17,14 +17,17 @@ import (
 
 // SSHClient SSH客户端结构
 type SSHClient struct {
-	client     *ssh.Client
-	session    *ssh.Session
-	sftpClient *sftp.Client
-	stdin      io.WriteCloser
-	stdout     io.Reader
-	stderr     io.Reader
-	closeOnce  sync.Once
-	password   string // 添加密码字段
+	client        *ssh.Client
+	session       *ssh.Session
+	sftpClient    *sftp.Client
+	stdin         io.WriteCloser
+	stdout        io.Reader
+	stderr        io.Reader
+	closeOnce     sync.Once
+	password      string // 添加密码字段
+	authType      string // 添加认证类型字段
+	keyContent    string // 添加密钥内容字段
+	keyPassphrase string // 添加密钥密码字段
 }
 
 // NewSSHClient 创建新的SSH客户端（密码认证）
@@ -98,13 +101,16 @@ func NewSSHClient(host string, port int, username, password string) (*SSHClient,
 	}
 
 	return &SSHClient{
-		client:     client,
-		session:    session,
-		sftpClient: sftpClient,
-		stdin:      stdin,
-		stdout:     stdout,
-		stderr:     stderr,
-		password:   password, // 保存密码
+		client:        client,
+		session:       session,
+		sftpClient:    sftpClient,
+		stdin:         stdin,
+		stdout:        stdout,
+		stderr:        stderr,
+		password:      password,   // 保存密码
+		authType:      "password", // 密码认证
+		keyContent:    "",
+		keyPassphrase: "",
 	}, nil
 }
 
@@ -195,13 +201,16 @@ func NewSSHClientWithKey(host string, port int, username, keyContent, keyPassphr
 	}
 
 	return &SSHClient{
-		client:     client,
-		session:    session,
-		sftpClient: sftpClient,
-		stdin:      stdin,
-		stdout:     stdout,
-		stderr:     stderr,
-		password:   "", // 密钥认证不需要密码
+		client:        client,
+		session:       session,
+		sftpClient:    sftpClient,
+		stdin:         stdin,
+		stdout:        stdout,
+		stderr:        stderr,
+		password:      "",            // 密钥认证不需要密码
+		authType:      "key",         // 密钥认证
+		keyContent:    keyContent,    // 保存密钥内容
+		keyPassphrase: keyPassphrase, // 保存密钥密码
 	}, nil
 }
 
@@ -342,12 +351,53 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 		}
 		fmt.Printf("使用临时文件绝对路径: %s\n", absTempPath)
 
-		// 构建scp命令，使用sshpass自动输入密码
-		scpCmd := fmt.Sprintf("sshpass -p '%s' scp -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", c.password, port, absTempPath, c.client.User(), host, destPath)
-		fmt.Printf("执行scp命令: %s\n", scpCmd)
+		// 根据认证类型构建不同的scp命令
+		var cmd *exec.Cmd
+		if c.authType == "key" {
+			// 密钥认证：创建临时密钥文件
+			keyFile, err := os.CreateTemp("", "ssh-key-*.tmp")
+			if err != nil {
+				fmt.Printf("创建临时密钥文件失败: %v\n", err)
+				os.Remove(tempPath)
+				return
+			}
+			keyPath := keyFile.Name()
 
-		// 使用bash -c执行命令
-		cmd := exec.Command("bash", "-c", scpCmd)
+			// 写入密钥内容
+			if _, err := keyFile.WriteString(c.keyContent); err != nil {
+				fmt.Printf("写入密钥文件失败: %v\n", err)
+				keyFile.Close()
+				os.Remove(tempPath)
+				os.Remove(keyPath)
+				return
+			}
+			keyFile.Close()
+
+			// 设置密钥文件权限为600
+			if err := os.Chmod(keyPath, 0600); err != nil {
+				fmt.Printf("设置密钥文件权限失败: %v\n", err)
+				os.Remove(tempPath)
+				os.Remove(keyPath)
+				return
+			}
+
+			// 使用密钥文件的scp命令
+			scpCmd := fmt.Sprintf("scp -i %s -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", keyPath, port, absTempPath, c.client.User(), host, destPath)
+			fmt.Printf("执行scp命令(密钥认证): %s\n", scpCmd)
+			cmd = exec.Command("bash", "-c", scpCmd)
+
+			// 执行命令后删除密钥文件
+			defer func() {
+				os.Remove(keyPath)
+				fmt.Printf("临时密钥文件已删除: %s\n", keyPath)
+			}()
+		} else {
+			// 密码认证：使用sshpass
+			scpCmd := fmt.Sprintf("sshpass -p '%s' scp -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", c.password, port, absTempPath, c.client.User(), host, destPath)
+			fmt.Printf("执行scp命令(密码认证): %s\n", scpCmd)
+			cmd = exec.Command("bash", "-c", scpCmd)
+		}
+
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
