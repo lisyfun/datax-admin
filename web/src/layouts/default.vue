@@ -58,7 +58,7 @@
       <a-layout-sider
         class="layout-sider"
         :collapsed="collapsed"
-        :width="220"
+        :width="200"
         :collapsed-width="50"
         :hide-trigger="true"
         breakpoint="xxl"
@@ -725,8 +725,12 @@ onUnmounted(() => {
   }
 
   .layout-sider {
-    background: var(--color-bg-1);
-    box-shadow: 2px 0 8px 0 rgba(0, 0, 0, 0.15);
+    background: linear-gradient(180deg,
+      rgba(30, 30, 30, 0.98),
+      rgba(20, 20, 20, 0.95));
+    box-shadow: 4px 0 20px 0 rgba(0, 0, 0, 0.2),
+                2px 0 8px 0 rgba(0, 0, 0, 0.1);
+    border-right: 1px solid rgba(60, 60, 60, 0.3);
   }
 
   .layout-content {
@@ -749,12 +753,22 @@ onUnmounted(() => {
   /* 滚动条暗色适配 */
   :deep(.arco-layout-sider-children)::-webkit-scrollbar-thumb,
   .layout-content::-webkit-scrollbar-thumb {
-    background: var(--color-fill-3);
+    background: linear-gradient(180deg,
+      rgba(80, 80, 80, 0.8),
+      rgba(100, 100, 100, 0.9));
+    border: 1px solid rgba(120, 120, 120, 0.3);
+  }
+
+  :deep(.arco-layout-sider-children)::-webkit-scrollbar-thumb:hover,
+  .layout-content::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg,
+      rgba(120, 120, 120, 0.9),
+      rgba(140, 140, 140, 1));
   }
 
   :deep(.arco-layout-sider-children)::-webkit-scrollbar-track,
   .layout-content::-webkit-scrollbar-track {
-    background: var(--color-bg-2);
+    background: rgba(20, 20, 20, 0.5);
   }
 
   /* 菜单项暗色适配 */
@@ -824,7 +838,7 @@ onUnmounted(() => {
   overflow: auto;
   background: var(--color-neutral-2);
   transition: all 0.2s ease;
-  margin-left: v-bind('collapsed ? "50px" : "220px"');
+  margin-left: v-bind('collapsed ? "50px" : "200px"');
   margin-top: 64px;
   height: calc(100vh - 64px);
 }
