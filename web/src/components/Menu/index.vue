@@ -18,6 +18,9 @@
             v-if="!child.children?.length"
             :key="`item-${child.id}`"
           >
+          <template #icon>
+              <component v-if="child.icon && iconMap[child.icon]" :is="iconMap[child.icon]" />
+          </template>
             {{ child.name }}
           </a-menu-item>
           <a-sub-menu v-else :key="`sub-${child.id}`">
