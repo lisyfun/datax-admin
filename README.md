@@ -73,7 +73,7 @@ docker run -d \
 1. MySQL 数据库服务已启动
 2. 创建数据库（如果不存在）：
 ```sql
-CREATE DATABASE datax_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE datax_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ```
 3. 确保数据库用户有足够的权限访问该数据库
 
