@@ -11,7 +11,7 @@
  Target Server Version : 80042 (8.0.42)
  File Encoding         : 65001
 
- Date: 27/06/2025 18:29:54
+ Date: 10/07/2025 21:44:56
 */
 
 SET NAMES utf8mb4;
@@ -33,11 +33,17 @@ CREATE TABLE `job_histories` (
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
+  `log_path` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_job_id` (`job_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5925 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  KEY `idx_job_id` (`job_id`),
+  KEY `idx_job_histories_log_path` (`log_path`)
+) ENGINE=InnoDB AUTO_INCREMENT=5946 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-
+-- ----------------------------
+-- Records of job_histories
+-- ----------------------------
+BEGIN;
+COMMIT;
 
 -- ----------------------------
 -- Table structure for jobs
@@ -61,7 +67,7 @@ CREATE TABLE `jobs` (
   `deleted_at` datetime(3) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_jobs_deleted_at` (`deleted_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of jobs
@@ -73,12 +79,15 @@ INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, 
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (4, '测试任务', 'shell', '这是一个测试任务', '* 0/1 * * * ?', 0, 3600, 3, 60, '{\"command\":\"echo 1\",\"work_dir\":\"\",\"environment\":{}}', 1, 1, '2025-01-06 16:57:31.000', '2025-04-11 14:29:06.342', NULL);
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (5, 'test', 'shell', 'test', '* * * * * ?', 0, 2, 2, 34, '{\"command\":\"echo 1\",\"work_dir\":\"\",\"environment\":{}}', 1, 1, '2025-01-06 17:27:00.000', '2025-01-06 17:54:40.000', '2025-01-06 17:54:41.000');
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (6, 'HTTP任务', 'http', '测试HTTP任务', '0 2 1 3 * ?', 0, 30, 3, 5, '{\"url\":\"http://localhost:8080/api/v1/ping\",\"method\":\"GET\",\"headers\":{\"Content-Type\":\"application/json\"},\"body\":\"\",\"success_code\":[200,201]}', 1, 1, '2025-01-06 17:34:12.000', '2025-01-10 12:30:41.000', '2025-01-10 12:30:41.000');
-INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (7, 'mysql到 mysql', 'datax', 'mysql到 mysql', '0 0 0 * * ?', 0, 0, 0, 0, '{\"job_config\":\"{\\\"job\\\":{\\\"content\\\":[{\\\"reader\\\":{\\\"name\\\":\\\"mysqlreader\\\",\\\"parameter\\\":{\\\"username\\\":\\\"root\\\",\\\"password\\\":\\\"123456\\\",\\\"host\\\":\\\"192.168.228.1\\\",\\\"port\\\":13306,\\\"database\\\":\\\"datax_source\\\",\\\"table\\\":\\\"users\\\",\\\"columns\\\":[\\\"username\\\",\\\"email\\\",\\\"age\\\",\\\"created_at\\\",\\\"updated_at\\\"],\\\"selectSql\\\":\\\"select username, email, age, created_at, updated_at from users\\\",\\\"where\\\":\\\"id \\u003e1000\\\",\\\"batchSize\\\":10000}},\\\"writer\\\":{\\\"name\\\":\\\"mysqlwriter\\\",\\\"parameter\\\":{\\\"username\\\":\\\"root\\\",\\\"password\\\":\\\"123456\\\",\\\"host\\\":\\\"192.168.228.1\\\",\\\"port\\\":13306,\\\"database\\\":\\\"datax_target\\\",\\\"table\\\":\\\"users\\\",\\\"columns\\\":[\\\"username\\\",\\\"email\\\",\\\"age\\\",\\\"created_at\\\",\\\"updated_at\\\"],\\\"batchSize\\\":10000,\\\"preSql\\\":[\\\"select count(*) from users\\\",\\\"truncate users\\\"],\\\"postSql\\\":[\\\"select count(*) from users\\\"],\\\"writeMode\\\":\\\"replace\\\"}}}],\\\"setting\\\":{\\\"speed\\\":{\\\"channel\\\":24,\\\"bytes\\\":52428800},\\\"errorLimit\\\":{\\\"record\\\":0,\\\"percentage\\\":0.02}}}}\",\"parameters\":{\"datax.job.setting.speed.channel\":\"5\"}}', 1, 1, NULL, '2025-02-26 16:38:32.434', NULL);
+INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (7, 'mysql到 mysql', 'datax', 'mysql到 mysql', '0 0 0 * * ?', 0, 0, 0, 0, '{\"job_config\":\"{\\\"job\\\":{\\\"content\\\":[{\\\"reader\\\":{\\\"name\\\":\\\"mysqlreader\\\",\\\"parameter\\\":{\\\"username\\\":\\\"root\\\",\\\"password\\\":\\\"123456\\\",\\\"host\\\":\\\"host.docker.internal\\\",\\\"port\\\":13306,\\\"database\\\":\\\"datax_source\\\",\\\"table\\\":\\\"users\\\",\\\"columns\\\":[\\\"username\\\",\\\"email\\\",\\\"password\\\",\\\"full_name\\\",\\\"phone\\\",\\\"status\\\",\\\"created_at\\\",\\\"updated_at\\\"],\\\"selectSql\\\":\\\"select username,email,PASSWORD,full_name,phone,STATUS,created_at,updated_at from users\\\",\\\"where\\\":\\\"id \\u003e1000 and created_at \\u003e= ${time}\\\"}},\\\"writer\\\":{\\\"name\\\":\\\"mysqlwriter\\\",\\\"parameter\\\":{\\\"username\\\":\\\"root\\\",\\\"password\\\":\\\"123456\\\",\\\"host\\\":\\\"host.docker.internal\\\",\\\"port\\\":13306,\\\"database\\\":\\\"datax_target\\\",\\\"table\\\":\\\"users\\\",\\\"columns\\\":[\\\"username\\\",\\\"email\\\",\\\"PASSWORD\\\",\\\"full_name\\\",\\\"phone\\\",\\\"STATUS\\\",\\\"created_at\\\",\\\"updated_at\\\"],\\\"preSql\\\":[\\\"select count(*) from users\\\",\\\"truncate users\\\"],\\\"postSql\\\":[\\\"select count(*) from users\\\"],\\\"writeMode\\\":\\\"replace\\\"}}}],\\\"setting\\\":{\\\"speed\\\":{\\\"channel\\\":24,\\\"bytes\\\":52428800},\\\"errorLimit\\\":{\\\"record\\\":0,\\\"percentage\\\":0.02}}}}\",\"parameters\":{\"datax.job.setting.speed.channel\":\"5\",\"time\":\"2024-01-01\"}}', 1, 1, NULL, '2025-07-10 18:34:04.294', NULL);
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (8, 'MySQL到PostgreSQL同步', 'datax', '从源MySQL数据库同步users表到目标PostgreSQL数据库', '0 0 * * * *', 0, 3600, 3, 300, '{\"job_config\":\"{\\\"job\\\":{\\\"content\\\":[{\\\"reader\\\":{\\\"name\\\":\\\"mysqlreader\\\",\\\"parameter\\\":{\\\"username\\\":\\\"root\\\",\\\"password\\\":\\\"123456\\\",\\\"host\\\":\\\"localhost\\\",\\\"port\\\":13306,\\\"database\\\":\\\"datax_source1\\\",\\\"table\\\":\\\"users\\\",\\\"columns\\\":[\\\"username\\\",\\\"email\\\",\\\"age\\\",\\\"created_at\\\",\\\"updated_at\\\"],\\\"selectSql\\\":\\\"select username, email, age, created_at, updated_at from users\\\",\\\"where\\\":\\\"1=1\\\",\\\"batchSize\\\":20000}},\\\"writer\\\":{\\\"name\\\":\\\"postgresqlwriter\\\",\\\"parameter\\\":{\\\"username\\\":\\\"postgres\\\",\\\"password\\\":\\\"123456\\\",\\\"host\\\":\\\"localhost\\\",\\\"port\\\":15432,\\\"database\\\":\\\"target_db\\\",\\\"schema\\\":\\\"public\\\",\\\"table\\\":\\\"users\\\",\\\"columns\\\":[\\\"username\\\",\\\"email\\\",\\\"age\\\",\\\"created_at\\\",\\\"updated_at\\\"],\\\"batchSize\\\":20000,\\\"preSql\\\":[\\\"select count(*) as total_count from users\\\",\\\"truncate table users\\\"],\\\"postSql\\\":[\\\"select count(*) as total_count from users\\\"],\\\"writeMode\\\":\\\"insert\\\"}}}],\\\"setting\\\":{\\\"speed\\\":{\\\"channel\\\":24,\\\"bytes\\\":52428800},\\\"errorLimit\\\":{\\\"record\\\":0,\\\"percentage\\\":0.02}}}}\",\"parameters\":{}}', 1, 1, '2025-01-10 11:35:20.000', '2025-02-26 16:38:34.081', NULL);
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (9, 'Oracle到MySQL同步', 'datax', '从源Oracle数据库同步users表到目标MySQL数据库', '0 0 * * * *', 0, 3600, 3, 300, '{\"job_config\":\"{\\\"job\\\":{\\\"content\\\":[{\\\"reader\\\":{\\\"name\\\":\\\"oraclereader\\\",\\\"parameter\\\":{\\\"username\\\":\\\"sys\\\",\\\"password\\\":\\\"123456\\\",\\\"host\\\":\\\"127.0.0.1\\\",\\\"port\\\":1521,\\\"service\\\":\\\"ORCL\\\",\\\"table\\\":\\\"USERS\\\",\\\"columns\\\":[],\\\"selectSql\\\":\\\"select ID, NAME, EMAIL, AGE from USERS\\\",\\\"where\\\":\\\"id \\u003e 0\\\",\\\"batchSize\\\":20000}},\\\"writer\\\":{\\\"name\\\":\\\"mysqlwriter\\\",\\\"parameter\\\":{\\\"username\\\":\\\"root\\\",\\\"password\\\":\\\"123456\\\",\\\"host\\\":\\\"127.0.0.1\\\",\\\"port\\\":13306,\\\"database\\\":\\\"datax_target\\\",\\\"table\\\":\\\"users\\\",\\\"columns\\\":[\\\"id\\\",\\\"username\\\",\\\"email\\\",\\\"age\\\"],\\\"preSql\\\":[\\\"select count(*) from users\\\",\\\"truncate users\\\"],\\\"postSql\\\":[\\\"select count(*) from users\\\"],\\\"batchSize\\\":1000,\\\"writeMode\\\":\\\"insert\\\"}}}],\\\"setting\\\":{\\\"speed\\\":{\\\"channel\\\":24,\\\"bytes\\\":52428800},\\\"errorLimit\\\":{\\\"record\\\":0,\\\"percentage\\\":0.02}}}}\",\"parameters\":{\"datax.job.setting.speed.channel\":\"5\"}}', 1, 1, '2025-01-10 11:35:36.000', '2025-02-10 15:40:59.143', NULL);
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (10, '1', 'shell', '1', '* * * * * ?', 0, 0, 0, 0, '{\"command\":\"1\",\"work_dir\":\"1\",\"environment\":{}}', 1, 0, '2025-02-10 14:34:10.858', '2025-02-10 14:34:10.858', '2025-02-10 14:37:41.404');
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (11, '2', 'datax', '2', '* * * * * ?', 0, 0, 0, 0, '{\"job_config\":\"{\\\"job\\\":{\\\"content\\\":[{\\\"reader\\\":{\\\"name\\\":\\\"mysqlreader\\\",\\\"parameter\\\":{\\\"username\\\":\\\"lisongyu\\\",\\\"password\\\":\\\"HrQfWc9-WAmNjV4\\\",\\\"host\\\":\\\"localhost\\\",\\\"port\\\":3306,\\\"database\\\":\\\"1\\\",\\\"table\\\":\\\"1\\\",\\\"columns\\\":[\\\"1\\\"],\\\"where\\\":\\\"1=1\\\",\\\"batchSize\\\":20000,\\\"selectSql\\\":\\\"1\\\"}},\\\"writer\\\":{\\\"name\\\":\\\"mysqlwriter\\\",\\\"parameter\\\":{\\\"username\\\":\\\"lisongyu\\\",\\\"password\\\":\\\"HrQfWc9-WAmNjV4\\\",\\\"host\\\":\\\"localhost\\\",\\\"port\\\":3306,\\\"database\\\":\\\"2\\\",\\\"table\\\":\\\"2\\\",\\\"columns\\\":[\\\"2\\\"],\\\"writeMode\\\":\\\"insert\\\",\\\"batchSize\\\":10000,\\\"preSql\\\":[\\\"2\\\"],\\\"postSql\\\":[\\\"2\\\"]}}}],\\\"setting\\\":{\\\"speed\\\":{\\\"channel\\\":24,\\\"bytes\\\":52428800},\\\"errorLimit\\\":{\\\"record\\\":0,\\\"percentage\\\":0.02}}}}\",\"parameters\":{}}', 1, 0, '2025-02-10 14:34:39.992', '2025-02-10 14:34:39.992', '2025-02-10 14:37:39.986');
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (12, 'test', 'datax', '1', '* * * * * ?', 0, 0, 0, 0, '{\"job_config\":\"{\\\"job\\\":{\\\"content\\\":[{\\\"reader\\\":{\\\"name\\\":\\\"mysqlreader\\\",\\\"parameter\\\":{\\\"username\\\":\\\"lisongyu\\\",\\\"password\\\":\\\"HrQfWc9-WAmNjV4\\\",\\\"host\\\":\\\"localhost\\\",\\\"port\\\":3306,\\\"database\\\":\\\"1\\\",\\\"table\\\":\\\"q\\\",\\\"columns\\\":[\\\"username\\\",\\\"email\\\",\\\"age\\\",\\\"created_at\\\",\\\"updated_at\\\"],\\\"where\\\":\\\"1=1\\\",\\\"batchSize\\\":20000,\\\"selectSql\\\":\\\"select username, email, age, created_at, updated_at from users\\\"}},\\\"writer\\\":{\\\"name\\\":\\\"mysqlwriter\\\",\\\"parameter\\\":{\\\"username\\\":\\\"lisongyu\\\",\\\"password\\\":\\\"HrQfWc9-WAmNjV4\\\",\\\"host\\\":\\\"localhost\\\",\\\"port\\\":3306,\\\"database\\\":\\\"1\\\",\\\"table\\\":\\\"2\\\",\\\"columns\\\":[\\\"username\\\",\\\"email\\\",\\\"age\\\",\\\"created_at\\\",\\\"updated_at\\\"],\\\"writeMode\\\":\\\"insert\\\",\\\"batchSize\\\":10000,\\\"preSql\\\":[],\\\"postSql\\\":[]}}}],\\\"setting\\\":{\\\"speed\\\":{\\\"channel\\\":24,\\\"bytes\\\":52428800},\\\"errorLimit\\\":{\\\"record\\\":0,\\\"percentage\\\":0.02}}}}\",\"parameters\":{}}', 1, 0, '2025-02-22 15:15:03.344', '2025-03-13 15:13:33.686', '2025-03-28 21:31:17.442');
+INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (13, '错误测试任务', 'shell', '测试错误日志', '0 0 1 1 * ?', 0, 0, 0, 0, '{\"command\":\"nonexistentcommand\",\"work_dir\":\"\",\"environment\":{}}', 1, 0, '2025-07-10 13:33:28.533', '2025-07-10 13:33:28.533', NULL);
+INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (14, '长时间测试任务', 'shell', '测试实时日志功能', '0 0 1 1 * ?', 0, 0, 0, 0, '{\"command\":\"for i in {1..10}; do echo \\\"第 $i 步执行中...\\\"; sleep 2; done; echo \\\"任务完成！\\\"\",\"work_dir\":\"\",\"environment\":{}}', 1, 0, '2025-07-10 13:45:41.019', '2025-07-10 13:45:41.019', NULL);
+INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (15, '超长时间测试任务', 'shell', '测试实时日志刷新功能', '0 0 1 1 * ?', 0, 0, 0, 0, '{\"command\":\"for i in {1..20}; do echo \\\"第 $i 步执行中，时间: $(date)\\\"; sleep 3; done; echo \\\"任务完成！\\\"\",\"work_dir\":\"\",\"environment\":{}}', 1, 0, '2025-07-10 13:49:43.754', '2025-07-10 13:49:43.754', NULL);
 COMMIT;
 
 -- ----------------------------
@@ -101,12 +110,14 @@ CREATE TABLE `kafka_clusters` (
   `last_check_time` datetime(3) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uni_kafka_clusters_name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Kafka集群配置';
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Kafka集群配置';
 
 -- ----------------------------
 -- Records of kafka_clusters
 -- ----------------------------
-
+BEGIN;
+INSERT INTO `kafka_clusters` (`id`, `name`, `broker_servers`, `security_protocol`, `sasl_mechanism`, `username`, `password`, `description`, `created_at`, `updated_at`, `delay_message`, `status`, `last_check_time`) VALUES (8, 'host.docker.internal', 'host.docker.internal:9092', 'SASL_PLAINTEXT', 'PLAIN', 'user', '123456', '', '2025-05-13 09:54:35.000', '2025-07-10 21:17:07.530', 0, 1, '2025-07-10 21:17:07.524');
+COMMIT;
 
 -- ----------------------------
 -- Table structure for kafka_topics
@@ -125,7 +136,7 @@ CREATE TABLE `kafka_topics` (
   `updated_at` datetime(3) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_cluster_topic` (`cluster_id`,`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of kafka_topics
@@ -145,12 +156,11 @@ CREATE TABLE `login_logs` (
   `updated_at` datetime(3) DEFAULT NULL,
   `user_id` bigint unsigned NOT NULL COMMENT '用户ID',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=259 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=273 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of login_logs
 -- ----------------------------
-
 
 -- ----------------------------
 -- Table structure for operation_logs
@@ -171,7 +181,7 @@ CREATE TABLE `operation_logs` (
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=96 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of operation_logs
