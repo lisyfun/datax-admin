@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"datax-admin/config"
@@ -232,12 +233,32 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 		return
 	}
 
+	// 替换配置中的参数占位符
+	jobConfig := dataxParams.JobConfig
+	var paramLog strings.Builder
+	paramLog.WriteString("开始执行DataX任务\n")
+	if len(dataxParams.Parameters) > 0 {
+		paramLog.WriteString("参数替换:\n")
+		for key, value := range dataxParams.Parameters {
+			placeholder := fmt.Sprintf("${%s}", key)
+			jobConfig = strings.ReplaceAll(jobConfig, placeholder, value)
+			paramLog.WriteString(fmt.Sprintf("  %s -> %s\n", placeholder, value))
+		}
+	} else {
+		paramLog.WriteString("无参数需要替换\n")
+	}
+
+	// 初始化日志文件
+	if logErr := history.WriteLogToFile(paramLog.String(), ""); logErr != nil {
+		logger.Info("初始化日志文件失败: %v", logErr)
+	}
+
 	// 格式化配置内容
 	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, []byte(dataxParams.JobConfig), "", "    "); err != nil {
+	if err := json.Indent(&prettyJSON, []byte(jobConfig), "", "    "); err != nil {
 		history.Status = 0
-		if logErr := history.WriteLogToFile("", fmt.Sprintf("格式化配置内容失败: %v", err)); logErr != nil {
-			logger.Info("写入日志文件失败: %v", logErr)
+		if logErr := history.AppendLogToFile("", fmt.Sprintf("格式化配置内容失败: %v", err)); logErr != nil {
+			logger.Info("追加日志文件失败: %v", logErr)
 		}
 		return
 	}
@@ -270,8 +291,8 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 		}
 	}()
 
-	// 写入JSON配置
-	if _, err := tmpFile.WriteString(dataxParams.JobConfig); err != nil {
+	// 写入JSON配置（使用替换后的配置）
+	if _, err := tmpFile.WriteString(jobConfig); err != nil {
 		history.Status = 0
 		if logErr := history.WriteLogToFile("", fmt.Sprintf("写入配置失败: %v", err)); logErr != nil {
 			logger.Info("写入日志文件失败: %v", logErr)
@@ -311,50 +332,114 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 		tmpFileName,
 		cmd.Dir)
 
-	// 捕获输出
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	// 追加命令信息（确保LogPath已设置）
+	if history.LogPath != "" {
+		if logErr := history.AppendLogToFile(cmdInfo, ""); logErr != nil {
+			logger.Info("追加命令信息失败: %v", logErr)
+		}
+	} else {
+		// 如果LogPath还没设置，使用WriteLogToFile来追加
+		if logErr := history.WriteLogToFile(cmdInfo, ""); logErr != nil {
+			logger.Info("写入命令信息失败: %v", logErr)
+		}
+	}
 
-	// 执行命令
-	err = cmd.Run()
+	// 创建管道来实时捕获输出
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		history.Status = 0
+		if logErr := history.AppendLogToFile("", fmt.Sprintf("创建stdout管道失败: %v", err)); logErr != nil {
+			logger.Info("追加日志文件失败: %v", logErr)
+		}
+		return
+	}
 
-	// 获取输出内容
-	outMsg := stdout.String()
-	errMsg := stderr.String()
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		history.Status = 0
+		if logErr := history.AppendLogToFile("", fmt.Sprintf("创建stderr管道失败: %v", err)); logErr != nil {
+			logger.Info("追加日志文件失败: %v", logErr)
+		}
+		return
+	}
 
-	fullOutput := outMsg + errMsg
+	// 启动命令
+	if err := cmd.Start(); err != nil {
+		history.Status = 0
+		if logErr := history.AppendLogToFile("", fmt.Sprintf("启动DataX命令失败: %v", err)); logErr != nil {
+			logger.Info("追加日志文件失败: %v", logErr)
+		}
+		return
+	}
 
-	// 合并输出内容
-	var combinedOutput = fmt.Sprintf("命令信息:\n%s\n\n执行日志:\n%s", cmdInfo, fullOutput)
+	// 用于收集所有输出的缓冲区
+	var fullOutput strings.Builder
+
+	// 创建goroutine来实时读取stdout
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			fullOutput.WriteString(line + "\n")
+			// 实时追加日志
+			if logErr := history.AppendLogToFile(line+"\n", ""); logErr != nil {
+				logger.Info("追加stdout日志失败: %v", logErr)
+			}
+		}
+	}()
+
+	// 创建goroutine来实时读取stderr
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			fullOutput.WriteString(line + "\n")
+			// 实时追加日志
+			if logErr := history.AppendLogToFile("", line+"\n"); logErr != nil {
+				logger.Info("追加stderr日志失败: %v", logErr)
+			}
+		}
+	}()
+
+	// 等待命令完成
+	err = cmd.Wait()
+
+	// 获取完整输出用于状态判断
+	fullOutputStr := fullOutput.String()
+
+	// 写入任务完成信息
+	completionMsg := "\n=== 任务执行完成 ===\n"
+	if logErr := history.AppendLogToFile(completionMsg, ""); logErr != nil {
+		logger.Info("追加完成信息失败: %v", logErr)
+	}
 
 	// 检查所有输出中是否包含成功完成的标志（同时检查stdout和stderr）
-	if strings.Contains(fullOutput, "数据同步完成") {
+	if strings.Contains(fullOutputStr, "数据同步完成") {
 		history.Status = 1
-		if logErr := history.WriteLogToFile(combinedOutput, ""); logErr != nil {
-			logger.Info("写入日志文件失败: %v", logErr)
+		if logErr := history.AppendLogToFile("", "任务执行成功"); logErr != nil {
+			logger.Info("追加成功状态失败: %v", logErr)
 		}
 	} else if err != nil {
 		history.Status = 0
-		if logErr := history.WriteLogToFile(combinedOutput, fmt.Sprintf("执行DataX任务失败: %v", err)); logErr != nil {
-			logger.Info("写入日志文件失败: %v", logErr)
+		if logErr := history.AppendLogToFile("", fmt.Sprintf("执行DataX任务失败: %v", err)); logErr != nil {
+			logger.Info("追加错误状态失败: %v", logErr)
 		}
 	} else {
 		// 如果没有明确的成功标志，也没有执行错误，则检查是否有错误关键字
-		fullOutputLower := strings.ToLower(fullOutput)
+		fullOutputLower := strings.ToLower(fullOutputStr)
 		isError := strings.Contains(fullOutputLower, "error") ||
 			strings.Contains(fullOutputLower, "exception") ||
 			strings.Contains(fullOutputLower, "失败")
 
 		if isError {
 			history.Status = 0
-			if logErr := history.WriteLogToFile(combinedOutput, "执行DataX任务失败，输出中包含错误信息"); logErr != nil {
-				logger.Info("写入日志文件失败: %v", logErr)
+			if logErr := history.AppendLogToFile("", "执行DataX任务失败，输出中包含错误信息"); logErr != nil {
+				logger.Info("追加错误状态失败: %v", logErr)
 			}
 		} else {
 			history.Status = 1
-			if logErr := history.WriteLogToFile(combinedOutput, ""); logErr != nil {
-				logger.Info("写入日志文件失败: %v", logErr)
+			if logErr := history.AppendLogToFile("", "任务执行完成"); logErr != nil {
+				logger.Info("追加完成状态失败: %v", logErr)
 			}
 		}
 	}

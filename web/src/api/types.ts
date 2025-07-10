@@ -16,10 +16,8 @@ export interface JobHTTPParams {
 }
 
 export interface JobDataXParams {
-  job_path: string;
+  job_config: string;
   parameters: Record<string, string>;
-  jvm_options: string[];
-  speed: number;
 }
 
 export interface Job {

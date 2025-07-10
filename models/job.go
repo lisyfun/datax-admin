@@ -148,8 +148,12 @@ func (jh *JobHistory) WriteLogToFile(output, error string) error {
 
 // AppendLogToFile 追加日志内容到文件（用于实时日志）
 func (jh *JobHistory) AppendLogToFile(newOutput, newError string) error {
+	// 如果LogPath为空，先初始化日志文件
 	if jh.LogPath == "" {
-		return fmt.Errorf("日志文件路径为空")
+		if err := jh.WriteLogToFile(newOutput, newError); err != nil {
+			return fmt.Errorf("初始化日志文件失败: %v", err)
+		}
+		return nil
 	}
 
 	// 读取现有日志内容
