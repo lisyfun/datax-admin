@@ -48,6 +48,13 @@ func main() {
 	// 启动主题同步任务
 	kafkaTopicService.StartTopicSyncTask(5 * time.Minute)
 
+	// 启动任务日志清理器
+	if config.GlobalConfig.JobLog.AutoCleanup {
+		logCleaner := services.NewJobLogCleaner(time.Duration(config.GlobalConfig.JobLog.MaxAge) * 24 * time.Hour)
+		logCleaner.StartAutoCleanup()
+		logger.Info("任务日志自动清理器已启动，保留天数: %d", config.GlobalConfig.JobLog.MaxAge)
+	}
+
 	// 设置gin模式
 	gin.SetMode(config.GlobalConfig.Server.Mode)
 

@@ -31,3 +31,8 @@ logger:
 auth:
   secret: "a266d59b88e44d618aaab77bac0f7a50"    # Session密钥
   expiration: 86400                # Session过期时间(秒)，86400=1天
+
+# 任务日志配置
+job_log:
+  max_age: 30        # 日志保留天数，默认30天
+  auto_cleanup: true # 是否启用自动清理

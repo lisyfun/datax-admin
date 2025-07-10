@@ -20,6 +20,7 @@
             allow-clear
             @change="handleSearch"
           >
+            <a-option :value="-1">执行中</a-option>
             <a-option :value="1">成功</a-option>
             <a-option :value="0">失败</a-option>
           </a-select>
@@ -71,12 +72,39 @@
 
     <a-modal
       v-model:visible="showLogModal"
-      title="执行日志"
+      :title="`执行日志 - ${currentRecord?.job_name || ''}`"
       :footer="false"
       :mask-closable="true"
-      :width="800"
+      :width="900"
       @cancel="handleLogModalClose"
     >
+      <div class="log-header">
+        <a-space>
+          <a-tag :color="getStatusColor(currentRecord?.status || 0)">
+            {{ getStatusText(currentRecord?.status || 0) }}
+          </a-tag>
+          <span v-if="currentRecord?.start_time">
+            开始时间: {{ formatDateTime(currentRecord.start_time) }}
+          </span>
+          <span v-if="currentRecord?.end_time">
+            结束时间: {{ formatDateTime(currentRecord.end_time) }}
+          </span>
+          <span v-if="currentRecord?.duration">
+            耗时: {{ currentRecord.duration }}ms
+          </span>
+          <a-button
+            type="primary"
+            size="small"
+            @click="refreshLog"
+            :loading="refreshingLog"
+            v-if="currentRecord?.status === -1"
+          >
+            <template #icon><icon-refresh /></template>
+            刷新日志
+          </a-button>
+        </a-space>
+      </div>
+      <a-divider />
       <div class="log-content">
         <pre>{{ currentLog }}</pre>
       </div>
@@ -89,7 +117,7 @@ import { ref, reactive, onBeforeUnmount, onMounted } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
 import { IconRefresh, IconEye, IconClose, IconDelete } from '@arco-design/web-vue/es/icon';
-import { getJobHistoryList, cleanJobHistory } from '@/api/job';
+import { getJobHistoryList, getJobHistoryDetail, cleanJobHistory } from '@/api/job';
 import type { JobHistory } from '@/api/types';
 import { formatDateTime } from '@/utils/date';
 import { useRoute, useRouter } from 'vue-router';
@@ -101,6 +129,8 @@ const loading = ref(false);
 const renderData = ref<JobHistory[]>([]);
 const showLogModal = ref(false);
 const currentLog = ref('');
+const currentRecord = ref<JobHistory | null>(null);
+const refreshingLog = ref(false);
 let isUnmounted = false;
 
 interface SearchFormState {
@@ -177,27 +207,7 @@ const pagination = reactive({
   showJumper: true,
 });
 
-const getStatusColor = (status: number) => {
-  switch (status) {
-    case 1:
-      return 'green';
-    case 0:
-      return 'red';
-    default:
-      return 'gray';
-  }
-};
 
-const getStatusText = (status: number) => {
-  switch (status) {
-    case 1:
-      return '成功';
-    case 0:
-      return '失败';
-    default:
-      return '未知';
-  }
-};
 
 // 获取历史数据
 const fetchData = async () => {
@@ -274,9 +284,30 @@ const onPageSizeChange = (pageSize: number) => {
   fetchData();
 };
 
+// 获取状态颜色
+const getStatusColor = (status: number) => {
+  switch (status) {
+    case -1: return 'blue';   // 执行中
+    case 1: return 'green';   // 成功
+    case 0: return 'red';     // 失败
+    default: return 'gray';
+  }
+};
+
+// 获取状态文本
+const getStatusText = (status: number) => {
+  switch (status) {
+    case -1: return '执行中';
+    case 1: return '成功';
+    case 0: return '失败';
+    default: return '未知';
+  }
+};
+
 // 查看日志
 const handleView = async (record: JobHistory) => {
   if (isUnmounted) return;
+  currentRecord.value = record;
   currentLog.value = record.output || '无输出';
   if (record.error) {
     currentLog.value += `\n\n错误信息：\n${record.error}`;
@@ -284,11 +315,43 @@ const handleView = async (record: JobHistory) => {
   showLogModal.value = true;
 };
 
+// 刷新日志
+const refreshLog = async () => {
+  if (!currentRecord.value || refreshingLog.value) return;
+
+  try {
+    refreshingLog.value = true;
+    const { data } = await getJobHistoryDetail(currentRecord.value.id);
+
+    // 更新当前记录
+    currentRecord.value = data;
+
+    // 更新日志内容
+    currentLog.value = data.output || '无输出';
+    if (data.error) {
+      currentLog.value += `\n\n错误信息：\n${data.error}`;
+    }
+
+    // 如果任务已完成，同时刷新列表数据
+    if (data.status !== -1) {
+      fetchData();
+    }
+
+    Message.success('日志已刷新');
+  } catch (err) {
+    Message.error('刷新日志失败');
+  } finally {
+    refreshingLog.value = false;
+  }
+};
+
 // 关闭日志对话框
 const handleLogModalClose = () => {
   if (isUnmounted) return;
   showLogModal.value = false;
   currentLog.value = '';
+  currentRecord.value = null;
+  refreshingLog.value = false;
 };
 
 // 清理日志
@@ -306,6 +369,8 @@ onBeforeUnmount(() => {
   isUnmounted = true;
   renderData.value = [];
   currentLog.value = '';
+  currentRecord.value = null;
+  refreshingLog.value = false;
   showLogModal.value = false;
 });
 </script>
@@ -313,6 +378,14 @@ onBeforeUnmount(() => {
 <style scoped>
 .history {
   padding: 16px;
+}
+
+.log-header {
+  padding: 12px 0;
+  background-color: var(--color-fill-1);
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
 }
 
 .log-content {

@@ -21,7 +21,10 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 	var shellParams models.JobShellParams
 	if err := mapToStruct(params, &shellParams); err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("解析Shell参数失败: %v", err)
+		// 将日志写入文件而不是直接存储到数据库
+		if logErr := history.WriteLogToFile("", fmt.Sprintf("解析Shell参数失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		return
 	}
 
@@ -33,8 +36,13 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 		defer cancel()
 	}
 
+	// 初始化日志文件
+	if logErr := history.WriteLogToFile(fmt.Sprintf("开始执行Shell命令: %s\n", shellParams.Command), ""); logErr != nil {
+		logger.Info("初始化日志文件失败: %v", logErr)
+	}
+
 	// 准备命令
-	cmd := exec.CommandContext(ctx, "sh", "-c", shellParams.Command+" 2>&1")
+	cmd := exec.CommandContext(ctx, "sh", "-c", shellParams.Command)
 	if shellParams.WorkDir != "" {
 		cmd.Dir = shellParams.WorkDir
 	}
@@ -46,19 +54,96 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 		cmd.Env = env
 	}
 
-	// 捕获输出
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// 执行命令
-	err := cmd.Run()
+	// 创建管道来实时读取输出
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("执行Shell命令失败: %v\n%s", err, stderr.String())
+		if logErr := history.AppendLogToFile("", fmt.Sprintf("创建输出管道失败: %v\n", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
+		return
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		history.Status = 0
+		if logErr := history.AppendLogToFile("", fmt.Sprintf("创建错误管道失败: %v\n", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
+		return
+	}
+
+	// 启动命令
+	if err := cmd.Start(); err != nil {
+		history.Status = 0
+		if logErr := history.AppendLogToFile("", fmt.Sprintf("启动Shell命令失败: %v\n", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
+		return
+	}
+
+	// 实时读取输出
+	var outputBuffer, errorBuffer bytes.Buffer
+	done := make(chan bool, 2)
+
+	// 启动goroutine读取stdout
+	go func() {
+		defer func() { done <- true }()
+		buffer := make([]byte, 1024)
+		for {
+			n, err := stdout.Read(buffer)
+			if n > 0 {
+				content := string(buffer[:n])
+				outputBuffer.WriteString(content)
+				// 实时追加到日志文件
+				if logErr := history.AppendLogToFile(content, ""); logErr != nil {
+					logger.Info("追加输出日志失败: %v", logErr)
+				}
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
+
+	// 启动goroutine读取stderr
+	go func() {
+		defer func() { done <- true }()
+		buffer := make([]byte, 1024)
+		for {
+			n, err := stderr.Read(buffer)
+			if n > 0 {
+				content := string(buffer[:n])
+				errorBuffer.WriteString(content)
+				// 实时追加到日志文件
+				if logErr := history.AppendLogToFile("", content); logErr != nil {
+					logger.Info("追加错误日志失败: %v", logErr)
+				}
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
+
+	// 等待命令完成
+	err = cmd.Wait()
+
+	// 等待所有goroutine完成
+	<-done
+	<-done
+
+	if err != nil {
+		history.Status = 0
+		// 如果有额外的错误信息，追加到日志
+		if logErr := history.AppendLogToFile("", fmt.Sprintf("\n命令执行失败: %v\n", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 	} else {
 		history.Status = 1
-		history.Output = stdout.String()
+		if logErr := history.AppendLogToFile("\n命令执行成功\n", ""); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 	}
 }
 
@@ -75,7 +160,9 @@ func (s *JobService) executeHTTPJob(job *models.Job, params any, history *models
 	req, err := http.NewRequest(httpParams.Method, httpParams.URL, strings.NewReader(httpParams.Body))
 	if err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("创建HTTP请求失败: %v", err)
+		if logErr := history.WriteLogToFile("", fmt.Sprintf("创建HTTP请求失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		return
 	}
 
@@ -93,7 +180,9 @@ func (s *JobService) executeHTTPJob(job *models.Job, params any, history *models
 	resp, err := client.Do(req)
 	if err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("发送HTTP请求失败: %v", err)
+		if logErr := history.WriteLogToFile("", fmt.Sprintf("发送HTTP请求失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		return
 	}
 	defer resp.Body.Close()
@@ -102,7 +191,9 @@ func (s *JobService) executeHTTPJob(job *models.Job, params any, history *models
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("读取HTTP响应失败: %v", err)
+		if logErr := history.WriteLogToFile("", fmt.Sprintf("读取HTTP响应失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		return
 	}
 
@@ -117,14 +208,17 @@ func (s *JobService) executeHTTPJob(job *models.Job, params any, history *models
 		}
 		if !isSuccess {
 			history.Status = 0
-			history.Error = fmt.Sprintf("HTTP响应状态码不符合预期: %d", resp.StatusCode)
-			history.Output = string(body)
+			if logErr := history.WriteLogToFile(string(body), fmt.Sprintf("HTTP响应状态码不符合预期: %d", resp.StatusCode)); logErr != nil {
+				logger.Info("写入日志文件失败: %v", logErr)
+			}
 			return
 		}
 	}
 
 	history.Status = 1
-	history.Output = string(body)
+	if logErr := history.WriteLogToFile(string(body), ""); logErr != nil {
+		logger.Info("写入日志文件失败: %v", logErr)
+	}
 }
 
 // executeDataXJob 执行DataX任务
@@ -132,7 +226,9 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 	var dataxParams models.JobDataXParams
 	if err := mapToStruct(params, &dataxParams); err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("解析DataX参数失败: %v", err)
+		if logErr := history.WriteLogToFile("", fmt.Sprintf("解析DataX参数失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		return
 	}
 
@@ -140,7 +236,9 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 	var prettyJSON bytes.Buffer
 	if err := json.Indent(&prettyJSON, []byte(dataxParams.JobConfig), "", "    "); err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("格式化配置内容失败: %v", err)
+		if logErr := history.WriteLogToFile("", fmt.Sprintf("格式化配置内容失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		return
 	}
 
@@ -148,7 +246,9 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 	currentDir, err := os.Getwd()
 	if err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("获取当前工作目录失败: %v", err)
+		if logErr := history.WriteLogToFile("", fmt.Sprintf("获取当前工作目录失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		return
 	}
 
@@ -156,7 +256,9 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 	tmpFile, err := os.CreateTemp(currentDir, "datax-*.json")
 	if err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("创建临时文件失败: %v", err)
+		if logErr := history.WriteLogToFile("", fmt.Sprintf("创建临时文件失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		return
 	}
 	tmpFileName := tmpFile.Name()
@@ -171,7 +273,9 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 	// 写入JSON配置
 	if _, err := tmpFile.WriteString(dataxParams.JobConfig); err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("写入配置失败: %v", err)
+		if logErr := history.WriteLogToFile("", fmt.Sprintf("写入配置失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		tmpFile.Close()
 		return
 	}
@@ -179,7 +283,9 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 	// 确保数据写入磁盘并关闭文件
 	if err := tmpFile.Sync(); err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("同步文件失败: %v", err)
+		if logErr := history.WriteLogToFile("", fmt.Sprintf("同步文件失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		tmpFile.Close()
 		return
 	}
@@ -225,11 +331,14 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 	// 检查所有输出中是否包含成功完成的标志（同时检查stdout和stderr）
 	if strings.Contains(fullOutput, "数据同步完成") {
 		history.Status = 1
-		history.Output = combinedOutput
+		if logErr := history.WriteLogToFile(combinedOutput, ""); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 	} else if err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("执行DataX任务失败: %v", err)
-		history.Output = combinedOutput
+		if logErr := history.WriteLogToFile(combinedOutput, fmt.Sprintf("执行DataX任务失败: %v", err)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 	} else {
 		// 如果没有明确的成功标志，也没有执行错误，则检查是否有错误关键字
 		fullOutputLower := strings.ToLower(fullOutput)
@@ -239,11 +348,14 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 
 		if isError {
 			history.Status = 0
-			history.Error = "执行DataX任务失败，输出中包含错误信息"
-			history.Output = combinedOutput
+			if logErr := history.WriteLogToFile(combinedOutput, "执行DataX任务失败，输出中包含错误信息"); logErr != nil {
+				logger.Info("写入日志文件失败: %v", logErr)
+			}
 		} else {
 			history.Status = 1
-			history.Output = combinedOutput
+			if logErr := history.WriteLogToFile(combinedOutput, ""); logErr != nil {
+				logger.Info("写入日志文件失败: %v", logErr)
+			}
 		}
 	}
 }

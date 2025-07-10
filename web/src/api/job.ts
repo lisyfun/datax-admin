@@ -78,6 +78,11 @@ export function getJobHistoryList(params: JobHistoryListRequest): Promise<AxiosR
   return request.get('/jobs/history', { params });
 }
 
+// 获取任务执行历史详情
+export function getJobHistoryDetail(id: number): Promise<AxiosResponse<JobHistory>> {
+  return request.get(`/jobs/history/${id}`);
+}
+
 // 清理任务历史
 export function cleanJobHistory(days: number): Promise<AxiosResponse<void>> {
   return request.post('/jobs/history/clean', { days });

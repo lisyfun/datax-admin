@@ -13,6 +13,7 @@ type Config struct {
 	DataX    DataXConfig    `mapstructure:"datax"`
 	Logger   LoggerConfig   `mapstructure:"logger"`
 	Auth     AuthConfig     `mapstructure:"auth"`
+	JobLog   JobLogConfig   `mapstructure:"job_log"`
 }
 
 type ServerConfig struct {
@@ -51,8 +52,14 @@ type LoggerConfig struct {
 
 // AuthConfig Auth配置
 type AuthConfig struct {
-	Secret      string `mapstructure:"secret"`  // Session 密钥
-	Expiration  int    `mapstructure:"expiration"` // Session 过期时间(秒)
+	Secret     string `mapstructure:"secret"`     // Session 密钥
+	Expiration int    `mapstructure:"expiration"` // Session 过期时间(秒)
+}
+
+// JobLogConfig 任务日志配置
+type JobLogConfig struct {
+	MaxAge      int  `mapstructure:"max_age"`      // 日志保留天数
+	AutoCleanup bool `mapstructure:"auto_cleanup"` // 是否启用自动清理
 }
 
 var GlobalConfig Config

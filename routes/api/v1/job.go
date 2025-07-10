@@ -2,13 +2,14 @@ package v1
 
 import (
 	"datax-admin/controllers"
+
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterJobRoutes 注册任务管理相关路由
 func RegisterJobRoutes(authenticated *gin.RouterGroup) {
 	jobController := controllers.NewJobController()
-	
+
 	authenticated.POST("/jobs", jobController.CreateJob)
 	authenticated.PUT("/jobs/:id", jobController.UpdateJob)
 	authenticated.DELETE("/jobs/:id", jobController.DeleteJob)
@@ -18,5 +19,6 @@ func RegisterJobRoutes(authenticated *gin.RouterGroup) {
 	authenticated.POST("/jobs/execute", jobController.ExecuteJobs)
 	authenticated.GET("/jobs", jobController.GetJobList)
 	authenticated.GET("/jobs/history", jobController.GetJobHistoryList)
+	authenticated.GET("/jobs/history/:id", jobController.GetJobHistoryDetail)
 	authenticated.POST("/jobs/history/clean", jobController.CleanJobHistory)
 }

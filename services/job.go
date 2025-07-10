@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 )
@@ -296,17 +297,54 @@ func (s *JobService) GetJobHistoryList(req *types.JobHistoryListRequest) (*types
 		return nil, err
 	}
 
-	// 转换为 JobHistory 切片
+	// 转换为 JobHistory 切片并读取日志文件
 	histories := make([]models.JobHistory, len(items))
 	for i, item := range items {
 		histories[i] = item.JobHistory
 		histories[i].JobName = item.JobName
+
+		// 从文件读取日志内容
+		if err := histories[i].ReadLogFromFile(); err != nil {
+			logger.Info("读取任务日志文件失败 (ID: %d): %v", histories[i].ID, err)
+			// 如果读取失败，设置默认值
+			histories[i].Output = ""
+			histories[i].Error = ""
+		}
 	}
 
 	return &types.JobHistoryListResponse{
 		Total: total,
 		Items: histories,
 	}, nil
+}
+
+// GetJobHistoryDetail 获取任务执行历史详情
+func (s *JobService) GetJobHistoryDetail(historyID uint) (*models.JobHistory, error) {
+	var item struct {
+		models.JobHistory
+		JobName string `json:"job_name"`
+	}
+
+	if err := models.DB.Model(&models.JobHistory{}).
+		Select("job_histories.*, jobs.name as job_name").
+		Joins("LEFT JOIN jobs ON jobs.id = job_histories.job_id").
+		Where("job_histories.id = ?", historyID).
+		First(&item).Error; err != nil {
+		return nil, err
+	}
+
+	history := item.JobHistory
+	history.JobName = item.JobName
+
+	// 从文件读取日志内容
+	if err := history.ReadLogFromFile(); err != nil {
+		logger.Info("读取任务日志文件失败 (ID: %d): %v", history.ID, err)
+		// 如果读取失败，设置默认值
+		history.Output = ""
+		history.Error = ""
+	}
+
+	return &history, nil
 }
 
 // validateAndSerializeParams 验证并序列化任务参数
@@ -367,30 +405,49 @@ func (s *JobService) executeJob(job *models.Job) {
 	history := &models.JobHistory{
 		JobID:     job.ID,
 		StartTime: time.Now(),
+		EndTime:   nil, // 设置为nil，表示任务还未结束
+		Status:    -1,  // -1 表示正在执行中
 	}
+
+	// 立即插入历史记录，让用户能看到任务正在执行
+	if err := models.DB.Create(history).Error; err != nil {
+		logger.Info("创建任务历史记录失败 [%s] (ID: %d): %v", job.Name, job.ID, err)
+		return
+	}
+
+	logger.Info("任务历史记录已创建: [%s] (ID: %d), 历史记录ID: %d", job.Name, job.ID, history.ID)
 
 	// 执行任务并记录结果
 	defer func() {
 		// 添加panic恢复
 		if r := recover(); r != nil {
 			history.Status = 0
-			history.Error = fmt.Sprintf("任务执行panic: %v", r)
+			// 对于panic情况，也需要写入日志文件
+			if logErr := history.WriteLogToFile("", fmt.Sprintf("任务执行panic: %v", r)); logErr != nil {
+				logger.Info("写入panic日志文件失败: %v", logErr)
+			}
 			logger.Info("任务执行panic: [%s] (ID: %d): %v", job.Name, job.ID, r)
 		}
 
-		history.EndTime = time.Now()
-		history.Duration = history.EndTime.Sub(history.StartTime).Milliseconds()
+		endTime := time.Now()
+		history.EndTime = &endTime
+		history.Duration = endTime.Sub(history.StartTime).Milliseconds()
 
 		logger.Info("任务执行完成: [%s] (ID: %d), 状态: %d, 耗时: %dms",
 			job.Name, job.ID, history.Status, history.Duration)
 
-		// 添加错误处理和重试逻辑
+		// 更新已存在的历史记录而不是创建新记录
 		maxRetries := 3
 		for i := 0; i < maxRetries; i++ {
-			if err := models.DB.Create(history).Error; err != nil {
+			if err := models.DB.Model(history).Updates(map[string]interface{}{
+				"status":   history.Status,
+				"end_time": history.EndTime,
+				"duration": history.Duration,
+				"log_path": history.LogPath,
+			}).Error; err != nil {
 				if i == maxRetries-1 {
 					// 如果是最后一次重试，记录错误
-					logger.Info("保存任务历史记录失败 [%s] (ID: %d): %v", job.Name, job.ID, err)
+					logger.Info("更新任务历史记录失败 [%s] (ID: %d): %v", job.Name, job.ID, err)
 				}
 				// 等待一小段时间后重试
 				time.Sleep(time.Second * time.Duration(i+1))
@@ -403,7 +460,10 @@ func (s *JobService) executeJob(job *models.Job) {
 	var params any
 	if err := json.Unmarshal([]byte(job.Params), &params); err != nil {
 		history.Status = 0
-		history.Error = fmt.Sprintf("解析任务参数失败: %v", err)
+		errorMsg := fmt.Sprintf("解析任务参数失败: %v", err)
+		if logErr := history.WriteLogToFile("", errorMsg); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
 		return
 	}
 
@@ -447,8 +507,32 @@ func (s *JobService) ExecuteJob(jobID uint) error {
 
 // CleanJobHistory 清理任务历史
 func (s *JobService) CleanJobHistory(beforeTime time.Time) error {
+	var histories []models.JobHistory
+
+	// 先查询要删除的记录，获取日志文件路径
+	query := models.DB.Model(&models.JobHistory{})
 	if beforeTime.IsZero() {
 		// 清理全部历史记录
+		query = query.Where("1 = 1")
+	} else {
+		query = query.Where("created_at < ?", beforeTime)
+	}
+
+	if err := query.Find(&histories).Error; err != nil {
+		return err
+	}
+
+	// 删除对应的日志文件
+	for _, history := range histories {
+		if history.LogPath != "" {
+			if err := os.Remove(history.LogPath); err != nil && !os.IsNotExist(err) {
+				logger.Info("删除日志文件失败: %s, 错误: %v", history.LogPath, err)
+			}
+		}
+	}
+
+	// 删除数据库记录
+	if beforeTime.IsZero() {
 		return models.DB.Where("1 = 1").Delete(&models.JobHistory{}).Error
 	}
 	return models.DB.Where("created_at < ?", beforeTime).Delete(&models.JobHistory{}).Error
