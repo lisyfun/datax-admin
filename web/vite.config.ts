@@ -4,7 +4,10 @@ import path from 'path'
 import viteCompression from 'vite-plugin-compression';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(mode),
+  },
   plugins: [
     vue(),
     viteCompression({
@@ -58,4 +61,4 @@ export default defineConfig({
     },
   },
   base: '/datax/',
-})
+}))

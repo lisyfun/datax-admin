@@ -101,7 +101,7 @@ build-frontend:
 .PHONY: build
 build: $(DIST_DIR)
 	@echo -e "$(YELLOW)构建前端...$(NC)"
-	cd $(FRONTEND_DIR) && pnpm install && pnpm build;
+	cd $(FRONTEND_DIR) && pnpm install && pnpm run build;
 	@echo -e "$(GREEN)前端构建完成$(NC)"
 	@echo -e "$(YELLOW)构建 Linux AMD64...$(NC)"
 	cd $(MAIN_PACKAGE) && GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-amd64 .
@@ -111,7 +111,7 @@ build: $(DIST_DIR)
 .PHONY: build-arm64
 build-arm64: $(DIST_DIR)
 	@echo -e "$(YELLOW)构建前端...$(NC)"
-	cd $(FRONTEND_DIR) && pnpm install && pnpm build;
+	cd $(FRONTEND_DIR) && pnpm install && pnpm run build;
 	@echo -e "$(GREEN)前端构建完成$(NC)"
 	@echo -e "$(YELLOW)构建 Linux AMD64...$(NC)"
 	cd $(MAIN_PACKAGE) && GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-linux-arm64 .
