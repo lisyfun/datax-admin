@@ -70,12 +70,13 @@
       </a-table>
     </a-card>
 
-    <a-modal
+    <a-drawer
       v-model:visible="showLogModal"
       :title="`执行日志 - ${currentRecord?.job_name || ''}`"
       :footer="false"
       :mask-closable="true"
-      :width="900"
+      :width="1200"
+      placement="right"
       @cancel="handleLogModalClose"
     >
       <div class="log-header">
@@ -105,15 +106,15 @@
         </a-space>
       </div>
       <a-divider />
-      <div class="log-content">
+      <div class="log-content" ref="logContentRef">
         <pre>{{ currentLog }}</pre>
       </div>
-    </a-modal>
+    </a-drawer>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onBeforeUnmount, onMounted } from 'vue';
+import { ref, reactive, onBeforeUnmount, onMounted, nextTick } from 'vue';
 import { Message } from '@arco-design/web-vue';
 import type { TableColumnData } from '@arco-design/web-vue/es/table/interface';
 import { IconRefresh, IconEye, IconClose, IconDelete } from '@arco-design/web-vue/es/icon';
@@ -131,6 +132,7 @@ const showLogModal = ref(false);
 const currentLog = ref('');
 const currentRecord = ref<JobHistory | null>(null);
 const refreshingLog = ref(false);
+const logContentRef = ref<HTMLElement>();
 let isUnmounted = false;
 
 interface SearchFormState {
@@ -313,6 +315,18 @@ const handleView = async (record: JobHistory) => {
     currentLog.value += `\n\n错误信息：\n${record.error}`;
   }
   showLogModal.value = true;
+
+  // 打开弹框后滚动到底部
+  scrollToBottom();
+};
+
+// 滚动到日志底部
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (logContentRef.value) {
+      logContentRef.value.scrollTop = logContentRef.value.scrollHeight;
+    }
+  });
 };
 
 // 刷新日志
@@ -336,6 +350,9 @@ const refreshLog = async () => {
     if (data.status !== -1) {
       fetchData();
     }
+
+    // 滚动到底部
+    scrollToBottom();
 
     Message.success('日志已刷新');
   } catch (err) {
@@ -389,7 +406,7 @@ onBeforeUnmount(() => {
 }
 
 .log-content {
-  max-height: 600px;
+  height: calc(100vh - 200px);
   overflow-y: auto;
   background-color: var(--color-fill-2);
   border-radius: 4px;
