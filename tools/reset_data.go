@@ -67,7 +67,7 @@ func main() {
 
 	// 显示当前数据库信息
 	dbConfig := config.GlobalConfig.Database
-	fmt.Printf("🔗 数据库连接: %s@%s:%d/%s\n", dbConfig.Username, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
+	fmt.Printf("🔗 数据库连接: %s@%s:%s/%s\n", dbConfig.Username, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
 
 	fmt.Println("\n⚠️  警告：此操作将删除所有用户、角色和权限数据！")
 	fmt.Print("确认要继续吗？(y/N): ")
