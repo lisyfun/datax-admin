@@ -18,7 +18,7 @@ type Terminal struct {
 	KeyFile       string    `gorm:"type:text;comment:密钥文件内容"`
 	KeyPassphrase string    `gorm:"type:varchar(255);comment:密钥文件密码"`
 	Status        string    `gorm:"type:varchar(20);not null;default:'offline';comment:状态(online/offline)"`
-	LastSeen      time.Time `gorm:"type:datetime;not null;default:CURRENT_TIMESTAMP;comment:最后在线时间"`
+	LastSeen      time.Time `gorm:"not null;comment:最后在线时间"`
 }
 
 // TableName 指定表名

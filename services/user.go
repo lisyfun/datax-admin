@@ -211,9 +211,17 @@ func (s *UserService) GetUserList(req *types.UserListRequest) (*types.UserListRe
 		RoleNames string `gorm:"column:role_names"`
 	}
 
-	// 基础查询
+	// 基础查询 - 使用数据库兼容的聚合函数
+	var selectSQL string
+	dbType := models.DB.Dialector.Name()
+	if dbType == "postgres" {
+		selectSQL = "users.*, STRING_AGG(DISTINCT roles.name, ',') as role_names"
+	} else {
+		selectSQL = "users.*, GROUP_CONCAT(DISTINCT roles.name SEPARATOR ',') as role_names"
+	}
+
 	query := models.DB.Model(&models.User{}).
-		Select("users.*, GROUP_CONCAT(DISTINCT roles.name SEPARATOR ',') as role_names").
+		Select(selectSQL).
 		Joins("LEFT JOIN user_roles ON users.id = user_roles.user_id AND user_roles.deleted_at IS NULL").
 		Joins("LEFT JOIN roles ON user_roles.role_id = roles.id AND roles.deleted_at IS NULL AND roles.status = 1").
 		Group("users.id, users.username, users.password, users.nickname, users.email, users.avatar, users.status, users.created_at, users.updated_at, users.deleted_at")

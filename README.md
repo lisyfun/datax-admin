@@ -29,12 +29,36 @@ DataX Admin 是一个基于 Go 和 Vue.js 构建的现代化数据同步任务�
 
 - Go 1.20 或更高版本
 - Node.js 18 或更高版本
-- MySQL 8.0 或更高版本
+- 数据库（二选一）：
+  - MySQL 8.0 或更高版本
+  - PostgreSQL 12 或更高版本
 - DataX 环境
 
 ## 快速开始
 
 ### 使用 Docker（推荐）
+
+#### 方式一：Docker Compose（最简单）
+
+**使用 PostgreSQL 数据库：**
+```bash
+# 下载 PostgreSQL 版本的 docker-compose 文件
+curl -O https://raw.githubusercontent.com/lisyfun/datax-admin/main/docker-compose-postgres.yml
+
+# 启动服务（包含 PostgreSQL 数据库）
+docker-compose -f docker-compose-postgres.yml up -d
+```
+
+**使用 MySQL 数据库：**
+```bash
+# 下载 MySQL 版本的 docker-compose 文件
+curl -O https://raw.githubusercontent.com/lisyfun/datax-admin/main/docker-compose-mysql.yml
+
+# 启动服务（包含 MySQL 数据库）
+docker-compose -f docker-compose-mysql.yml up -d
+```
+
+#### 方式二：单独运行容器
 
 1. 拉取镜像
 ```bash
@@ -42,11 +66,14 @@ docker pull lisongyu/datax-admin:latest
 ```
 
 2. 运行容器
+
+**使用 MySQL 数据库：**
 ```bash
 docker run -d \
   --name datax-admin \
   -p 28080:80 \
   -v $(pwd)/logs:/app/logs \
+  -e DB_TYPE=mysql \
   -e DB_HOST=localhost \
   -e DB_PORT=3306 \
   -e DB_USERNAME=root \
@@ -56,28 +83,74 @@ docker run -d \
   lisongyu/datax-admin:latest
 ```
 
+**使用 PostgreSQL 数据库：**
+```bash
+docker run -d \
+  --name datax-admin \
+  -p 28080:80 \
+  -v $(pwd)/logs:/app/logs \
+  -e DB_TYPE=postgres \
+  -e DB_HOST=localhost \
+  -e DB_PORT=5432 \
+  -e DB_USERNAME=postgres \
+  -e DB_PASSWORD=your_password \
+  -e DB_NAME=datax_admin \
+  -e DB_SSL_MODE=disable \
+  -e DB_TIME_ZONE=Asia/Shanghai \
+  -e JWT_SECRET=your-jwt-secret-key \
+  lisongyu/datax-admin:latest
+```
+
 **环境变量说明：**
+- `DB_TYPE`: 数据库类型（默认：mysql，支持：mysql, postgres）
 - `DB_HOST`: 数据库主机地址（默认：localhost）
-- `DB_PORT`: 数据库端口（默认：3306）
+- `DB_PORT`: 数据库端口（MySQL默认：3306，PostgreSQL默认：5432）
 - `DB_USERNAME`: 数据库用户名（默认：root）
 - `DB_PASSWORD`: 数据库密码（必须设置）
 - `DB_NAME`: 数据库名称（默认：datax_admin）
+- `DB_SSL_MODE`: PostgreSQL SSL模式（默认：disable）
+- `DB_TIME_ZONE`: 数据库时区（默认：Asia/Shanghai）
 - `JWT_SECRET`: JWT密钥（建议设置复杂密钥）
 
 **注意：** 请确保数据库已创建并可访问，系统会自动创建所需的表结构。
 
 ### 数据库初始化
 
-在运行系统之前，请确保：
+系统支持 **MySQL** 和 **PostgreSQL** 两种数据库，在运行系统之前，请确保：
 
+#### MySQL 数据库
 1. MySQL 数据库服务已启动
 2. 创建数据库（如果不存在）：
 ```sql
 CREATE DATABASE datax_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ```
 3. 确保数据库用户有足够的权限访问该数据库
+4. 在 `config.yaml` 中设置 `db.type: mysql`
+
+#### PostgreSQL 数据库
+1. PostgreSQL 数据库服务已启动
+2. 创建数据库（如果不存在）：
+```sql
+CREATE DATABASE datax_admin;
+```
+3. 确保数据库用户有足够的权限访问该数据库
+4. 在 `config.yaml` 中设置 `db.type: postgres`
+5. 可参考 `config-postgres.yaml` 配置示例
 
 系统首次启动时会自动创建所需的表结构和初始数据。
+
+#### 强制重新初始化
+
+如果需要重新初始化数据（会清空现有数据），可以在配置文件中设置：
+
+```yaml
+init:
+  force_reset: true
+```
+
+**⚠️ 警告：** 此操作会删除所有现有的用户、角色和权限数据，请谨慎使用！
+
+详细说明请参考：[强制重置配置说明](FORCE_RESET_CONFIG.md)
 
 访问 http://localhost:28080/datax 即可使用系统。
 
@@ -145,11 +218,14 @@ make run
 
 | 环境变量 | 说明 | 默认值 |
 |---------|------|--------|
+| `DB_TYPE` | 数据库类型 | mysql |
 | `DB_HOST` | 数据库主机地址 | localhost |
-| `DB_PORT` | 数据库端口 | 3306 |
+| `DB_PORT` | 数据库端口 | 3306 (MySQL) / 5432 (PostgreSQL) |
 | `DB_USERNAME` | 数据库用户名 | root |
 | `DB_PASSWORD` | 数据库密码 | 无（必须设置） |
 | `DB_NAME` | 数据库名称 | datax_admin |
+| `DB_SSL_MODE` | PostgreSQL SSL模式 | disable |
+| `DB_TIME_ZONE` | 数据库时区 | Asia/Shanghai |
 | `JWT_SECRET` | JWT密钥 | 无（建议设置） |
 | `SERVER_PORT` | 服务端口 | 28080 |
 | `DATAX_HOME` | DataX-Admin 可执行文件路径 | /app |
@@ -168,8 +244,9 @@ server:
   max_file_size: 500  # 500MB
 
 db:
+  type: mysql  # 数据库类型: mysql, postgres
   host: localhost
-  port: 3306
+  port: 3306   # MySQL: 3306, PostgreSQL: 5432
   username: root
   password: your_password
   dbname: datax_admin
@@ -177,7 +254,9 @@ db:
   max_open_conns: 100
   conn_max_lifetime: 3600
   log_mode: warn
-  charset: utf8mb4
+  charset: utf8mb4        # MySQL专用
+  time_zone: Asia/Shanghai
+  ssl_mode: disable       # PostgreSQL专用
 
 datax:
   home: "/app"  # DataX 安装目录
@@ -194,6 +273,10 @@ logger:
   max_backups: 7    # 最大保留的旧日志文件数
   max_age: 30       # 日志文件保留的最大天数
   compress: true    # 是否压缩旧日志文件
+
+# 初始化配置
+init:
+  force_reset: false # 是否强制重新初始化数据（会清空现有数据）
 ```
 
 ## 项目结构

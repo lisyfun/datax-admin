@@ -14,6 +14,7 @@ type Config struct {
 	Logger   LoggerConfig   `mapstructure:"logger"`
 	Auth     AuthConfig     `mapstructure:"auth"`
 	JobLog   JobLogConfig   `mapstructure:"job_log"`
+	Init     InitDataConfig `mapstructure:"init"`
 }
 
 type ServerConfig struct {
@@ -24,6 +25,7 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
+	Type         string `mapstructure:"type"` // 数据库类型: mysql, postgres
 	Host         string `mapstructure:"host"`
 	Port         string `mapstructure:"port"`
 	Username     string `mapstructure:"username"`
@@ -35,6 +37,7 @@ type DatabaseConfig struct {
 	MaxLifetime  int    `mapstructure:"max_lifetime"`
 	TimeZone     string `mapstructure:"time_zone"`
 	Charset      string `mapstructure:"charset"`
+	SSLMode      string `mapstructure:"ssl_mode"` // PostgreSQL SSL模式
 }
 
 type DataXConfig struct {
@@ -62,12 +65,27 @@ type JobLogConfig struct {
 	AutoCleanup bool `mapstructure:"auto_cleanup"` // 是否启用自动清理
 }
 
+type InitDataConfig struct {
+	ForceReset bool `mapstructure:"force_reset"` // 是否强制重新初始化数据
+}
+
 var GlobalConfig Config
 
 func InitConfig() {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./")
+	InitConfigWithFile("")
+}
+
+func InitConfigWithFile(configFile string) {
+	// 如果指定了配置文件，使用指定的文件
+	if configFile != "" {
+		viper.SetConfigFile(configFile)
+	} else {
+		// 默认配置
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath("./")
+	}
+
 	viper.AutomaticEnv()
 
 	replacer := strings.NewReplacer(".", "_")

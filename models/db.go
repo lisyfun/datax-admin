@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -16,14 +17,13 @@ var DB *gorm.DB
 
 func InitDB() {
 	var err error
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=True&loc=Local",
-		config.GlobalConfig.Database.Username,
-		config.GlobalConfig.Database.Password,
-		config.GlobalConfig.Database.Host,
-		config.GlobalConfig.Database.Port,
-		config.GlobalConfig.Database.DBName,
-		config.GlobalConfig.Database.Charset,
-	)
+	var dialector gorm.Dialector
+
+	// 根据数据库类型构建连接字符串和dialector
+	dbType := config.GlobalConfig.Database.Type
+	if dbType == "" {
+		dbType = "mysql" // 默认使用MySQL
+	}
 
 	logMode := logger.Warn
 	switch config.GlobalConfig.Database.LogMode {
@@ -35,7 +35,41 @@ func InitDB() {
 		logMode = logger.Error
 	}
 
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
+	switch dbType {
+	case "mysql":
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=True&loc=Local",
+			config.GlobalConfig.Database.Username,
+			config.GlobalConfig.Database.Password,
+			config.GlobalConfig.Database.Host,
+			config.GlobalConfig.Database.Port,
+			config.GlobalConfig.Database.DBName,
+			config.GlobalConfig.Database.Charset,
+		)
+		dialector = mysql.Open(dsn)
+	case "postgres", "postgresql":
+		sslMode := config.GlobalConfig.Database.SSLMode
+		if sslMode == "" {
+			sslMode = "disable"
+		}
+		timeZone := config.GlobalConfig.Database.TimeZone
+		if timeZone == "" {
+			timeZone = "Asia/Shanghai"
+		}
+		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
+			config.GlobalConfig.Database.Host,
+			config.GlobalConfig.Database.Username,
+			config.GlobalConfig.Database.Password,
+			config.GlobalConfig.Database.DBName,
+			config.GlobalConfig.Database.Port,
+			sslMode,
+			timeZone,
+		)
+		dialector = postgres.Open(dsn)
+	default:
+		customLogger.Fatal("不支持的数据库类型: %s", dbType)
+	}
+
+	DB, err = gorm.Open(dialector, &gorm.Config{
 		Logger:                                   logger.Default.LogMode(logMode),
 		DisableForeignKeyConstraintWhenMigrating: true,
 	})
@@ -59,6 +93,11 @@ func InitDB() {
 	// 自动迁移数据库表结构
 	if err := AutoMigrate(); err != nil {
 		customLogger.Fatal("数据库表结构迁移失败: %v", err)
+	}
+
+	// 初始化默认数据
+	if err := InitDefaultData(); err != nil {
+		customLogger.Fatal("初始化默认数据失败: %v", err)
 	}
 }
 

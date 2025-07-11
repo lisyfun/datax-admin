@@ -1,6 +1,7 @@
 package services
 
 import (
+	"datax-admin/config"
 	"datax-admin/models"
 	"datax-admin/types"
 	"datax-admin/utils/cache"
@@ -201,7 +202,8 @@ func (s *DashboardService) GetDashboardData() (*types.DashboardResponse, error) 
 func (s *DashboardService) GetSystemInfo() (*types.SystemInfo, error) {
 	// 获取数据库版本
 	var version string
-	if err := models.DB.Raw("SELECT VERSION()").Scan(&version).Error; err != nil {
+	versionQuery := getVersionQuery()
+	if err := models.DB.Raw(versionQuery).Scan(&version).Error; err != nil {
 		return nil, err
 	}
 
@@ -248,12 +250,86 @@ func (s *DashboardService) GetSystemInfo() (*types.SystemInfo, error) {
 	}, nil
 }
 
+// getVersionQuery 根据数据库类型生成版本查询语句
+func getVersionQuery() string {
+	dbType := config.GlobalConfig.Database.Type
+	if dbType == "" {
+		dbType = "mysql"
+	}
+
+	switch dbType {
+	case "postgres", "postgresql":
+		return "SELECT version()"
+	default:
+		return "SELECT VERSION()"
+	}
+}
+
+// getJobExecutionTrendQuery 根据数据库类型生成查询语句
+func getJobExecutionTrendQuery() string {
+	dbType := config.GlobalConfig.Database.Type
+	if dbType == "" {
+		dbType = "mysql"
+	}
+
+	switch dbType {
+	case "postgres", "postgresql":
+		// PostgreSQL 查询
+		return `
+		WITH date_series AS (
+			SELECT CURRENT_DATE - INTERVAL '1 day' * s.n AS selected_date
+			FROM generate_series(0, 6) AS s(n)
+		),
+		daily_stats AS (
+			SELECT
+				DATE(created_at) as stat_date,
+				SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as success_count,
+				SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed_count
+			FROM job_histories
+			WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
+			GROUP BY DATE(created_at)
+		)
+		SELECT
+			date_series.selected_date as date,
+			COALESCE(daily_stats.success_count, 0) as success_count,
+			COALESCE(daily_stats.failed_count, 0) as failed_count
+		FROM date_series
+		LEFT JOIN daily_stats ON date_series.selected_date = daily_stats.stat_date
+		ORDER BY date_series.selected_date
+		LIMIT 7`
+	default:
+		// MySQL 查询
+		return `
+		SELECT
+			selected_date as date,
+			COALESCE(success_count, 0) as success_count,
+			COALESCE(failed_count, 0) as failed_count
+		FROM (
+			SELECT DATE_SUB(CURDATE(), INTERVAL n DAY) as selected_date
+			FROM (
+				SELECT 0 as n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+				UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
+			) numbers
+		) dates
+		LEFT JOIN (
+			SELECT
+				DATE(created_at) as stat_date,
+				SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as success_count,
+				SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed_count
+			FROM job_histories
+			WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+			GROUP BY DATE(created_at)
+		) daily_stats ON dates.selected_date = daily_stats.stat_date
+		ORDER BY selected_date
+		LIMIT 7`
+	}
+}
+
 // getJobExecutionTrend 获取最近7天的任务执行趋势
 func (s *DashboardService) getJobExecutionTrend() ([]types.JobExecutionTrend, error) {
 	var trends []types.JobExecutionTrend
 
-	// 使用单个SQL查询获取7天的数据
-	query := `SELECT selected_date as date, COALESCE(success_count, 0) as success_count, COALESCE(failed_count, 0) as failed_count FROM (SELECT DATE_SUB(CURDATE(), INTERVAL n DAY) as selected_date FROM (SELECT 0 as n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6) numbers) dates LEFT JOIN (SELECT DATE(created_at) as stat_date, SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as success_count, SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed_count FROM job_histories WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(created_at)) daily_stats ON dates.selected_date = daily_stats.stat_date ORDER BY selected_date LIMIT 7;`
+	query := getJobExecutionTrendQuery()
 	type Result struct {
 		Date         time.Time
 		SuccessCount int64

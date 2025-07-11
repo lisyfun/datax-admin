@@ -5,10 +5,10 @@ server:
   max_file_size: 500  # 500MB
 
 db:
-  type: mysql  # 数据库类型: mysql, postgres
+  type: postgres  # 数据库类型: mysql, postgres
   host: host.docker.internal
-  port: 13306
-  username: root
+  port: 15432
+  username: postgres
   password: 123456
   dbname: datax_admin
   max_idle_conns: 10
