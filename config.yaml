@@ -11,9 +11,9 @@ db:
   username: root
   password: 123456
   dbname: datax_admin
-  max_idle_conns: 10
-  max_open_conns: 100
-  conn_max_lifetime: 3600
+  max_idle_conns: 25
+  max_open_conns: 200
+  conn_max_lifetime: 1800
   log_mode: warn
   charset: utf8mb4
   time_zone: Asia/Shanghai

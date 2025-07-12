@@ -113,8 +113,15 @@ func (s *KafkaService) UpdateKafkaCluster(cluster *models.KafkaCluster) error {
 		return err
 	}
 
-	// 验证成功后更新集群
-	return models.DB.Save(cluster).Error
+	// 创建数据库操作的超时上下文
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 验证成功后更新集群，使用 Select 指定要更新的字段，避免全表更新
+	return models.DB.WithContext(ctx).Model(cluster).Select(
+		"name", "broker_servers", "delay_message", "security_protocol",
+		"sasl_mechanism", "username", "password", "description", "status",
+	).Updates(cluster).Error
 }
 
 // DeleteKafkaCluster 删除 Kafka 集群
@@ -280,13 +287,22 @@ func (s *KafkaService) ListKafkaClusters(page, pageSize int, search string) (*Ka
 // CheckClusterStatus 检查集群状态
 func (s *KafkaService) CheckClusterStatus(cluster *models.KafkaCluster) error {
 	// 更新最后检查时间
-	cluster.LastCheckTime = time.Now()
+	now := time.Now()
+	cluster.LastCheckTime = now
+
+	// 创建数据库操作的超时上下文
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	// 尝试连接集群
 	conn, err := s.getKafkaConn(cluster)
 	if err != nil {
 		cluster.Status = false
-		return models.DB.Save(cluster).Error
+		// 只更新必要的字段，避免全表更新，并使用超时上下文
+		return models.DB.WithContext(ctx).Model(cluster).Updates(map[string]interface{}{
+			"status":          false,
+			"last_check_time": now,
+		}).Error
 	}
 	defer conn.Close()
 
@@ -294,12 +310,20 @@ func (s *KafkaService) CheckClusterStatus(cluster *models.KafkaCluster) error {
 	_, err = conn.Controller()
 	if err != nil {
 		cluster.Status = false
-		return models.DB.Save(cluster).Error
+		// 只更新必要的字段，避免全表更新，并使用超时上下文
+		return models.DB.WithContext(ctx).Model(cluster).Updates(map[string]interface{}{
+			"status":          false,
+			"last_check_time": now,
+		}).Error
 	}
 
 	// 连接成功，更新状态
 	cluster.Status = true
-	return models.DB.Save(cluster).Error
+	// 只更新必要的字段，避免全表更新，并使用超时上下文
+	return models.DB.WithContext(ctx).Model(cluster).Updates(map[string]interface{}{
+		"status":          true,
+		"last_check_time": now,
+	}).Error
 }
 
 // StartClusterHealthCheck 启动集群健康检查
