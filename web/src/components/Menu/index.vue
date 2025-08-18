@@ -559,7 +559,7 @@ watch(
 
 /* 菜单文字优化 */
 :deep(.arco-menu-title) {
-  font-weight: 500 !important;
+  font-weight: 400 !important;
   letter-spacing: 0.3px !important;
   color: var(--color-text-1) !important;
 }
@@ -578,7 +578,7 @@ watch(
   height: 46px !important;
   line-height: 46px !important;
   margin: 4px 12px !important;
-  border-radius: 12px !important;
+  border-radius: 6px !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   padding: 0 18px !important;
   display: flex !important;
@@ -673,7 +673,7 @@ watch(
 :deep(.arco-sub-menu-inline .arco-menu-item) {
   margin: 3px 12px 3px 12px !important;
   padding: 0 18px 0 64px !important;
-  border-radius: 10px !important;
+  border-radius: 6px !important;
   transition: all 0.3s ease !important;
   position: relative !important;
   font-size: 13px !important;
@@ -709,7 +709,7 @@ watch(
   transform: translateY(-50%) !important;
   width: 5px !important;
   height: 5px !important;
-  border-radius: 50% !important;
+  border-radius: 6px !important;
   background: var(--color-text-4) !important;
   transition: all 0.3s ease !important;
   opacity: 0.6 !important;
@@ -750,7 +750,7 @@ watch(
   justify-content: center !important;
   display: flex !important;
   align-items: center !important;
-  border-radius: 10px !important;
+  border-radius: 6px !important;
   height: 44px !important;
   width: calc(100% - 12px) !important;
   box-sizing: border-box !important;
@@ -918,8 +918,8 @@ watch(
 
 /* 特别处理单独的菜单项（如仪表盘）确保与子菜单标题对齐 */
 :deep(.arco-menu-item:not(.arco-menu-indent-1):not(.arco-menu-indent-2)) {
-  margin: 4px 12px !important;
-  border-radius: 12px !important;
+  margin: 0px 12px !important;
+  border-radius: 6px !important;
   height: 46px !important;
   line-height: 46px !important;
   padding: 0 18px !important;
@@ -929,7 +929,7 @@ watch(
 :deep(.arco-sub-menu-inline .arco-menu-item) {
   margin: 3px 12px 3px 12px !important;
   padding: 0 18px 0 64px !important;
-  border-radius: 10px !important;
+  border-radius: 6px !important;
   height: 38px !important;
   line-height: 38px !important;
 }
@@ -1063,7 +1063,7 @@ watch(
 
 :deep(.arco-menu::-webkit-scrollbar-thumb) {
   background: rgba(var(--primary-6), 0.2) !important;
-  border-radius: 2px !important;
+  border-radius: 6px !important;
 }
 
 :deep(.arco-menu::-webkit-scrollbar-thumb:hover) {
