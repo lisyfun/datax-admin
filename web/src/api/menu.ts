@@ -10,6 +10,9 @@ export interface CreateMenuRequest {
   hidden?: number;
   cache?: number;
   type: 1 | 2;
+  is_external?: number; // 是否为外部链接，0-否，1-是
+  external_url?: string; // 外部链接地址
+  open_type?: number; // 打开方式，0-内嵌，1-新窗口
 }
 
 export interface UpdateMenuRequest extends Partial<CreateMenuRequest> {
@@ -28,6 +31,9 @@ export interface MenuResponse {
   hidden: 0 | 1;
   cache: 0 | 1;
   type: 1 | 2;
+  is_external?: number; // 是否为外部链接，0-否，1-是
+  external_url?: string; // 外部链接地址
+  open_type?: number; // 打开方式，0-内嵌，1-新窗口
   children?: MenuResponse[];
 }
 

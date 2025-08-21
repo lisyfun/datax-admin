@@ -14,6 +14,9 @@ export interface PermissionInfo {
   status: number;
   hidden: number;
   cache: number;
+  is_external?: number; // 是否为外部链接，0-否，1-是
+  external_url?: string; // 外部链接地址
+  open_type?: number; // 打开方式，0-内嵌，1-新窗口
   children?: PermissionInfo[];
 }
 
@@ -40,6 +43,9 @@ export interface CreatePermissionParams {
   sort: number;
   hidden: number;
   cache: number;
+  is_external?: number; // 是否为外部链接，0-否，1-是
+  external_url?: string; // 外部链接地址
+  open_type?: number; // 打开方式，0-内嵌，1-新窗口
 }
 
 export interface UpdatePermissionParams {
@@ -54,6 +60,9 @@ export interface UpdatePermissionParams {
   status?: number;
   hidden?: number;
   cache?: number;
+  is_external?: number; // 是否为外部链接，0-否，1-是
+  external_url?: string; // 外部链接地址
+  open_type?: number; // 打开方式，0-内嵌，1-新窗口
 }
 
 export interface PermissionListParams {

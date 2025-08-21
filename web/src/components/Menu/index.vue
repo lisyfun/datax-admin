@@ -39,15 +39,12 @@
         v-else
         :key="`fake-sub-${menu.id}`"
         class="fake-sub-menu"
-        @click.prevent="handleFakeSubMenuClick(menu)"
-        @mousedown.prevent
-        @mouseup.prevent
       >
         <template #icon>
           <component v-if="menu.icon && iconMap[menu.icon]" :is="iconMap[menu.icon]" />
         </template>
         <template #title>
-          <span @click.stop.prevent="handleFakeSubMenuClick(menu)">{{ menu.name }}</span>
+          <span @click="handleFakeSubMenuClick(menu)" @mousedown.stop>{{ menu.name }}</span>
         </template>
         <!-- 不添加任何子菜单项，这样就不会展开 -->
       </a-sub-menu>
@@ -78,6 +75,7 @@ import {
   IconCommand,
   IconLock,
   IconList,
+  IconLink,
 } from '@arco-design/web-vue/es/icon';
 
 const route = useRoute();
@@ -104,6 +102,7 @@ const iconMap: Record<string, any> = {
   'icon-command': IconCommand,
   'icon-lock': IconLock,
   'icon-menu': IconList,
+  'icon-link':IconLink,
 };
 
 // 当前选中的菜单项
@@ -163,35 +162,67 @@ const handleMenuClick = async (key: string) => {
   const menu = fullMenuList.find(m => m.id === keyNum);
   console.log('找到的菜单:', menu);
 
-  if (menu && menu.path) {
-    // 在跳转前，先保存当前的展开状态
-    const currentParentKeys = getParentKeys(menuTree.value, menuId);
-    console.log('点击前保存父级keys:', currentParentKeys);
+  if (menu) {
+    // 检查是否为外部链接
+    if (menu.is_external && menu.external_url) {
+      console.log('点击外部链接菜单:', menu.name, 'URL:', menu.external_url);
 
-    // 构建完整路径
-    const fullPath = buildFullPath(menu);
-    console.log('点击菜单:', menu.name, '原始路径:', menu.path, '构建路径:', fullPath);
+      // 根据open_type决定打开方式
+      if (menu.open_type === 0) {
+        // 内嵌显示
+        console.log('内嵌显示外部链接:', menu.external_url);
+        await router.push({
+          path: '/external-iframe',
+          query: {
+            url: menu.external_url,
+            title: menu.name
+          }
+        });
+      } else {
+        // 新窗口打开（默认）
+        window.open(menu.external_url, '_blank', 'noopener,noreferrer');
+      }
 
-    // 跳转路由
-    await router.push(fullPath);
+      // 设置选中状态
+      selectedKeys.value = [key];
 
-    // 设置选中状态
-    selectedKeys.value = [key];
+      // 重置标记
+      setTimeout(() => {
+        isManualClick.value = false;
+      }, 100);
+    } else if (menu.path) {
+      // 在跳转前，先保存当前的展开状态
+      const currentParentKeys = getParentKeys(menuTree.value, menuId);
+      console.log('点击前保存父级keys:', currentParentKeys);
 
-    // 确保父级菜单保持展开状态
-    if (currentParentKeys.length > 0) {
-      openKeys.value = currentParentKeys.map(k => `sub-${k}`);
-      console.log('设置父级菜单展开状态:', openKeys.value);
-    }
+      // 构建完整路径
+      const fullPath = buildFullPath(menu);
+      console.log('点击菜单:', menu.name, '原始路径:', menu.path, '构建路径:', fullPath);
 
-    console.log('设置选中菜单:', selectedKeys.value);
+      // 跳转路由
+      await router.push(fullPath);
 
-    // 重置标记
-    setTimeout(() => {
+      // 设置选中状态
+      selectedKeys.value = [key];
+
+      // 确保父级菜单保持展开状态
+      if (currentParentKeys.length > 0) {
+        openKeys.value = currentParentKeys.map(k => `sub-${k}`);
+        console.log('设置父级菜单展开状态:', openKeys.value);
+      }
+
+      console.log('设置选中菜单:', selectedKeys.value);
+
+      // 重置标记
+      setTimeout(() => {
+        isManualClick.value = false;
+      }, 100);
+    } else {
+      console.log('菜单或路径不存在, menu:', !!menu, 'path:', menu?.path, 'external_url:', menu?.external_url);
       isManualClick.value = false;
-    }, 100);
+    }
   } else {
-    console.log('菜单或路径不存在, menu:', !!menu, 'path:', menu?.path);
+    console.log('菜单不存在');
     isManualClick.value = false;
   }
 };
@@ -366,18 +397,52 @@ const handleSubMenuClick = (key: string) => {
 };
 
 // 处理伪装子菜单的点击事件
-const handleFakeSubMenuClick = async (menu: any) => {
+const handleFakeSubMenuClick = async (menu: any, event?: Event) => {
   console.log('伪装子菜单点击:', menu.name);
 
-  // 阻止菜单展开到openKeys中
-  const fakeKey = `fake-sub-${menu.id}`;
-  const index = openKeys.value.indexOf(fakeKey);
-  if (index > -1) {
-    openKeys.value.splice(index, 1);
+  // 阻止事件冒泡和默认行为
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
   }
 
-  // 直接跳转到对应页面
-  if (menu.path) {
+  // 检查是否为外部链接
+  if (menu.is_external && menu.external_url) {
+    console.log('外部链接菜单点击:', menu.name, 'URL:', menu.external_url);
+
+    // 根据open_type决定打开方式
+    if (menu.open_type === 0) {
+      // 内嵌显示
+      console.log('内嵌显示外部链接:', menu.external_url);
+      await router.push({
+        path: '/external-iframe',
+        query: {
+          url: menu.external_url,
+          title: menu.name
+        }
+      });
+    } else {
+      // 新窗口打开（默认）
+      window.open(menu.external_url, '_blank', 'noopener,noreferrer');
+    }
+
+    // 设置选中状态
+    selectedKeys.value = [`item-${menu.id}`];
+
+    // 标记为手动点击
+    isManualClick.value = true;
+    setTimeout(() => {
+      isManualClick.value = false;
+    }, 100);
+  } else if (menu.path) {
+    // 阻止菜单展开到openKeys中
+    const fakeKey = `fake-sub-${menu.id}`;
+    const index = openKeys.value.indexOf(fakeKey);
+    if (index > -1) {
+      openKeys.value.splice(index, 1);
+    }
+
+    // 直接跳转到对应页面
     const fullPath = buildFullPath(menu);
     await router.push(fullPath);
     selectedKeys.value = [`item-${menu.id}`];
@@ -985,27 +1050,9 @@ watch(
   cursor: pointer !important;
 }
 
-/* 阻止伪装子菜单展开 */
-:deep(.fake-sub-menu) {
-  pointer-events: auto !important;
-}
-
-:deep(.fake-sub-menu .arco-sub-menu-title) {
-  pointer-events: auto !important;
-}
-
 /* 确保伪装子菜单不会显示子菜单内容 */
 :deep(.fake-sub-menu .arco-sub-menu-inline) {
   display: none !important;
-}
-
-/* 完全禁用伪装子菜单的展开动画和行为 */
-:deep(.fake-sub-menu) {
-  transition: none !important;
-}
-
-:deep(.fake-sub-menu .arco-sub-menu-title) {
-  transition: none !important;
 }
 
 /* 阻止伪装子菜单的默认点击行为 */

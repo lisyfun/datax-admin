@@ -205,6 +205,17 @@ export const appRoutes: AppRouteRecordRaw[] = [
         ],
       },
       {
+        path: 'external-iframe',
+        name: 'ExternalIframe',
+        component: () => import('@/views/ExternalIframe.vue'),
+        meta: {
+          title: '外部页面',
+          requiresAuth: true,
+          hideInMenu: true,
+          roles: ['*'],
+        },
+      },
+      {
         path: 'system',
         name: 'System',
         component: () => import('@/views/system/index.vue'),

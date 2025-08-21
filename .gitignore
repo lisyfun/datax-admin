@@ -1,7 +1,5 @@
 datax-admin.tar
 # 忽略后端日志文件
-/logs/
-/logs/*
 */backend/logs/*
 ./.DS_Store
 *.tar
@@ -24,3 +22,4 @@ tmp/
 .cursor/*
 .cursor/mcp.json
 .cursor/mcp.json
+/logs

@@ -38,6 +38,15 @@
           </a-table-column>
           <a-table-column title="路径" data-index="path" />
           <a-table-column title="组件" data-index="component" />
+          <a-table-column title="外部链接" align="center">
+            <template #cell="{ record }">
+              <span v-if="record.is_external === 1" class="external-link-indicator">
+                <a-tag color="orange">外部链接</a-tag>
+                <div class="external-url">{{ record.external_url }}</div>
+              </span>
+              <span v-else>-</span>
+            </template>
+          </a-table-column>
           <a-table-column title="图标" align="center">
             <template #cell="{ record }">
               <i v-if="record.icon" :class="record.icon"></i>
@@ -125,12 +134,31 @@
           />
         </a-form-item>
         <template v-if="formData.type === 'menu'">
-          <a-form-item field="path" label="路径">
-            <a-input v-model="formData.path" placeholder="请输入路径" />
+          <a-form-item field="is_external" label="是否外部链接">
+            <a-radio-group v-model="formData.is_external">
+              <a-radio :value="0">否（内部路由）</a-radio>
+              <a-radio :value="1">是（外部链接）</a-radio>
+            </a-radio-group>
           </a-form-item>
-          <a-form-item field="component" label="组件">
-            <a-input v-model="formData.component" placeholder="请输入组件路径，例如：views/system/user/index" />
-          </a-form-item>
+          <template v-if="formData.is_external === 0">
+            <a-form-item field="path" label="路径">
+              <a-input v-model="formData.path" placeholder="请输入路径" />
+            </a-form-item>
+            <a-form-item field="component" label="组件">
+              <a-input v-model="formData.component" placeholder="请输入组件路径，例如：views/system/user/index" />
+            </a-form-item>
+          </template>
+          <template v-if="formData.is_external === 1">
+            <a-form-item field="external_url" label="外部链接地址" required>
+              <a-input v-model="formData.external_url" placeholder="请输入外部链接地址，如：https://github.com" />
+            </a-form-item>
+            <a-form-item field="open_type" label="打开方式">
+              <a-radio-group v-model="formData.open_type">
+                <a-radio :value="0">内嵌（在当前页面显示）</a-radio>
+                <a-radio :value="1">新窗口（在新标签页打开）</a-radio>
+              </a-radio-group>
+            </a-form-item>
+          </template>
           <a-form-item field="icon" label="图标">
             <a-input v-model="formData.icon" placeholder="请输入图标类名" />
           </a-form-item>
@@ -193,6 +221,9 @@ const formData = reactive({
   sort: 0,
   hidden: 0,
   cache: 1,
+  is_external: 0,
+  external_url: '',
+  open_type: 1,
 });
 
 const formRules: Record<string, FieldRule[]> = {
@@ -212,6 +243,20 @@ const formRules: Record<string, FieldRule[]> = {
   sort: [
     { required: true, type: 'number', message: '请输入排序' },
     { type: 'number', min: 0, message: '排序不能小于0' }
+  ],
+  external_url: [
+    {
+      validator: (value: string) => {
+        if (formData.is_external === 1 && !value) {
+          return false;
+        }
+        if (value && !/^https?:\/\/.+/.test(value)) {
+          return false;
+        }
+        return true;
+      },
+      message: '外部链接必须是有效的URL格式（如：https://example.com）'
+    }
   ]
 };
 
@@ -286,6 +331,9 @@ const handleAdd = (parent?: PermissionInfo) => {
   formData.sort = 0;
   formData.hidden = 0;
   formData.cache = 1;
+  formData.is_external = 0;
+  formData.external_url = '';
+  formData.open_type = 1;
   showPermissionForm.value = true;
 };
 
@@ -301,7 +349,10 @@ const handleStatusChange = async (record: PermissionInfo, value: boolean) => {
       icon: record.icon,
       sort: record.sort,
       hidden: record.hidden,
-      cache: record.cache
+      cache: record.cache,
+      is_external: record.is_external,
+      external_url: record.external_url,
+      open_type: record.open_type
     });
     Message.success('状态更新成功');
     await fetchPermissions();
@@ -328,7 +379,10 @@ const handleHiddenChange = async (record: PermissionInfo, value: boolean) => {
       icon: record.icon,
       sort: record.sort,
       hidden: value ? 1 : 0,
-      cache: record.cache
+      cache: record.cache,
+      is_external: record.is_external,
+      external_url: record.external_url,
+      open_type: record.open_type
     });
     Message.success('隐藏状态更新成功');
     await fetchPermissions();
@@ -355,7 +409,10 @@ const handleCacheChange = async (record: PermissionInfo, value: boolean) => {
       icon: record.icon,
       sort: record.sort,
       hidden: record.hidden,
-      cache: value ? 1 : 0
+      cache: value ? 1 : 0,
+      is_external: record.is_external,
+      external_url: record.external_url,
+      open_type: record.open_type
     });
     Message.success('缓存状态更新成功');
     await fetchPermissions();
@@ -384,6 +441,9 @@ const handleEdit = (record: PermissionInfo) => {
   formData.sort = record.sort;
   formData.hidden = record.hidden;
   formData.cache = record.cache;
+  formData.is_external = record.is_external ?? 0;
+  formData.external_url = record.external_url ?? '';
+  formData.open_type = record.open_type ?? 1;
   showPermissionForm.value = true;
 };
 
@@ -422,6 +482,9 @@ const handlePermissionFormSubmit = async () => {
         sort: formData.sort,
         hidden: formData.hidden,
         cache: formData.cache,
+        is_external: formData.is_external,
+        external_url: formData.external_url,
+        open_type: formData.open_type,
       });
     } else {
       await permissionApi.createPermission({
@@ -435,6 +498,9 @@ const handlePermissionFormSubmit = async () => {
         sort: formData.sort,
         hidden: formData.hidden,
         cache: formData.cache,
+        is_external: formData.is_external,
+        external_url: formData.external_url,
+        open_type: formData.open_type,
       });
     }
     Message.success(isEdit.value ? '编辑成功' : '新增成功');
@@ -470,5 +536,19 @@ onMounted(() => {
 <style scoped>
 .permissions {
   padding: 16px;
+}
+
+.external-link-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.external-url {
+  font-size: 12px;
+  color: var(--color-text-3);
+  word-break: break-all;
+  max-width: 200px;
 }
 </style>
