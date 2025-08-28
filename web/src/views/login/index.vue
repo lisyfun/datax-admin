@@ -57,21 +57,17 @@
           登录
         </a-button>
         <div class="login-footer">
-          <a-space>
-            <a-link @click="handleRegister">注册账号</a-link>
-            <a-divider direction="vertical" />
-            <a-button
-              type="text"
-              size="small"
-              @click="toggleTheme"
-            >
-              <template #icon>
-                <icon-moon-fill v-if="isDarkMode" />
-                <icon-sun-fill v-else />
-              </template>
-              {{ isDarkMode ? '暗色' : '亮色' }}主题
-            </a-button>
-          </a-space>
+          <a-button
+            type="text"
+            size="small"
+            @click="toggleTheme"
+          >
+            <template #icon>
+              <icon-moon-fill v-if="isDarkMode" />
+              <icon-sun-fill v-else />
+            </template>
+            {{ isDarkMode ? '暗色' : '亮色' }}主题
+          </a-button>
         </div>
       </a-form>
     </div>
@@ -151,11 +147,6 @@ const handleSubmit = async () => {
   } finally {
     loading.value = false;
   }
-};
-
-// 跳转注册页
-const handleRegister = () => {
-  router.push('/register');
 };
 
 onMounted(() => {

@@ -15,16 +15,16 @@ export const appRoutes: AppRouteRecordRaw[] = [
       hideInMenu: true,
     },
   },
-  {
-    path: '/register',
-    name: 'Register',
-    component: () => import('@/views/register/index.vue'),
-    meta: {
-      title: '注册',
-      requiresAuth: false,
-      hideInMenu: true,
-    },
-  },
+  // {
+  //   path: '/register',
+  //   name: 'Register',
+  //   component: () => import('@/views/register/index.vue'),
+  //   meta: {
+  //     title: '注册',
+  //     requiresAuth: false,
+  //     hideInMenu: true,
+  //   },
+  // },
   {
     path: '/',
     name: 'Root',
@@ -275,6 +275,16 @@ export const appRoutes: AppRouteRecordRaw[] = [
       },
     ],
   },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/404/index.vue'),
+    meta: {
+      title: '页面未找到',
+      requiresAuth: false,
+      hideInMenu: true,
+    },
+  },
 ];
 
 const router = createRouter({
@@ -291,9 +301,9 @@ router.beforeEach(async (to, from, next) => {
     try {
       // 尝试获取用户信息，如果成功表示已登录
       await userStore.getUserInfo();
-
-      if (to.path === '/login' || to.path === '/register') {
-        // 已登录但访问登录或注册页，重定向到首页
+      
+      // 已登录用户访问登录页，重定向到首页
+      if (to.path === '/login') {
         next({ path: '/' });
       } else {
         next();
@@ -301,8 +311,8 @@ router.beforeEach(async (to, from, next) => {
     } catch (err) {
       // 获取用户信息失败，表示未登录
       if (to.path !== '/login') {
-        next({ path: '/login', query: { redirect: to.fullPath } });
-      } else {
+      next({ path: '/login', query: { redirect: to.fullPath } });
+  } else {
         next();
       }
     }
