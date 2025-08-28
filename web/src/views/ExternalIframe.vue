@@ -1,95 +1,42 @@
 <template>
   <div class="external-iframe-container">
-    <div class="iframe-header">
-      <h3>{{ title }}</h3>
-      <a-button type="text" @click="goBack">
-        <template #icon><IconClose /></template>
-        关闭
-      </a-button>
-    </div>
     <div class="iframe-wrapper">
       <iframe
+        :key="$route.fullPath"
         :src="url"
         class="external-iframe"
-        @load="onIframeLoad"
-        @error="onIframeError"
       ></iframe>
-      <div v-if="loading" class="iframe-loading">
-        <a-spin size="large">
-          <template #indicator>
-            <IconLoading />
-          </template>
-        </a-spin>
-        <p>正在加载页面...</p>
-      </div>
-      <div v-if="error" class="iframe-error">
-        <a-result status="error" title="加载失败">
-          <template #extra>
-            <a-button type="primary" @click="retry">重试</a-button>
-            <a-button @click="goBack">返回</a-button>
-          </template>
-        </a-result>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import {
-  IconClose,
-  IconLoading,
-} from '@arco-design/web-vue/es/icon';
 
 const route = useRoute();
 const router = useRouter();
+/* 1️⃣ 用计算属性，每次点击都会带新的 _t，使 iframe 重新加载 */
+const url = computed(() => {
+  const raw = route.query.url as string;
+  if (!raw) return '';
+  const u = new URL(raw);          // 避免污染原始 url
+  u.searchParams.set('_t', route.query._t as string || Date.now().toString());
+  return u.toString();
+});
 
-const url = ref('');
-const title = ref('外部页面');
-const loading = ref(true);
-const error = ref(false);
-
-const onIframeLoad = () => {
-  loading.value = false;
-  error.value = false;
-};
-
-const onIframeError = () => {
-  loading.value = false;
-  error.value = true;
-};
-
+/* 2️⃣ 重试：改一次 query 里的 _t 即可 */
 const retry = () => {
-  error.value = false;
-  loading.value = true;
-  // 重新加载iframe
-  const iframe = document.querySelector('.external-iframe') as HTMLIFrameElement;
-  if (iframe) {
-    iframe.src = iframe.src;
-  }
+  router.replace({
+    name: route.name!,
+    query: { ...route.query, _t: Date.now() }
+  });
 };
 
 const goBack = () => {
   router.go(-1);
 };
 
-onMounted(() => {
-  // 从路由参数中获取URL和标题
-  const query = route.query;
-  if (query.url) {
-    url.value = query.url as string;
-  }
-  if (query.title) {
-    title.value = query.title as string;
-  }
-
-  // 如果没有URL，显示错误
-  if (!url.value) {
-    error.value = true;
-    loading.value = false;
-  }
-});
 </script>
 
 <style scoped>

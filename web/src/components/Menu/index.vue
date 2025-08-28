@@ -157,25 +157,20 @@ const handleMenuClick = async (key: string) => {
 
   // 将 key 转换为数字进行比较
   const keyNum = parseInt(menuId);
-  console.log('转换后的key:', keyNum);
 
   const menu = fullMenuList.find(m => m.id === keyNum);
-  console.log('找到的菜单:', menu);
 
   if (menu) {
     // 检查是否为外部链接
     if (menu.is_external && menu.external_url) {
-      console.log('点击外部链接菜单:', menu.name, 'URL:', menu.external_url);
 
       // 根据open_type决定打开方式
       if (menu.open_type === 0) {
         // 内嵌显示
-        console.log('内嵌显示外部链接:', menu.external_url);
         await router.push({
           path: '/external-iframe',
           query: {
             url: menu.external_url,
-            title: menu.name
           }
         });
       } else {
@@ -408,17 +403,14 @@ const handleFakeSubMenuClick = async (menu: any, event?: Event) => {
 
   // 检查是否为外部链接
   if (menu.is_external && menu.external_url) {
-    console.log('外部链接菜单点击:', menu.name, 'URL:', menu.external_url);
 
     // 根据open_type决定打开方式
     if (menu.open_type === 0) {
       // 内嵌显示
-      console.log('内嵌显示外部链接:', menu.external_url);
       await router.push({
         path: '/external-iframe',
         query: {
           url: menu.external_url,
-          title: menu.name
         }
       });
     } else {

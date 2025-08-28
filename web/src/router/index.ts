@@ -15,16 +15,6 @@ export const appRoutes: AppRouteRecordRaw[] = [
       hideInMenu: true,
     },
   },
-  // {
-  //   path: '/register',
-  //   name: 'Register',
-  //   component: () => import('@/views/register/index.vue'),
-  //   meta: {
-  //     title: '注册',
-  //     requiresAuth: false,
-  //     hideInMenu: true,
-  //   },
-  // },
   {
     path: '/',
     name: 'Root',
