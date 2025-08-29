@@ -11,7 +11,7 @@
  Target Server Version : 80043 (8.0.43)
  File Encoding         : 65001
 
- Date: 25/08/2025 09:29:06
+ Date: 28/08/2025 20:15:46
 */
 
 SET NAMES utf8mb4;
@@ -28,17 +28,16 @@ CREATE TABLE `job_histories` (
   `start_time` datetime(3) DEFAULT NULL,
   `end_time` datetime(3) DEFAULT NULL,
   `duration` bigint DEFAULT NULL,
-  `output` longtext ,
-  `error` longtext ,
+  `output` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `error` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
-  `log_path` varchar(500) DEFAULT NULL,
+  `log_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_job_id` (`job_id`),
   KEY `idx_job_histories_log_path` (`log_path`)
-) ENGINE=InnoDB AUTO_INCREMENT=5951 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
+) ENGINE=InnoDB AUTO_INCREMENT=5952 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Table structure for jobs
@@ -46,15 +45,15 @@ CREATE TABLE `job_histories` (
 DROP TABLE IF EXISTS `jobs`;
 CREATE TABLE `jobs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(100)  NOT NULL,
-  `type` varchar(20)  NOT NULL,
-  `description` varchar(500)  DEFAULT NULL,
-  `cron_expr` varchar(100)  NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `description` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `cron_expr` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `status` tinyint DEFAULT '0',
   `timeout` int DEFAULT '0',
   `retry_count` int DEFAULT '0',
   `retry_delay` int DEFAULT '0',
-  `params` text ,
+  `params` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `creator` bigint unsigned NOT NULL,
   `updater` bigint unsigned DEFAULT NULL,
   `created_at` datetime(3) DEFAULT NULL,
@@ -82,7 +81,7 @@ INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, 
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (12, 'test', 'datax', '1', '* * * * * ?', 0, 0, 0, 0, '{\"job_config\":\"{\\\"job\\\":{\\\"content\\\":[{\\\"reader\\\":{\\\"name\\\":\\\"mysqlreader\\\",\\\"parameter\\\":{\\\"username\\\":\\\"lisongyu\\\",\\\"password\\\":\\\"HrQfWc9-WAmNjV4\\\",\\\"host\\\":\\\"localhost\\\",\\\"port\\\":3306,\\\"database\\\":\\\"1\\\",\\\"table\\\":\\\"q\\\",\\\"columns\\\":[\\\"username\\\",\\\"email\\\",\\\"age\\\",\\\"created_at\\\",\\\"updated_at\\\"],\\\"where\\\":\\\"1=1\\\",\\\"batchSize\\\":20000,\\\"selectSql\\\":\\\"select username, email, age, created_at, updated_at from users\\\"}},\\\"writer\\\":{\\\"name\\\":\\\"mysqlwriter\\\",\\\"parameter\\\":{\\\"username\\\":\\\"lisongyu\\\",\\\"password\\\":\\\"HrQfWc9-WAmNjV4\\\",\\\"host\\\":\\\"localhost\\\",\\\"port\\\":3306,\\\"database\\\":\\\"1\\\",\\\"table\\\":\\\"2\\\",\\\"columns\\\":[\\\"username\\\",\\\"email\\\",\\\"age\\\",\\\"created_at\\\",\\\"updated_at\\\"],\\\"writeMode\\\":\\\"insert\\\",\\\"batchSize\\\":10000,\\\"preSql\\\":[],\\\"postSql\\\":[]}}}],\\\"setting\\\":{\\\"speed\\\":{\\\"channel\\\":24,\\\"bytes\\\":52428800},\\\"errorLimit\\\":{\\\"record\\\":0,\\\"percentage\\\":0.02}}}}\",\"parameters\":{}}', 1, 0, '2025-02-22 15:15:03.344', '2025-03-13 15:13:33.686', '2025-03-28 21:31:17.442');
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (13, '错误测试任务', 'shell', '测试错误日志', '0 0 1 1 * ?', 0, 0, 0, 0, '{\"command\":\"nonexistentcommand\",\"work_dir\":\"\",\"environment\":{}}', 1, 0, '2025-07-10 13:33:28.533', '2025-07-10 13:33:28.533', NULL);
 INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (14, '长时间测试任务', 'shell', '测试实时日志功能', '0 0 1 1 * ?', 0, 0, 0, 0, '{\"command\":\"for i in {1..10}; do echo \\\"第 $i 步执行中...\\\"; sleep 2; done; echo \\\"任务完成！\\\"\",\"work_dir\":\"\",\"environment\":{}}', 1, 0, '2025-07-10 13:45:41.019', '2025-07-10 13:45:41.019', NULL);
-INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (15, '超长时间测试任务', 'shell', '测试实时日志刷新功能', '0 0 1 1 * ?', 0, 0, 0, 0, '{\"command\":\"for i in {1..20}; do echo \\\"第 $i 步执行中，时间: $(date)\\\"; sleep 3; done; echo \\\"任务完成！\\\"\",\"work_dir\":\"\",\"environment\":{}}', 1, 0, '2025-07-10 13:49:43.754', '2025-07-10 13:49:43.754', NULL);
+INSERT INTO `jobs` (`id`, `name`, `type`, `description`, `cron_expr`, `status`, `timeout`, `retry_count`, `retry_delay`, `params`, `creator`, `updater`, `created_at`, `updated_at`, `deleted_at`) VALUES (15, '超长时间测试任务', 'shell', '测试实时日志刷新功能', '0 0 1 1 * ?', 0, 0, 0, 0, '{\"command\":\"for i in {1..20}; do echo \\\"第 $i 步执行中，时间: $(date)\\\"; sleep 3; done; echo \\\"任务完成！\\\"\",\"work_dir\":\"\",\"environment\":{}}', 1, 0, '2025-07-10 13:49:43.754', '2025-08-28 10:22:52.924', NULL);
 COMMIT;
 
 -- ----------------------------
@@ -91,13 +90,13 @@ COMMIT;
 DROP TABLE IF EXISTS `kafka_clusters`;
 CREATE TABLE `kafka_clusters` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `name` varchar(100) NOT NULL,
-  `broker_servers` varchar(1000) NOT NULL,
-  `security_protocol` varchar(50) DEFAULT NULL,
-  `sasl_mechanism` varchar(50) DEFAULT NULL,
-  `username` varchar(100) DEFAULT NULL,
-  `password` varchar(255) DEFAULT NULL,
-  `description` varchar(500) DEFAULT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `broker_servers` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `security_protocol` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `sasl_mechanism` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `username` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `description` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
   `delay_message` tinyint(1) DEFAULT '0',
@@ -117,7 +116,7 @@ DROP TABLE IF EXISTS `kafka_topics`;
 CREATE TABLE `kafka_topics` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `cluster_id` bigint unsigned NOT NULL,
-  `name` varchar(191)  NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `partitions` bigint DEFAULT NULL,
   `replicas` bigint DEFAULT NULL,
   `avg_log_size` bigint DEFAULT NULL,
@@ -136,14 +135,14 @@ CREATE TABLE `kafka_topics` (
 DROP TABLE IF EXISTS `login_logs`;
 CREATE TABLE `login_logs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `username` varchar(50)  NOT NULL COMMENT '用户名',
-  `ip` varchar(50)  NOT NULL COMMENT '登录IP',
+  `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '用户名',
+  `ip` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '登录IP',
   `login_time` datetime(3) NOT NULL COMMENT '登录时间',
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
   `user_id` bigint unsigned NOT NULL COMMENT '用户ID',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=280 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=294 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Table structure for operation_logs
@@ -152,19 +151,19 @@ DROP TABLE IF EXISTS `operation_logs`;
 CREATE TABLE `operation_logs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `user_id` bigint unsigned NOT NULL COMMENT '操作用户ID',
-  `username` varchar(50)  NOT NULL COMMENT '操作用户名',
-  `module` varchar(50)  NOT NULL COMMENT '操作模块',
-  `action` varchar(50)  NOT NULL COMMENT '操作动作',
-  `description` varchar(500)  DEFAULT NULL COMMENT '操作描述',
-  `ip` varchar(50)  DEFAULT NULL COMMENT '操作IP',
-  `user_agent` varchar(500)  DEFAULT NULL COMMENT '用户代理',
-  `request_data` text  COMMENT '请求数据',
+  `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '操作用户名',
+  `module` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '操作模块',
+  `action` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '操作动作',
+  `description` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '操作描述',
+  `ip` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '操作IP',
+  `user_agent` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '用户代理',
+  `request_data` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci COMMENT '请求数据',
   `status` bigint DEFAULT '1' COMMENT '操作状态 1:成功 0:失败',
-  `error_msg` varchar(500)  DEFAULT NULL COMMENT '错误信息',
+  `error_msg` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '错误信息',
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=136 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=193 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Table structure for permissions
@@ -172,13 +171,13 @@ CREATE TABLE `operation_logs` (
 DROP TABLE IF EXISTS `permissions`;
 CREATE TABLE `permissions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(50)  NOT NULL,
-  `code` varchar(50)  NOT NULL,
-  `type` varchar(20)  NOT NULL,
+  `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `parent_id` bigint unsigned DEFAULT NULL,
-  `path` varchar(200)  DEFAULT NULL,
-  `component` varchar(200)  DEFAULT NULL,
-  `icon` varchar(50)  DEFAULT NULL,
+  `path` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `component` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `icon` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `sort` bigint DEFAULT '0',
   `status` bigint DEFAULT '1',
   `hidden` bigint DEFAULT '0',
@@ -218,8 +217,8 @@ INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `c
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (17, '用户管理', 'system.users', 'menu', 16, 'users', 'views/system/users/index.vue', 'icon-user', 0, 1, 0, 1, 0, NULL, NULL, NULL, NULL, 1);
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (18, '角色管理', 'system.roles', 'menu', 16, 'roles', 'views/system/roles/index.vue', 'icon-user-group', 1, 1, 0, 1, 0, NULL, NULL, NULL, NULL, 1);
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (19, '权限管理', 'system.permissions', 'menu', 16, 'permissions', 'views/system/permissions/index.vue', 'icon-safe', 2, 1, 0, 1, 0, NULL, NULL, NULL, NULL, 1);
-INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (20, '登录', 'login', 'menu', NULL, '/login', 'views/login/index.vue', '', 0, 1, 1, 0, 0, '', NULL, '2025-08-21 12:27:33.883', '2025-08-21 12:27:33.883', 1);
-INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (21, '注册', 'register', 'menu', NULL, '/register', 'views/register/index.vue', '', 0, 0, 1, 0, 0, '', NULL, '2025-08-21 12:27:27.808', '2025-08-21 12:27:33.883', 1);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (20, '登录', 'login', 'menu', NULL, '/login', 'views/login/index.vue', '', 0, 1, 1, 0, 0, '', NULL, '2025-08-28 09:07:53.497', '2025-08-28 09:08:19.558', 1);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (21, '注册', 'register', 'menu', NULL, '/register', 'views/register/index.vue', '', 0, 0, 1, 0, 0, '', NULL, '2025-08-28 09:03:22.757', '2025-08-28 09:07:21.000', 1);
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (22, '用户查询', 'system.users.query', 'button', 17, '', '', '', 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL, 1);
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (23, '用户创建', 'system.users.create', 'button', 17, '', '', '', 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL, 1);
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (24, '用户编辑', 'system.users.update', 'button', 17, '', '', '', 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL, 1);
@@ -252,10 +251,10 @@ INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `c
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (51, '操作管理', 'system.logs', 'menu', 16, 'logs', 'views/system/logs/index.vue', 'icon-file', 2, 1, 0, 1, 0, NULL, NULL, NULL, NULL, 1);
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (56, '终端上传', 'terminal.list.upload', 'button', 7, '', '', '', 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL, 1);
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (57, '终端下载', 'terminal.list.download', 'button', 7, '', '', '', 0, 1, 0, 0, 0, NULL, NULL, '2025-06-24 11:19:25.955', NULL, 1);
-INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (998, '外部连接', 'external', 'menu', 1, '', '', 'icon-link', 999, 1, 0, 1, 0, '', NULL, '2025-08-21 13:49:32.693', NULL, 1);
-INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1005, 'GitHub', 'external.github', 'menu', 998, '', '', 'icon-github', 1000, 1, 0, 1, 1, 'https://github.com', NULL, '2025-08-21 13:52:30.104', NULL, 0);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (998, '外部连接', 'external', 'menu', 1, '', '', 'icon-link', 999, 1, 0, 0, 0, '', NULL, '2025-08-28 09:38:38.829', NULL, 1);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1005, 'test', 'external.github', 'menu', 998, '', '', 'icon-github', 1000, 1, 0, 0, 1, 'https://baidu.com', NULL, '2025-08-28 10:04:54.998', NULL, 0);
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1006, '项目文档', 'external.docs', 'menu', 998, '', '', 'icon-file', 1001, 0, 0, 1, 1, 'https://example.com/docs', NULL, '2025-08-21 13:52:33.228', '2025-08-21 13:52:36.755', 0);
-INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1007, 'iframe测试', 'external.iframe-test', 'menu', 998, '', '', 'icon-bulb', 1002, 1, 0, 1, 1, 'http://localhost:3000/datax/#/terminal/list', NULL, '2025-08-21 17:09:50.231', NULL, 0);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1007, 'iframe测试', 'external.iframe-test', 'menu', 998, '', '', 'icon-bulb', 1002, 1, 0, 0, 1, 'http://localhost:3000/datax/#/terminal/list', NULL, '2025-08-28 09:38:43.862', NULL, 0);
 COMMIT;
 
 -- ----------------------------
@@ -523,7 +522,7 @@ INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, 
 INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (326, 1, 33, '2025-08-21 13:49:06.452', '2025-08-21 13:49:06.452', '2025-08-21 13:49:11.151');
 INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (327, 1, 34, '2025-08-21 13:49:06.452', '2025-08-21 13:49:06.452', '2025-08-21 13:49:11.151');
 INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (328, 1, 51, '2025-08-21 13:49:06.453', '2025-08-21 13:49:06.453', '2025-08-21 13:49:11.151');
-INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (329, 1, 20, '2025-08-21 13:49:11.153', '2025-08-21 13:49:11.153', NULL);
+INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (329, 1, 20, '2025-08-21 13:49:11.153', '2025-08-21 13:49:11.153', '2025-08-28 09:08:19.564');
 INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (330, 1, 21, '2025-08-21 13:49:11.154', '2025-08-21 13:49:11.154', NULL);
 INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (331, 1, 2, '2025-08-21 13:49:11.154', '2025-08-21 13:49:11.154', NULL);
 INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (332, 1, 3, '2025-08-21 13:49:11.158', '2025-08-21 13:49:11.158', NULL);
@@ -588,15 +587,15 @@ COMMIT;
 DROP TABLE IF EXISTS `roles`;
 CREATE TABLE `roles` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(50)  NOT NULL,
-  `code` varchar(50)  NOT NULL,
-  `description` varchar(200)  DEFAULT NULL,
+  `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `description` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `status` bigint DEFAULT '1',
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
   `deleted_at` datetime(3) DEFAULT NULL,
   `is_admin` tinyint(1) DEFAULT '0',
-  `remark` varchar(200)  DEFAULT NULL,
+  `remark` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uni_roles_code` (`code`),
   UNIQUE KEY `uni_roles_name` (`name`),
@@ -609,6 +608,7 @@ CREATE TABLE `roles` (
 BEGIN;
 INSERT INTO `roles` (`id`, `name`, `code`, `description`, `status`, `created_at`, `updated_at`, `deleted_at`, `is_admin`, `remark`) VALUES (1, '超级管理员', 'admin', '系统超级管理员', 1, '2025-01-05 23:43:34.342', '2025-01-06 11:00:04.362', NULL, 0, NULL);
 INSERT INTO `roles` (`id`, `name`, `code`, `description`, `status`, `created_at`, `updated_at`, `deleted_at`, `is_admin`, `remark`) VALUES (2, '普通用户', 'user', '普通用户角色', 1, '2025-01-05 23:44:22.952', '2025-06-19 22:00:22.208', NULL, 0, NULL);
+INSERT INTO `roles` (`id`, `name`, `code`, `description`, `status`, `created_at`, `updated_at`, `deleted_at`, `is_admin`, `remark`) VALUES (3, '测试', 'test', '测试', 1, '2025-01-06 14:19:45.851', '2025-01-06 14:19:45.851', '2025-01-06 14:19:49.046', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -620,15 +620,15 @@ CREATE TABLE `terminals` (
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
   `deleted_at` datetime(3) DEFAULT NULL,
-  `name` varchar(100)  NOT NULL COMMENT '终端名称',
-  `host` varchar(255)  NOT NULL COMMENT '主机地址',
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '终端名称',
+  `host` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '主机地址',
   `port` int NOT NULL DEFAULT '22' COMMENT 'SSH端口',
-  `username` varchar(50)  NOT NULL COMMENT '用户名',
-  `auth_type` varchar(20)  NOT NULL DEFAULT 'password' COMMENT '认证类型(password/key)',
-  `password` varchar(255)  DEFAULT NULL COMMENT '密码',
-  `key_file` text  COMMENT '密钥文件内容',
-  `key_passphrase` varchar(255)  DEFAULT NULL COMMENT '密钥文件密码',
-  `status` varchar(20)  NOT NULL DEFAULT 'offline' COMMENT '状态(online/offline)',
+  `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '用户名',
+  `auth_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'password' COMMENT '认证类型(password/key)',
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '密码',
+  `key_file` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci COMMENT '密钥文件内容',
+  `key_passphrase` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '密钥文件密码',
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'offline' COMMENT '状态(online/offline)',
   `last_seen` datetime(3) NOT NULL COMMENT '最后在线时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_terminals_host_username` (`host`,`username`),
@@ -639,6 +639,7 @@ CREATE TABLE `terminals` (
   CONSTRAINT `terminals_chk_1` CHECK (((`port` >= 1) and (`port` <= 65535))),
   CONSTRAINT `terminals_chk_2` CHECK ((`status` in (_utf8mb4'online',_utf8mb4'offline')))
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='终端管理';
+
 
 
 -- ----------------------------
@@ -657,7 +658,7 @@ CREATE TABLE `user_roles` (
   KEY `idx_user_roles_role_id` (`role_id`),
   KEY `idx_user_roles_deleted_at` (`deleted_at`),
   KEY `idx_user_role` (`user_id`,`role_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of user_roles
@@ -683,9 +684,11 @@ INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`
 INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (18, 3, 2, '2025-01-11 23:56:23.275', '2025-01-11 23:56:23.275', '2025-01-11 23:56:29.876');
 INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (19, 3, 2, '2025-01-11 23:56:29.877', '2025-01-11 23:56:29.877', '2025-02-28 15:07:10.530');
 INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (20, 3, 1, '2025-01-11 23:56:29.878', '2025-01-11 23:56:29.878', '2025-02-28 15:07:10.530');
-INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (21, 7, 2, '2025-05-24 21:52:12.091', '2025-05-24 21:52:12.091', NULL);
-INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (22, 8, 2, '2025-05-25 10:25:46.870', '2025-05-25 10:25:46.870', NULL);
+INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (21, 7, 2, '2025-05-24 21:52:12.091', '2025-05-24 21:52:12.091', '2025-08-28 15:06:20.793');
+INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (22, 8, 2, '2025-05-25 10:25:46.870', '2025-05-25 10:25:46.870', '2025-08-28 15:06:18.625');
 INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (23, 9, 2, '2025-06-19 22:42:00.908', '2025-06-19 22:42:00.908', NULL);
+INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (24, 10, 2, '2025-08-28 09:03:53.110', '2025-08-28 09:03:53.110', '2025-08-28 15:06:14.497');
+INSERT INTO `user_roles` (`id`, `user_id`, `role_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (25, 11, 2, '2025-08-28 15:06:39.249', '2025-08-28 15:06:39.249', NULL);
 COMMIT;
 
 -- ----------------------------
@@ -694,11 +697,11 @@ COMMIT;
 DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `username` varchar(50)  NOT NULL COMMENT '用户名',
-  `password` varchar(100)  NOT NULL COMMENT '密码',
-  `nickname` varchar(50)  DEFAULT NULL COMMENT '昵称',
-  `email` varchar(100)  DEFAULT NULL COMMENT '邮箱',
-  `avatar` varchar(255)  DEFAULT NULL COMMENT '头像',
+  `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '用户名',
+  `password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '密码',
+  `nickname` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '昵称',
+  `email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '邮箱',
+  `avatar` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '头像',
   `status` bigint DEFAULT '1' COMMENT '状态 0:禁用 1:启用',
   `created_at` datetime(3) DEFAULT NULL,
   `updated_at` datetime(3) DEFAULT NULL,
@@ -706,7 +709,7 @@ CREATE TABLE `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_users_username` (`username`),
   KEY `idx_users_deleted_at` (`deleted_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------
 -- Records of users
