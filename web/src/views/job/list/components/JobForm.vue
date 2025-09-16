@@ -132,9 +132,29 @@
                 <template #icon><icon-edit /></template>
                 Writer配置
               </a-button>
+              <a-button type="primary" @click="handleJsonUpload">
+                <template #icon><icon-file /></template>
+                JSON解析
+              </a-button>
             </a-space>
           </div>
         </a-form-item>
+
+        <!-- JSON输入模态框 -->
+        <a-modal
+          v-model:visible="showJsonModal"
+          title="JSON解析"
+          @ok="handleParseJson"
+          @cancel="handleJsonModalCancel"
+          :width="800"
+          :ok-button-props="{ disabled: !jsonInputText.trim() }"
+        >
+          <a-textarea
+            v-model="jsonInputText"
+            placeholder="请粘贴JSON内容"
+            :auto-size="{ minRows: 10, maxRows: 20 }"
+          />
+        </a-modal>
 
         <!-- Reader配置弹窗 -->
         <a-modal
@@ -250,6 +270,8 @@ const showCronModal = ref(false);
 // 状态变量
 const showReaderModal = ref(false);
 const showWriterModal = ref(false);
+const showJsonModal = ref(false);
+const jsonInputText = ref('');
 const currentReader = ref<any>(null);
 const currentWriter = ref<any>(null);
 
@@ -810,6 +832,169 @@ const handleReaderModalCancel = () => {
 const handleWriterModalCancel = () => {
   showWriterModal.value = false;
 };
+
+// 处理JSON上传按钮点击
+const handleJsonUpload = () => {
+  jsonInputText.value = ''; // 清空之前的输入
+  showJsonModal.value = true;
+};
+
+// 处理JSON模态框取消
+const handleJsonModalCancel = () => {
+  showJsonModal.value = false;
+  jsonInputText.value = '';
+};
+
+// 处理JSON解析
+const handleParseJson = () => {
+  if (!jsonInputText.value.trim()) {
+    Message.warning('请先输入JSON内容');
+    return;
+  }
+
+  try {
+    const jsonData = JSON.parse(jsonInputText.value.trim());
+    
+    // 验证是否为有效的DataX配置
+    if (!jsonData.job || !jsonData.job.content || !Array.isArray(jsonData.job.content)) {
+      Message.error('无效的DataX配置格式');
+      return;
+    }
+
+    // 创建一个完整的DataX配置对象
+    const dataxConfig: any = {
+      job: {
+        content: [{}],
+        setting: {
+          speed: {
+            channel: 24,
+            bytes: 52428800
+          },
+          errorLimit: {
+            record: 0,
+            percentage: 0.02
+          }
+        }
+      }
+    };
+
+    // 提取reader配置（如果有）并转换为表单期望的结构
+    if (jsonData.job.content[0].reader) {
+      const reader = jsonData.job.content[0].reader;
+
+      reader.parameter.connection = reader.parameter.connection || [];
+      if (Array.isArray(reader.parameter.connection) && reader.parameter.connection.length > 0) {
+        const conn = reader.parameter.connection[0];
+        if (Array.isArray(conn.jdbcUrl) && conn.jdbcUrl.length > 0) {
+          const jdbcUrl = conn.jdbcUrl[0];
+          const match = jdbcUrl.match(/:\/\/([^:/]+)(?::(\d+))?\/([^?]+)/);
+          console.log('解析JDBC URL:', jdbcUrl, match);
+          if (match) {
+            reader.parameter.host = match[1];
+            reader.parameter.port = match[2] ? parseInt(match[2], 10) : 3306;
+            reader.parameter.database = match[3];
+          }
+        }
+        if (Array.isArray(conn.table) && conn.table.length > 0) {
+          reader.parameter.table = conn.table[0];
+        }
+        if (Array.isArray(conn.querySql) && conn.querySql.length > 0) {
+          reader.parameter.selectSql = conn.querySql[0];
+        }
+      }
+
+      console.log('解析后的Reader参数:', reader);
+      
+      // 创建与表单一致的reader结构
+      const readerConfig = {
+        name: reader.name || 'mysqlreader',
+        parameter: {
+          username: reader.parameter?.username || '',
+          password: reader.parameter?.password || '',
+          host: reader.parameter?.host || 'localhost',
+          port: reader.parameter?.port || 3306,
+          database: reader.parameter?.database || '',
+          schema: reader.parameter?.schema || 'public',
+          table: reader.parameter?.table || '',
+          columns: reader.parameter?.column || reader.parameter?.columns || [],
+          where: reader.parameter?.where || '1=1',
+          batchSize: reader.parameter?.batchSize || 20000,
+          selectSql: reader.parameter?.selectSql || '',
+          // 保留原始参数中的其他字段
+          // ...reader.parameter
+        }
+      };
+      
+      // 设置到currentReader状态变量
+      currentReader.value = readerConfig;
+      console.log('设置的currentReader:', currentReader.value);
+      
+      // 添加到DataX配置中
+      dataxConfig.job.content[0].reader = readerConfig;
+    }
+    
+    // 提取writer配置（如果有）并转换为表单期望的结构
+    if (jsonData.job.content[0].writer) {
+      const writer = jsonData.job.content[0].writer;
+
+      writer.parameter.connection = writer.parameter.connection || [];
+      if (Array.isArray(writer.parameter.connection) && writer.parameter.connection.length > 0) {
+        const conn = writer.parameter.connection[0];
+        if (typeof conn.jdbcUrl === 'string') {
+          const jdbcUrl = conn.jdbcUrl;
+          const match = jdbcUrl.match(/:\/\/([^:/]+)(?::(\d+))?\/([^?]+)/);
+          console.log('解析JDBC URL:', jdbcUrl, match);
+          if (match) {
+            writer.parameter.host = match[1];
+            writer.parameter.port = match[2] ? parseInt(match[2], 10) : 3306;
+            writer.parameter.database = match[3];
+          }
+        }
+        if (Array.isArray(conn.table) && conn.table.length > 0) {
+          writer.parameter.table = conn.table[0];
+        }
+      }
+      
+      // 创建与表单一致的writer结构
+      const writerConfig = {
+        name: writer.name || 'mysqlwriter',
+        parameter: {
+          username: writer.parameter?.username || '',
+          password: writer.parameter?.password || '',
+          host: writer.parameter?.host || 'localhost',
+          port: writer.parameter?.port || 3306,
+          database: writer.parameter?.database || '',
+          schema: writer.parameter?.schema || 'public',
+          table: writer.parameter?.table || '',
+          columns: writer.parameter?.column || writer.parameter?.columns || [],
+          writeMode: writer.parameter?.writeMode || 'replace',
+          batchSize: writer.parameter?.batchSize || 10000,
+          preSql: writer.parameter?.preSql || [],
+          postSql: writer.parameter?.postSql || [],
+          // 保留原始参数中的其他字段
+          // ...writer.parameter
+        }
+      };
+      
+      // 设置到currentWriter状态变量
+      currentWriter.value = writerConfig;
+      
+      // 添加到DataX配置中
+      dataxConfig.job.content[0].writer = writerConfig;
+    }
+
+    // 将完整的DataX配置填充到表单
+    form.datax_params.job_content = JSON.stringify(dataxConfig, null, 2);
+    console.log('填充到表单的job_content:', form.datax_params.job_content);
+
+    Message.success('JSON解析成功');
+    showJsonModal.value = false;
+    jsonInputText.value = '';
+  } catch (err) {
+    console.error('JSON解析失败:', err);
+    Message.error('JSON解析失败，请检查JSON格式');
+  }
+};
 </script>
 
 <style scoped>
@@ -844,5 +1029,13 @@ const handleWriterModalCancel = () => {
   display: flex;
   justify-content: center;
   gap: 16px;
+}
+
+.json-upload-area {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px dashed var(--color-border-2);
+  border-radius: 4px;
+  background-color: var(--color-fill-2);
 }
 </style>
