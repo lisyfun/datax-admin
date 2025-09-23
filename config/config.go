@@ -66,7 +66,8 @@ type JobLogConfig struct {
 }
 
 type InitDataConfig struct {
-	ForceReset bool `mapstructure:"force_reset"` // 是否强制重新初始化数据
+	ForceReset      bool   `mapstructure:"force_reset"`       // 是否强制重新初始化数据
+	DefaultPassword string `mapstructure:"default_password"`  // 默认管理员密码
 }
 
 var GlobalConfig Config

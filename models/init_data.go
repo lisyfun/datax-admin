@@ -268,8 +268,12 @@ func createDefaultAdmin(tx *gorm.DB) error {
 		UpdatedAt: time.Now(),
 	}
 
-	// 设置密码为 admin123（SQL文件中的哈希值对应的明文密码）
-	if err := admin.SetPassword("admin123"); err != nil {
+	// 从配置中获取默认密码
+	defaultPassword := config.GlobalConfig.Init.DefaultPassword
+	if defaultPassword == "" {
+		defaultPassword = "admin123" // 默认值
+	}
+	if err := admin.SetPassword(defaultPassword); err != nil {
 		return err
 	}
 
@@ -295,7 +299,8 @@ func createDefaultAdmin(tx *gorm.DB) error {
 		return err
 	}
 
-	logger.Info("默认管理员用户创建完成 - 用户名: admin, 密码: admin123")
+	// 记录日志时不显示实际密码
+	logger.Info("默认管理员用户创建完成 - 用户名: admin, 密码已从配置中读取")
 	return nil
 }
 
