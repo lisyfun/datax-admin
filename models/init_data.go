@@ -128,8 +128,8 @@ func createDefaultPermissions(tx *gorm.DB) error {
 		{ID: 17, Name: "用户管理", Code: "system.users", Type: "menu", ParentID: uintPtr(16), Path: "users", Component: "views/system/users/index.vue", Icon: "icon-user", Sort: 0, Status: 1, Hidden: 0, Cache: 1},
 		{ID: 18, Name: "角色管理", Code: "system.roles", Type: "menu", ParentID: uintPtr(16), Path: "roles", Component: "views/system/roles/index.vue", Icon: "icon-user-group", Sort: 1, Status: 1, Hidden: 0, Cache: 1},
 		{ID: 19, Name: "权限管理", Code: "system.permissions", Type: "menu", ParentID: uintPtr(16), Path: "permissions", Component: "views/system/permissions/index.vue", Icon: "icon-safe", Sort: 2, Status: 1, Hidden: 0, Cache: 1},
-		{ID: 20, Name: "登录", Code: "login", Type: "menu", ParentID: nil, Path: "/login", Component: "views/login/index.vue", Icon: "", Sort: 0, Status: 1, Hidden: 1, Cache: 0},
-		{ID: 21, Name: "注册", Code: "register", Type: "menu", ParentID: nil, Path: "/register", Component: "views/register/index.vue", Icon: "", Sort: 0, Status: 0, Hidden: 1, Cache: 0},
+		// {ID: 20, Name: "登录", Code: "login", Type: "menu", ParentID: nil, Path: "/login", Component: "views/login/index.vue", Icon: "", Sort: 0, Status: 1, Hidden: 1, Cache: 0},
+		// {ID: 21, Name: "注册", Code: "register", Type: "menu", ParentID: nil, Path: "/register", Component: "views/register/index.vue", Icon: "", Sort: 0, Status: 0, Hidden: 1, Cache: 0},
 
 		// 按钮权限 - 用户管理
 		{ID: 22, Name: "用户查询", Code: "system.users.query", Type: "button", ParentID: uintPtr(17), Path: "", Component: "", Icon: "", Sort: 0, Status: 1, Hidden: 0, Cache: 0},
