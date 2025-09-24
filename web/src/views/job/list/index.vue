@@ -55,6 +55,8 @@
         @page-change="onPageChange"
         @page-size-change="onPageSizeChange"
         :scroll="{ x: '100%', y: '100%' }"
+        :bordered="true"
+        :fixedHeader="true"
       >
         <template #status="{ record }">
           <a-tag :color="record.status === 1 ? 'green' : 'red'">

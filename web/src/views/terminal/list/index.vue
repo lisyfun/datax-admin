@@ -65,8 +65,9 @@
         :loading="loading"
         :data="tableData"
         :pagination="pagination"
-        :bordered="false"
+        :bordered="true"
         :stripe="true"
+        :fixedHeader="true"
         :hover="true"
         :scroll="{ x: '100%', y: '100%' }"
         :row-selection="{
@@ -1133,7 +1134,7 @@ fetchData();
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    
+
     .arco-card-header {
       border-bottom: 1px solid var(--color-border);
       flex-shrink: 0;

@@ -52,7 +52,8 @@
         }"
         :columns="columns"
         :data="renderData"
-        :bordered="false"
+        :bordered="true"
+        :fixedHeader="true"
         @page-change="onPageChange"
         @page-size-change="onPageSizeChange"
       >
