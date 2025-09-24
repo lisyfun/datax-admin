@@ -664,7 +664,7 @@ onUnmounted(() => {
 
 .content-wrapper {
   background: var(--color-bg-2);
-  padding: 16px;
+  /* padding: 16px; */
   border-radius: 4px;
   min-height: calc(100vh - 96px);
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05);
