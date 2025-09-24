@@ -111,6 +111,8 @@ docker run -d \
 - `DB_SSL_MODE`: PostgreSQL SSL模式（默认：disable）
 - `DB_TIME_ZONE`: 数据库时区（默认：Asia/Shanghai）
 - `JWT_SECRET`: JWT密钥（建议设置复杂密钥）
+- `INIT_FORCE_RESET`: 初始化强制重置（默认：false） // 刷新数据库，初始化数据
+- `INIT_DEFAULT_PASSWORD`: admin123  # 默认管理员用户密码，只有当force_reset=true 时生效
 
 **注意：** 请确保数据库已创建并可访问，系统会自动创建所需的表结构。
 

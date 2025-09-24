@@ -44,5 +44,5 @@ job_log:
 
 # 初始化配置
 init:
-  force_reset: true       # 是否强制重新初始化数据（会清空现有数据菜单用户权限）
+  force_reset: false       # 是否强制重新初始化数据（会清空现有数据菜单用户权限）
   default_password: admin123  # 默认管理员用户密码，只有当force_reset=true 时生效
