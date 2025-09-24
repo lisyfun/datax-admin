@@ -42,7 +42,14 @@
       <a-table
         row-key="id"
         :loading="loading"
-        :pagination="pagination"
+        :pagination="{
+          total: pagination.total,
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          showTotal: true,
+          showJumper: true,
+          showPageSize: true,
+        }"
         :columns="columns"
         :data="renderData"
         :bordered="false"

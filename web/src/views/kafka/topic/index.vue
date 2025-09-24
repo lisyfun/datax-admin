@@ -45,7 +45,14 @@
       <a-table
         row-key="name"
         :loading="loading"
-        :pagination="pagination"
+        :pagination="{
+          total: pagination.total,
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          showTotal: true,
+          showJumper: true,
+          showPageSize: true,
+        }"
         :columns="columns"
         :data="renderData"
         :bordered="false"

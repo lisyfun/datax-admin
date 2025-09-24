@@ -40,7 +40,14 @@
       <a-table
         row-key="id"
         :loading="loading"
-        :pagination="pagination"
+        :pagination="{
+          total: pagination.total,
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          showTotal: true,
+          showJumper: true,
+          showPageSize: true,
+        }"
         :columns="columns"
         :data="renderData"
         v-model:selectedKeys="selectedKeys"
@@ -66,62 +73,68 @@
           {{ formatDateTime(record.updated_at) }}
         </template>
         <template #operations="{ record }">
-          <a-space :size="4">
-            <a-button type="text" size="mini" @click="handleEdit(record)" v-permission="'job.list.update'">
-              <template #icon><icon-edit /></template>
-              编辑
-            </a-button>
-            <a-button
-              type="text"
-              size="mini"
-              status="success"
-              @click="handleExecute(record)"
-              v-permission="'job.list.execute'"
-            >
-              <template #icon><icon-play-circle /></template>
-              执行
-            </a-button>
-            <a-button
-              v-if="record.status === 0"
-              type="text"
-              size="mini"
-              @click="handleStart(record)"
-              v-permission="'job.list.update'"
-            >
-              <template #icon><icon-play-circle /></template>
-              启动
-            </a-button>
-            <a-button
-              v-else
-              type="text"
-              size="mini"
-              status="warning"
-              @click="handleStop(record)"
-              v-permission="'job.list.update'"
-            >
-              <template #icon><icon-pause-circle /></template>
-              停止
-            </a-button>
-            <a-button
-              type="text"
-              size="mini"
-              @click="handleHistory(record)"
-              v-permission="'job.history.query'"
-            >
-              <template #icon><icon-history /></template>
-              历史
-            </a-button>
-            <a-popconfirm
-              content="确定要删除该任务吗？"
-              @ok="handleDelete(record)"
-              v-permission="'job.list.delete'"
-            >
-              <a-button type="text" size="mini" status="danger">
-                <template #icon><icon-delete /></template>
-                删除
+          <div class="operation-buttons">
+            <!-- 第一行按钮 -->
+            <a-space :size="4" class="button-row">
+              <a-button type="text" size="mini" @click="handleEdit(record)" v-permission="'job.list.update'">
+                <template #icon><icon-edit /></template>
+                编辑
               </a-button>
-            </a-popconfirm>
-          </a-space>
+              <a-button
+                type="text"
+                size="mini"
+                status="success"
+                @click="handleExecute(record)"
+                v-permission="'job.list.execute'"
+              >
+                <template #icon><icon-play-circle /></template>
+                执行一次
+              </a-button>
+              <a-button
+                v-if="record.status === 0"
+                type="text"
+                size="mini"
+                @click="handleStart(record)"
+                v-permission="'job.list.update'"
+              >
+                <template #icon><icon-play-circle /></template>
+                启动
+              </a-button>
+              <a-button
+                v-else
+                type="text"
+                size="mini"
+                status="warning"
+                @click="handleStop(record)"
+                v-permission="'job.list.update'"
+              >
+                <template #icon><icon-pause-circle /></template>
+                停止
+              </a-button>
+            </a-space>
+            <!-- 第二行按钮 -->
+            <a-space :size="4" class="button-row">
+              <a-button
+                type="text"
+                size="mini"
+                @click="handleHistory(record)"
+                v-permission="'job.history.query'"
+              >
+                <template #icon><icon-history /></template>
+                历史
+              </a-button>
+              <a-popconfirm
+                content="确定要删除该任务吗？"
+                @ok="handleDelete(record)"
+                v-permission="'job.list.delete'"
+              >
+                <a-button type="text" size="mini" status="danger">
+                  <template #icon><icon-delete /></template>
+                  删除
+                </a-button>
+              </a-popconfirm>
+            </a-space>
+          </div>
         </template>
       </a-table>
     </a-card>
@@ -435,10 +448,34 @@ fetchData();
 <style scoped>
 .jobs {
   padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 确保卡片占满剩余空间 */
+:deep(.arco-card) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.arco-card-body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 表格容器样式 */
+:deep(.arco-table-container) {
+  flex: 1;
+  overflow: auto;
 }
 
 :deep(.arco-table-tr) {
-  height: 100px;
+  height: auto;
+  min-height: 60px;
 }
 
 :deep(.arco-table-td) {
@@ -469,5 +506,24 @@ fetchData();
 
 :deep(.arco-tag) {
   margin: 0;
+}
+
+/* 操作按钮两行布局样式 */
+.operation-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.button-row {
+  display: flex;
+  justify-content: center;
+}
+
+/* 分页器固定在底部 */
+:deep(.arco-pagination) {
+  margin-top: 16px;
+  flex-shrink: 0;
 }
 </style>
