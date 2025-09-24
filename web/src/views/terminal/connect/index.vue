@@ -64,7 +64,7 @@
         <a-descriptions :column="2" :data="terminalInfoData" />
       </div>
 
-      <div ref="terminalContainer" class="terminal-container" :class="{ connected }" @click="handleTerminalClick" @contextmenu.prevent="handleRightClick" tabindex="0">
+      <div ref="terminalContainer" class="terminal-container" :class="{ connected }" @click="handleTerminalClick" @contextmenu.prevent="handleRightClick" tabindex="0" @focus="handleTerminalFocus">
         <template v-if="!connected">
           <div class="terminal-placeholder">
             <icon-robot :style="{ fontSize: '48px', marginBottom: '16px' }" />
@@ -766,37 +766,192 @@ const handleRightClick = async (e: MouseEvent) => {
 };
 
 // 粘贴事件处理
-const handlePasteEvent = (event: ClipboardEvent) => {
+const handlePasteEvent = async (event: ClipboardEvent) => {
   if (!connected.value || !terminal) return;
-  const text = event.clipboardData?.getData('text');
-  if (text && socket?.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ type: 'input', data: text }));
-    showPasteTip.value = true;
-    setTimeout(() => { showPasteTip.value = false; }, 1000);
+  
+  event.preventDefault();
+  event.stopPropagation();
+  
+  try {
+    // 优先从事件中获取数据
+    let text = event.clipboardData?.getData('text') || '';
+    
+    // 如果事件中没有数据，尝试其他方法
+    if (!text || !text.trim()) {
+      text = await readClipboard();
+    }
+    
+    if (text && text.trim()) {
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'input', data: text }));
+        showPasteTip.value = true;
+        setTimeout(() => { showPasteTip.value = false; }, 1000);
+        console.log('右键粘贴成功:', text.length, '个字符');
+      } else {
+        Message.warning('终端连接已断开');
+      }
+    } else {
+      Message.warning('剪贴板内容为空');
+    }
+  } catch (e) {
+    console.error('粘贴事件处理失败:', e);
+    Message.warning('粘贴失败');
   }
-  // event.preventDefault(); // 阻止默认的 ^V 行为
+};
+
+// 请求剪贴板权限
+const requestClipboardPermission = async () => {
+  try {
+    if (navigator.permissions) {
+      const permission = await navigator.permissions.query({ name: 'clipboard-read' as PermissionName });
+      return permission.state === 'granted';
+    }
+    return false;
+  } catch (e) {
+    console.warn('无法检查剪贴板权限:', e);
+    return false;
+  }
+};
+
+// 更可靠的剪贴板读取函数
+const readClipboard = async (): Promise<string> => {
+  let text = '';
+  
+  try {
+    // 方法1: 现代剪贴板API（需要HTTPS或localhost）
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      // 检查权限
+      const hasPermission = await requestClipboardPermission();
+      if (hasPermission || location.protocol === 'https:' || location.hostname === 'localhost') {
+        text = await navigator.clipboard.readText();
+        if (text) return text;
+      }
+    }
+  } catch (e) {
+    console.warn('现代剪贴板API失败:', e);
+  }
+  
+  try {
+    // 方法2: 使用execCommand降级方案
+    const textArea = document.createElement('textarea');
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    textArea.style.opacity = '0';
+    textArea.style.pointerEvents = 'none';
+    document.body.appendChild(textArea);
+    
+    textArea.focus();
+    textArea.select();
+    
+    // 尝试执行粘贴命令
+    const success = document.execCommand('paste');
+    if (success && textArea.value) {
+      text = textArea.value;
+    }
+    
+    document.body.removeChild(textArea);
+    
+    if (text) return text;
+  } catch (e) {
+    console.warn('execCommand粘贴失败:', e);
+  }
+  
+  // 方法3: 尝试从事件中获取（如果有的话）
+  try {
+    // 创建一个隐藏的可编辑元素来捕获粘贴事件
+    const hiddenInput = document.createElement('div');
+    hiddenInput.contentEditable = 'true';
+    hiddenInput.style.position = 'fixed';
+    hiddenInput.style.left = '-999999px';
+    hiddenInput.style.top = '-999999px';
+    hiddenInput.style.opacity = '0';
+    hiddenInput.style.pointerEvents = 'none';
+    document.body.appendChild(hiddenInput);
+    
+    return new Promise((resolve) => {
+      const pasteHandler = (e: ClipboardEvent) => {
+        e.preventDefault();
+        const clipboardText = e.clipboardData?.getData('text') || '';
+        hiddenInput.removeEventListener('paste', pasteHandler);
+        document.body.removeChild(hiddenInput);
+        resolve(clipboardText);
+      };
+      
+      hiddenInput.addEventListener('paste', pasteHandler);
+      hiddenInput.focus();
+      
+      // 模拟Ctrl+V
+      const pasteEvent = new KeyboardEvent('keydown', {
+        key: 'v',
+        ctrlKey: true,
+        bubbles: true
+      });
+      hiddenInput.dispatchEvent(pasteEvent);
+      
+      // 超时处理
+      setTimeout(() => {
+        hiddenInput.removeEventListener('paste', pasteHandler);
+        if (document.body.contains(hiddenInput)) {
+          document.body.removeChild(hiddenInput);
+        }
+        resolve('');
+      }, 1000);
+    });
+  } catch (e) {
+    console.warn('事件捕获粘贴失败:', e);
+  }
+  
+  return '';
 };
 
 // 监听 Ctrl+V/⌘+V 粘贴
 const handleKeyDown = async (event: KeyboardEvent) => {
   if (!connected.value || !terminal) return;
 
-  // Windows/Linux: Ctrl+V，Mac: Meta+V
+  // Windows/Linux: Ctrl+V，Mac: Meta+V (Cmd+V)
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
     event.preventDefault();
-    if (navigator.clipboard && navigator.clipboard.readText) {
-      try {
-        const text = await navigator.clipboard.readText();
-        if (text && socket?.readyState === WebSocket.OPEN) {
+    event.stopPropagation();
+    
+    try {
+      const text = await readClipboard();
+      
+      if (text && text.trim()) {
+        if (socket?.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ type: 'input', data: text }));
           showPasteTip.value = true;
           setTimeout(() => { showPasteTip.value = false; }, 1000);
+          console.log('粘贴成功:', text.length, '个字符');
+        } else {
+          Message.warning('终端连接已断开');
         }
-      } catch (e) {
-        Message.warning('无法读取剪贴板内容，请检查浏览器权限');
+      } else {
+        Message.warning('剪贴板内容为空或无法访问，请尝试右键粘贴');
       }
-    } else {
-      Message.warning('当前浏览器不支持自动粘贴');
+    } catch (e) {
+      console.error('粘贴失败:', e);
+      Message.warning('粘贴失败，请尝试右键粘贴或检查浏览器权限');
+    }
+  }
+  
+  // 支持 Shift+Insert 粘贴（Linux/Windows 传统快捷键）
+  if (event.shiftKey && event.key === 'Insert') {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    try {
+      const text = await readClipboard();
+      if (text && text.trim() && socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'input', data: text }));
+        showPasteTip.value = true;
+        setTimeout(() => { showPasteTip.value = false; }, 1000);
+      } else if (!text || !text.trim()) {
+        Message.warning('剪贴板内容为空');
+      }
+    } catch (e) {
+      console.error('Shift+Insert 粘贴失败:', e);
+      Message.warning('无法读取剪贴板内容，请检查浏览器权限');
     }
   }
 };
@@ -820,6 +975,17 @@ onMounted(async () => {
 
 // 处理终端容器点击事件
 const handleTerminalClick = () => {
+  if (terminal && connected.value) {
+    terminal.focus();
+  }
+  // 确保容器获得焦点以接收键盘事件
+  if (terminalContainer.value) {
+    terminalContainer.value.focus();
+  }
+};
+
+// 处理终端容器焦点事件
+const handleTerminalFocus = () => {
   if (terminal && connected.value) {
     terminal.focus();
   }
