@@ -55,17 +55,10 @@
       </div>
     </a-layout-header>
     <a-layout>
-      <a-layout-sider
-        class="layout-sider"
-        :collapsed="collapsed"
-        :width="200"
-        :collapsed-width="50"
-        :hide-trigger="true"
-        breakpoint="xxl"
-      >
-        <Menu />
-      </a-layout-sider>
-      <a-layout-content class="layout-content">
+      <div class="sidebar-container">
+        <Sidebar />
+      </div>
+      <a-layout-content class="layout-content" :class="{ collapsed }">
         <div class="content-wrapper">
           <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
@@ -93,9 +86,10 @@ import {
   IconExport,
   IconMoonFill,
   IconSunFill,
+  
 } from '@arco-design/web-vue/es/icon';
 import * as userApi from '@/api/user';
-import Menu from '@/components/Menu/index.vue';
+import Sidebar from '@/components/Sidebar/index.vue';
 import { useMenuStore } from '@/stores/menu';
 import { usePermissionStore } from '@/stores/permission';
 
@@ -833,14 +827,27 @@ onUnmounted(() => {
   line-height: 1.4;
 }
 
+.sidebar-container {
+  position: fixed;
+  left: 0;
+  top: 64px;
+  bottom: 0;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
 .layout-content {
   padding: 16px;
   overflow: auto;
   background: var(--color-neutral-2);
   transition: all 0.2s ease;
-  margin-left: v-bind('collapsed ? "50px" : "200px"');
+  margin-left: 220px; /* 220px sidebar width */
   margin-top: 64px;
   height: calc(100vh - 64px);
+}
+
+.layout-content.collapsed {
+  margin-left: 64px; /* 64px collapsed sidebar width */
 }
 
 </style>
