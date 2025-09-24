@@ -54,11 +54,6 @@ func SessionAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 安全地获取session
 		session := sessions.Default(c)
-		if session == nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Session初始化失败"})
-			c.Abort()
-			return
-		}
 
 		userID := session.Get("userID")
 
