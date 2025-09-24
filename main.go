@@ -59,7 +59,11 @@ func main() {
 	gin.SetMode(config.GlobalConfig.Server.Mode)
 
 	// 创建路由
-	r := gin.Default()
+	r := gin.New()
+	
+	// 使用自定义日志中间件
+	r.Use(middleware.GinLogger())
+	r.Use(gin.Recovery())
 
 	// 设置文件上传大小限制为 500MB
 	r.MaxMultipartMemory = config.GlobalConfig.Server.MaxFileSize << 20
