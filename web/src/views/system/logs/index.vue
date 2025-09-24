@@ -70,10 +70,18 @@
         :columns="columns"
         :data="logList"
         :loading="loading"
-        :pagination="pagination"
+        :pagination="{
+          total: pagination.total,
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          showTotal: true,
+          showJumper: true,
+          showPageSize: true,
+        }"
         :row-selection="rowSelection"
         @page-change="handlePageChange"
         @page-size-change="handlePageSizeChange"
+        :scroll="{ x: '100%', y: '100%' }"
       >
         <template #module="{ record }">
           <a-tag :color="getModuleColor(record.module)">
@@ -389,5 +397,73 @@ onMounted(() => {
 <style scoped>
 .operation-management {
   padding: 16px;
+  height: calc(100vh - 80px); /* 减去header和padding的高度 */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 确保卡片占满剩余空间 */
+:deep(.arco-card) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:deep(.arco-card-body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0; /* 重要：允许flex子项收缩 */
+}
+
+/* 表格容器样式 */
+:deep(.arco-table-container) {
+  flex: 1;
+  overflow: auto;
+  min-height: 0; /* 重要：允许flex子项收缩 */
+}
+
+/* 表格主体区域可以直接滚动 */
+:deep(.arco-table-body) {
+  overflow: auto;
+}
+
+:deep(.arco-table-tbody) {
+  overflow: visible;
+}
+
+/* 表格包装器 */
+:deep(.arco-table-wrapper) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 表格主体 */
+:deep(.arco-table) {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 分页器固定在底部 */
+:deep(.arco-pagination) {
+  margin-top: 16px;
+  flex-shrink: 0;
+  padding: 8px 0;
+}
+
+/* 搜索区域样式 */
+:deep(.arco-card-header) {
+  flex-shrink: 0;
+  padding: 16px 20px;
+}
+
+/* 搜索表单样式 */
+:deep(.arco-form) {
+  flex-shrink: 0;
+  margin-bottom: 16px;
 }
 </style>
