@@ -181,13 +181,15 @@ const isMenuActive = (menu: any) => {
   return route.path === fullPath || route.path.startsWith(fullPath + '/');
 };
 
-// 切换子菜单展开状态
+// 切换子菜单展开状态（手风琴效果）
 const toggleSubmenu = (menu: any) => {
   const index = expandedMenus.value.indexOf(menu.id);
   if (index > -1) {
+    // 如果当前菜单已展开，则收起它
     expandedMenus.value.splice(index, 1);
   } else {
-    expandedMenus.value.push(menu.id);
+    // 如果当前菜单未展开，实现手风琴效果：先收起其他所有菜单，再展开当前菜单
+    expandedMenus.value = [menu.id];
   }
 };
 
