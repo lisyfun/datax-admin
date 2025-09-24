@@ -385,7 +385,6 @@ onMounted(async () => {
   }
 
   &.active {
-    background: #e7f3ff;
     color: #0969da;
     font-weight: 500;
   }
