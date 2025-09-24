@@ -299,6 +299,7 @@ onUnmounted(() => {
   padding: 0 16px;
   background: var(--color-bg-2);
   box-shadow: 0 1px 4px 0 rgba(0, 21, 41, 0.08);
+  border-bottom: 1px solid var(--color-border-2);
   z-index: 100;
   transition: all 0.2s ease;
   position: fixed;
@@ -709,7 +710,7 @@ onUnmounted(() => {
   background: var(--color-fill-2);
 }
 
-/* 暗黑模式下的样式调整 */
+/* 暗黑模式下的滚动条样式 */
 :deep([arco-theme='dark']) {
   .layout {
     background-color: var(--color-bg-1);
@@ -718,6 +719,7 @@ onUnmounted(() => {
   .header {
     background: var(--color-bg-1);
     box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--color-border-3);
   }
 
   .layout-sider {
@@ -839,13 +841,38 @@ onUnmounted(() => {
 }
 
 .layout-content {
-  padding: 16px;
+  padding: 0;
   overflow: auto;
   background: var(--color-neutral-2);
   transition: all 0.2s ease;
   margin-left: 220px; /* 220px sidebar width */
   margin-top: 64px;
   height: calc(100vh - 64px);
+}
+
+/* 自定义外部滚动条样式 */
+.layout-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.layout-content::-webkit-scrollbar-track {
+  background: var(--color-fill-2);
+  border-radius: 4px;
+}
+
+.layout-content::-webkit-scrollbar-thumb {
+  background: var(--color-fill-4);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.layout-content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-fill-6);
+}
+
+.content-wrapper {
+  padding: 16px;
+  min-height: 100%;
 }
 
 .layout-content.collapsed {
