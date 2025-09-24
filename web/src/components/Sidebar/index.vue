@@ -2,7 +2,7 @@
   <div class="sidebar" :class="{ collapsed: isCollapsed, 'dark-mode': isDarkMode }">
     <!-- 主导航区域 -->
     <div class="navigation-section">
-      <div class="nav-title" v-if="!isCollapsed">Main</div>
+      <!-- <div class="nav-title" v-if="!isCollapsed">Main</div> -->
 
       <div class="nav-items">
         <template v-for="menu in menuTree" :key="menu.id">
