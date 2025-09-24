@@ -1,5 +1,5 @@
 <template>
-  <div class="sidebar" :class="{ collapsed: isCollapsed }">
+  <div class="sidebar" :class="{ collapsed: isCollapsed, 'dark-mode': isDarkMode }">
     <!-- 主导航区域 -->
     <div class="navigation-section">
       <div class="nav-title" v-if="!isCollapsed">Main</div>
@@ -68,7 +68,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMenuStore } from '@/stores/menu';
 import {
@@ -100,6 +100,7 @@ const menuStore = useMenuStore();
 
 // 从父组件注入的状态
 const collapsed = inject('collapsed', ref(false));
+const isDarkMode = inject('isDarkMode', ref(false));
 const isCollapsed = computed(() => collapsed.value);
 
 // 图标映射
@@ -226,6 +227,12 @@ const handleMenuClick = async (menu: any) => {
 const toggleCollapse = () => {
   collapsed.value = !collapsed.value;
 };
+
+// 组件挂载时初始化
+onMounted(async () => {
+  // 获取菜单数据
+  await menuStore.fetchUserMenus();
+});
 </script>
 
 <style lang="less" scoped>
@@ -465,7 +472,7 @@ const toggleCollapse = () => {
   }
 }
 
-// 收起状态样式
+
 .sidebar.collapsed {
   .nav-item {
     justify-content: center;
@@ -482,11 +489,9 @@ const toggleCollapse = () => {
 }
 
 // 暗色主题适配
-:deep([arco-theme='dark']) {
-  .sidebar {
-    background: linear-gradient(180deg, rgba(30, 30, 30, 0.98), rgba(20, 20, 20, 0.95));
-    border-right: 1px solid var(--color-neutral-4);
-  }
+.sidebar.dark-mode {
+  background: linear-gradient(180deg, rgba(30, 30, 30, 0.98), rgba(20, 20, 20, 0.95));
+  border-right: 1px solid #30363d;
 
   .nav-title {
     color: #8b949e;

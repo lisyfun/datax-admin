@@ -104,6 +104,8 @@ const isRefreshing = ref(false);
 
 // 提供collapsed状态给子组件
 provide('collapsed', collapsed);
+// 提供暗色模式状态给子组件
+provide('isDarkMode', isDarkMode);
 
 
 
