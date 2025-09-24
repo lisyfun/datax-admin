@@ -205,7 +205,6 @@
                     type="warning"
                     position="left"
                     @ok="handleDelete(record)"
-                    v-permission="'terminal.list.delete'"
                   >
                     <a-button
                       type="primary"
@@ -213,6 +212,7 @@
                       shape="circle"
                       status="danger"
                       class="action-button"
+                      v-permission="'terminal.list.delete'"
                     >
                       <template #icon>
                         <icon-delete />

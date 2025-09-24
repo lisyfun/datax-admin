@@ -126,9 +126,8 @@
               <a-popconfirm
                 content="确定要删除该任务吗？"
                 @ok="handleDelete(record)"
-                v-permission="'job.list.delete'"
               >
-                <a-button type="text" size="mini" status="danger">
+                <a-button type="text" size="mini" status="danger" v-permission="'job.list.delete'">
                   <template #icon><icon-delete /></template>
                   删除
                 </a-button>

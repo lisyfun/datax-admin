@@ -90,7 +90,7 @@
                   编辑
                 </a-button>
                 <a-popconfirm
-                  content="确定要删除该权限吗？"
+                  content="确定要删除该权限吗？删除后不可恢复！"
                   @ok="() => handleDelete(record)"
                 >
                   <a-button type="text" status="danger" size="small" v-permission="'system.permissions.delete'">

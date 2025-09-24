@@ -80,9 +80,8 @@
                 <a-popconfirm
                   content="确定要删除该用户吗？"
                   @ok="handleDelete(record)"
-                  v-permission="'system.users.delete'"
                 >
-                  <a-button type="text" status="danger" size="small">
+                  <a-button type="text" status="danger" size="small" v-permission="'system.users.delete'">
                     <template #icon><IconDelete /></template>
                     删除
                   </a-button>

@@ -85,8 +85,8 @@
               <icon-edit />
               编辑
             </a-button>
-            <a-popconfirm content="确定要删除该集群吗？" @ok="handleDelete(record)" v-permission="'tools.kafka.cluster.delete'">
-              <a-button type="text" status="danger" size="small">
+            <a-popconfirm content="确定要删除该集群吗？" @ok="handleDelete(record)">
+              <a-button type="text" status="danger" size="small" v-permission="'tools.kafka.cluster.delete'">
                 <icon-delete />
                 删除
               </a-button>
