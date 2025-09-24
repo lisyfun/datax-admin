@@ -52,7 +52,7 @@
           </a-card>
         </a-col>
         <a-col :span="5">
-          <a-card class="stat-card" :bordered="false">
+          <a-card class="stat-card clickable" :bordered="false" @click="handleFailedTaskClick">
             <div class="stat-header">
               <div class="stat-title">失败任务</div>
               <icon-close-circle class="stat-icon error" />
@@ -138,6 +138,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, onUnmounted, computed, nextTick, inject, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   IconUser,
   IconUserGroup,
@@ -200,6 +201,8 @@ const stats = ref<Stats>({
   successCount: 0,
   failedCount: 0,
 });
+
+const router = useRouter();
 
 const recentLogins = ref<RecentLogin[]>([]);
 const trendData = ref<JobExecutionTrend[]>([]);
@@ -481,6 +484,16 @@ const handlePageRefresh = () => {
   fetchDashboardData();
 };
 
+// 处理失败任务点击事件
+const handleFailedTaskClick = () => {
+  router.push({
+    path: '/job/history',
+    query: {
+      status: '0' // 0表示失败状态
+    }
+  });
+};
+
 // 监听主题变化
 const observer = new MutationObserver(() => {
   if (chart) {
@@ -649,6 +662,17 @@ onUnmounted(() => {
 }
 
 .stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background-color: var(--color-bg-3);
+}
+
+.stat-card.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.stat-card.clickable:hover {
   transform: translateY(-4px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   background-color: var(--color-bg-3);

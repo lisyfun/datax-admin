@@ -20,9 +20,9 @@
             allow-clear
             @change="handleSearch"
           >
-            <a-option :value="-1">执行中</a-option>
-            <a-option :value="1">成功</a-option>
-            <a-option :value="0">失败</a-option>
+            <a-option value="-1">执行中</a-option>
+            <a-option value="1">成功</a-option>
+            <a-option value="0">失败</a-option>
           </a-select>
           <a-button @click="fetchData">
             <template #icon><icon-refresh /></template>
