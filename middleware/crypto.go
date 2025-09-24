@@ -121,7 +121,7 @@ func handleRequestDecryption(c *gin.Context) error {
 		Signature string `json:"signature"`
 	}
 
-	if err := json.Unmarshal(body, &encryptedRequest); err != nil {
+	if err = json.Unmarshal(body, &encryptedRequest); err != nil {
 		// 如果不是加密格式，直接使用原始数据
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 		return nil
