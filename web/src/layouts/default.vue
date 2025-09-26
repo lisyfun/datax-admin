@@ -86,7 +86,7 @@ import {
   IconExport,
   IconMoonFill,
   IconSunFill,
-  
+
 } from '@arco-design/web-vue/es/icon';
 import * as userApi from '@/api/user';
 import Sidebar from '@/components/Sidebar/index.vue';
@@ -665,14 +665,14 @@ onUnmounted(() => {
 
 .content-wrapper {
   background: var(--color-bg-2);
-  /* padding: 16px; */
   border-radius: 4px;
-  min-height: calc(100vh - 96px);
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
   font-size: 14px;
   line-height: 1.6;
   letter-spacing: 0.2px;
+  height: 100% ;
+  overflow-y:auto;
 }
 
 /* 当侧边栏收起时的样式 */
@@ -868,11 +868,6 @@ onUnmounted(() => {
 
 .layout-content::-webkit-scrollbar-thumb:hover {
   background: var(--color-fill-6);
-}
-
-.content-wrapper {
-  padding: 16px;
-  min-height: 100%;
 }
 
 .layout-content.collapsed {
