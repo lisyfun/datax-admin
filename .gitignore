@@ -22,4 +22,5 @@ tmp/
 .cursor/*
 .cursor/mcp.json
 .cursor/mcp.json
-/logs
+logs
+.spec-workflow
