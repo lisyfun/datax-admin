@@ -655,7 +655,7 @@ onUnmounted(() => {
 
 .layout-content {
   padding: 16px;
-  overflow: auto;
+  overflow: hidden;
   background: var(--color-neutral-2);
   transition: all 0.2s ease;
   margin-left: 220px;
@@ -671,8 +671,8 @@ onUnmounted(() => {
   font-size: 14px;
   line-height: 1.6;
   letter-spacing: 0.2px;
-  height: 100% ;
-  overflow-y:auto;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
 }
 
 /* 当侧边栏收起时的样式 */
