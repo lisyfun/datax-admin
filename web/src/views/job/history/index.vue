@@ -205,7 +205,7 @@ const columns = [
 const pagination = reactive({
   total: 0,
   current: 1,
-  pageSize: 10,
+  pageSize: 20,
   showTotal: true,
   showJumper: true,
   showPageSize: true,
