@@ -1,6 +1,6 @@
 module datax-admin
 
-go 1.23.8
+go 1.25.2
 
 require (
 	github.com/gin-contrib/cors v1.5.0
