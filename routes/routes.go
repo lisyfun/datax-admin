@@ -1,24 +1,35 @@
 package routes
 
 import (
-	"datax-admin/config"
-	"datax-admin/middleware"
-	v1 "datax-admin/routes/api/v1"
+    "datax-admin/config"
+    "datax-admin/middleware"
+    v1 "datax-admin/routes/api/v1"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
+    "github.com/gin-contrib/cors"
+    "github.com/gin-gonic/gin"
 )
 
 // SetupRoutes 配置路由
 func SetupRoutes(r *gin.Engine) {
-	// CORS 中间件配置
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "Connection", "Upgrade", "Sec-WebSocket-Key", "Sec-WebSocket-Version", "Sec-WebSocket-Extensions", "Sec-WebSocket-Protocol"},
-		ExposeHeaders:    []string{"Content-Length", "Upgrade", "Connection"},
-		AllowCredentials: true, // 必须为true，才能使用cookie传递session
-	}))
+    // 安全响应头
+    r.Use(middleware.SecurityHeaders())
+
+    // CORS 中间件配置
+    allowed := config.GlobalConfig.Server.AllowedOrigins
+    corsCfg := cors.Config{
+        AllowOrigins:  allowed,
+        AllowMethods:  []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+        AllowHeaders:  []string{"Origin", "Content-Type", "Accept", "Authorization"},
+        ExposeHeaders: []string{"Content-Length"},
+    }
+    // 若未配置白名单，则仅放行同源请求（避免 *）
+    if len(allowed) == 0 {
+        corsCfg.AllowOriginFunc = func(origin string) bool { return false }
+        corsCfg.AllowCredentials = false
+    } else {
+        corsCfg.AllowCredentials = true
+    }
+    r.Use(cors.New(corsCfg))
 
 	// 添加安全中间件
 	// r.Use(middleware.SecurityMiddleware())

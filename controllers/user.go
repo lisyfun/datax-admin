@@ -1,12 +1,13 @@
 package controllers
 
 import (
-	"datax-admin/services"
-	"datax-admin/types"
-	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
+    "datax-admin/config"
+    "datax-admin/services"
+    "datax-admin/types"
+    "fmt"
+    "net/http"
+    "strconv"
+    "strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -63,8 +64,8 @@ func (c *UserController) Login(ctx *gin.Context) {
 		return
 	}
 
-	// 设置Session
-	session := sessions.Default(ctx)
+    // 设置Session
+    session := sessions.Default(ctx)
 	if session == nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Session初始化失败"})
 		return
@@ -78,12 +79,20 @@ func (c *UserController) Login(ctx *gin.Context) {
 		}
 	}()
 
-	session.Set("userID", resp.User.ID)
-	session.Set("username", resp.User.Username)
-	if err := session.Save(); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Session保存失败"})
-		return
-	}
+    session.Set("userID", resp.User.ID)
+    session.Set("username", resp.User.Username)
+    // 为当前会话设置更安全的 Cookie 选项
+    session.Options(sessions.Options{
+        Path:     "/",
+        MaxAge:   config.GlobalConfig.Auth.Expiration,
+        HttpOnly: true,
+        Secure:   isHTTPS(ctx),
+        SameSite: http.SameSiteLaxMode,
+    })
+    if err := session.Save(); err != nil {
+        ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Session保存失败"})
+        return
+    }
 
 	ctx.JSON(http.StatusOK, resp)
 }
@@ -340,19 +349,26 @@ func (c *UserController) Logout(ctx *gin.Context) {
 
 	// 清除 Session
 	session := sessions.Default(ctx)
-	if session != nil {
-		session.Clear()
-		session.Options(sessions.Options{
-			Path:     "/",
-			MaxAge:   -1, // 立即过期
-			HttpOnly: true,
-			Secure:   false,
-			SameSite: http.SameSiteLaxMode,
-		})
-		_ = session.Save()
-	}
+    if session != nil {
+        session.Clear()
+        session.Options(sessions.Options{
+            Path:     "/",
+            MaxAge:   -1,
+            HttpOnly: true,
+            Secure:   isHTTPS(ctx),
+            SameSite: http.SameSiteLaxMode,
+        })
+        _ = session.Save()
+    }
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "登出成功"})
+}
+
+// isHTTPS 判断当前请求是否 HTTPS 或经由代理为 HTTPS
+func isHTTPS(c *gin.Context) bool {
+    if c.Request.TLS != nil { return true }
+    proto := c.GetHeader("X-Forwarded-Proto")
+    return strings.EqualFold(proto, "https")
 }
 
 // 检查SQL注入的辅助函数

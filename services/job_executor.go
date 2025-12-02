@@ -42,8 +42,13 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 		logger.Info("初始化日志文件失败: %v", logErr)
 	}
 
-	// 准备命令
-	cmd := exec.CommandContext(ctx, "sh", "-c", shellParams.Command)
+    shell := "sh"
+    shellArgs := []string{"-c", shellParams.Command}
+    if _, err := exec.LookPath("bash"); err == nil {
+        shell = "bash"
+        shellArgs = []string{"-lc", shellParams.Command}
+    }
+    cmd := exec.CommandContext(ctx, shell, shellArgs...)
 	if shellParams.WorkDir != "" {
 		cmd.Dir = shellParams.WorkDir
 	}
@@ -83,71 +88,69 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 		return
 	}
 
-	// 实时读取输出
-	var outputBuffer, errorBuffer bytes.Buffer
-	done := make(chan bool, 2)
+    // 实时读取输出
+    var outputBuffer, errorBuffer bytes.Buffer
+    done := make(chan bool, 2)
 
 	// 启动goroutine读取stdout
-	go func() {
-		defer func() { done <- true }()
-		buffer := make([]byte, 1024)
-		for {
-			var n int
-			n, err = stdout.Read(buffer)
-			if n > 0 {
-				content := string(buffer[:n])
-				outputBuffer.WriteString(content)
-				// 实时追加到日志文件
-				if logErr := history.AppendLogToFile(content, ""); logErr != nil {
-					logger.Info("追加输出日志失败: %v", logErr)
-				}
-			}
-			if err != nil {
-				break
-			}
-		}
-	}()
+    go func() {
+        defer func() { done <- true }()
+        buffer := make([]byte, 1024)
+        for {
+            n, readErr := stdout.Read(buffer)
+            if n > 0 {
+                content := string(buffer[:n])
+                outputBuffer.WriteString(content)
+                // 实时追加到日志文件
+                if logErr := history.AppendLogToFile(content, ""); logErr != nil {
+                    logger.Info("追加输出日志失败: %v", logErr)
+                }
+            }
+            if readErr != nil {
+                break
+            }
+        }
+    }()
 
 	// 启动goroutine读取stderr
-	go func() {
-		defer func() { done <- true }()
-		buffer := make([]byte, 1024)
-		for {
-			var n int
-			n, err = stderr.Read(buffer)
-			if n > 0 {
-				content := string(buffer[:n])
-				errorBuffer.WriteString(content)
-				// 实时追加到日志文件
-				if logErr := history.AppendLogToFile("", content); logErr != nil {
-					logger.Info("追加错误日志失败: %v", logErr)
-				}
-			}
-			if err != nil {
-				break
-			}
-		}
-	}()
+    go func() {
+        defer func() { done <- true }()
+        buffer := make([]byte, 1024)
+        for {
+            n, readErr := stderr.Read(buffer)
+            if n > 0 {
+                content := string(buffer[:n])
+                errorBuffer.WriteString(content)
+                // 实时追加到日志文件
+                if logErr := history.AppendLogToFile("", content); logErr != nil {
+                    logger.Info("追加错误日志失败: %v", logErr)
+                }
+            }
+            if readErr != nil {
+                break
+            }
+        }
+    }()
 
-	// 等待命令完成
-	err = cmd.Wait()
+    // 等待命令完成（与读取错误隔离）
+    waitErr := cmd.Wait()
 
 	// 等待所有goroutine完成
 	<-done
 	<-done
 
-	if err != nil {
-		history.Status = 0
-		// 如果有额外的错误信息，追加到日志
-		if logErr := history.AppendLogToFile("", fmt.Sprintf("\n命令执行失败: %v\n", err)); logErr != nil {
-			logger.Info("写入日志文件失败: %v", logErr)
-		}
-	} else {
-		history.Status = 1
-		if logErr := history.AppendLogToFile("\n命令执行成功\n", ""); logErr != nil {
-			logger.Info("写入日志文件失败: %v", logErr)
-		}
-	}
+    if waitErr != nil {
+        history.Status = 0
+        // 如果有额外的错误信息，追加到日志
+        if logErr := history.AppendLogToFile("", fmt.Sprintf("\n命令执行失败: %v\n", waitErr)); logErr != nil {
+            logger.Info("写入日志文件失败: %v", logErr)
+        }
+    } else {
+        history.Status = 1
+        if logErr := history.AppendLogToFile("\n命令执行成功\n", ""); logErr != nil {
+            logger.Info("写入日志文件失败: %v", logErr)
+        }
+    }
 }
 
 // executeHTTPJob 执行HTTP任务

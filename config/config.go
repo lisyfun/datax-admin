@@ -18,10 +18,11 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port        string `mapstructure:"port"`
-	Mode        string `mapstructure:"mode"`
-	BasePath    string `mapstructure:"base_path"`
-	MaxFileSize int64  `mapstructure:"max_file_size"`
+    Port        string `mapstructure:"port"`
+    Mode        string `mapstructure:"mode"`
+    BasePath    string `mapstructure:"base_path"`
+    MaxFileSize int64  `mapstructure:"max_file_size"`
+    AllowedOrigins []string `mapstructure:"allowed_origins"`
 }
 
 type DatabaseConfig struct {
