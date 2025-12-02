@@ -255,6 +255,12 @@ INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `c
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1005, 'test', 'external.github', 'menu', 998, '', '', 'icon-github', 1000, 1, 0, 0, 1, 'https://baidu.com', NULL, '2025-08-28 10:04:54.998', NULL, 0);
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1006, '项目文档', 'external.docs', 'menu', 998, '', '', 'icon-file', 1001, 0, 0, 1, 1, 'https://example.com/docs', NULL, '2025-08-21 13:52:33.228', '2025-08-21 13:52:36.755', 0);
 INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1007, 'iframe测试', 'external.iframe-test', 'menu', 998, '', '', 'icon-bulb', 1002, 1, 0, 0, 1, 'http://localhost:3000/datax/#/terminal/list', NULL, '2025-08-28 09:38:43.862', NULL, 0);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1008, 'Redis 管理', 'tools.redis', 'menu', 9, 'redis', 'views/tools/redis/index.vue', 'icon-database', 2, 1, 0, 0, 0, NULL, NULL, NULL, NULL, 1);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1009, 'Redis 查询', 'tools.redis.query', 'button', 1008, '', '', '', 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL, 1);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1010, 'Redis 设置', 'tools.redis.set', 'button', 1008, '', '', '', 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL, 1);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1011, 'Redis 删除', 'tools.redis.del', 'button', 1008, '', '', '', 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL, 1);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1012, 'TTL 设置', 'tools.redis.ttl', 'button', 1008, '', '', '', 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL, 1);
+INSERT INTO `permissions` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `status`, `hidden`, `cache`, `is_external`, `external_url`, `created_at`, `updated_at`, `deleted_at`, `open_type`) VALUES (1013, '连接管理', 'tools.redis.conn.manage', 'button', 1008, '', '', '', 0, 1, 0, 0, 0, NULL, NULL, NULL, NULL, 1);
 COMMIT;
 
 -- ----------------------------
@@ -579,6 +585,12 @@ INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, 
 INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (383, 1, 1006, '2025-08-21 13:49:11.202', '2025-08-21 13:49:11.202', '2025-08-21 13:52:36.756');
 INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (384, 1, 1007, '2025-08-21 13:49:11.202', '2025-08-21 13:49:11.202', NULL);
 INSERT INTO `role_permissions` (`id`, `role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (385, 1, 1, '2025-08-21 13:49:11.202', '2025-08-21 13:49:11.202', NULL);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (1, 1008, NOW(3), NOW(3), NULL);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (1, 1009, NOW(3), NOW(3), NULL);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (1, 1010, NOW(3), NOW(3), NULL);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (1, 1011, NOW(3), NOW(3), NULL);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (1, 1012, NOW(3), NOW(3), NULL);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`, `created_at`, `updated_at`, `deleted_at`) VALUES (1, 1013, NOW(3), NOW(3), NULL);
 COMMIT;
 
 -- ----------------------------

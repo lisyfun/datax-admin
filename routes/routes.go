@@ -49,17 +49,18 @@ func SetupRoutes(r *gin.Engine) {
 			// 需要认证的路由 - 改为使用Session认证
 			authenticated := v1Group.Group("")
 			// authenticated.Use(middleware.JWTAuth()) // 注释掉JWT认证
-			authenticated.Use(middleware.SessionAuth()) // 使用Session认证
-			{
-				v1.RegisterDashboardRoutes(authenticated)
-				v1.RegisterUserRoutes(authenticated)
-				v1.RegisterRoleRoutes(authenticated)
-				v1.RegisterPermissionRoutes(authenticated)
-				v1.RegisterJobRoutes(authenticated)
-				v1.RegisterTerminalRoutes(authenticated)
-				v1.RegisterKafkaRoutes(authenticated)
-				v1.RegisterOperationLogRoutes(authenticated)
-			}
-		}
-	}
+            authenticated.Use(middleware.SessionAuth()) // 使用Session认证
+            {
+                v1.RegisterDashboardRoutes(authenticated)
+                v1.RegisterUserRoutes(authenticated)
+                v1.RegisterRoleRoutes(authenticated)
+                v1.RegisterPermissionRoutes(authenticated)
+                v1.RegisterJobRoutes(authenticated)
+                v1.RegisterTerminalRoutes(authenticated)
+                v1.RegisterKafkaRoutes(authenticated)
+                v1.RegisterOperationLogRoutes(authenticated)
+                v1.RegisterRedisRoutes(authenticated)
+            }
+        }
+    }
 }

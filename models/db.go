@@ -103,21 +103,22 @@ func InitDB() {
 
 // AutoMigrate 自动迁移数据库表结构
 func AutoMigrate() error {
-	// 逐个迁移表，避免外键约束问题
-	models := []any{
-		&User{},
-		&Role{},
-		&UserRole{},
-		&Permission{},
-		&RolePermission{},
-		&Job{},
-		&JobHistory{},
-		&Terminal{},
-		&LoginLog{},
-		&KafkaCluster{},
-		&KafkaTopic{},
-		&OperationLog{},
-	}
+    // 逐个迁移表，避免外键约束问题
+    models := []any{
+        &User{},
+        &Role{},
+        &UserRole{},
+        &Permission{},
+        &RolePermission{},
+        &Job{},
+        &JobHistory{},
+        &Terminal{},
+        &LoginLog{},
+        &KafkaCluster{},
+        &KafkaTopic{},
+        &OperationLog{},
+        &RedisConnection{},
+    }
 
 	for _, model := range models {
 		if err := DB.AutoMigrate(model); err != nil {

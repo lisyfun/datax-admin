@@ -192,6 +192,18 @@ export const appRoutes: AppRouteRecordRaw[] = [
             },
           },
 
+          {
+            path: 'redis',
+            name: 'Redis',
+            component: () => import('@/views/tools/redis/index.vue'),
+            meta: {
+              title: 'Redis 管理',
+              requiresAuth: true,
+              icon: 'icon-database',
+              roles: ['*'],
+            },
+          },
+
         ],
       },
       {
