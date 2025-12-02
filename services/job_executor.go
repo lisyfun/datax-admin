@@ -75,7 +75,7 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 	}
 
 	// 启动命令
-	if err := cmd.Start(); err != nil {
+	if err = cmd.Start(); err != nil {
 		history.Status = 0
 		if logErr := history.AppendLogToFile("", fmt.Sprintf("启动Shell命令失败: %v\n", err)); logErr != nil {
 			logger.Info("写入日志文件失败: %v", logErr)
@@ -92,7 +92,8 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 		defer func() { done <- true }()
 		buffer := make([]byte, 1024)
 		for {
-			n, err := stdout.Read(buffer)
+			var n int
+			n, err = stdout.Read(buffer)
 			if n > 0 {
 				content := string(buffer[:n])
 				outputBuffer.WriteString(content)
@@ -112,7 +113,8 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 		defer func() { done <- true }()
 		buffer := make([]byte, 1024)
 		for {
-			n, err := stderr.Read(buffer)
+			var n int
+			n, err = stderr.Read(buffer)
 			if n > 0 {
 				content := string(buffer[:n])
 				errorBuffer.WriteString(content)
@@ -286,13 +288,13 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 
 	// 延迟删除临时文件，但要等到命令执行完成后
 	defer func() {
-		if err := os.Remove(tmpFileName); err != nil {
+		if err = os.Remove(tmpFileName); err != nil {
 			logger.Info("删除临时文件失败: %v", err)
 		}
 	}()
 
 	// 写入JSON配置（使用替换后的配置）
-	if _, err := tmpFile.WriteString(jobConfig); err != nil {
+	if _, err = tmpFile.WriteString(jobConfig); err != nil {
 		history.Status = 0
 		if logErr := history.WriteLogToFile("", fmt.Sprintf("写入配置失败: %v", err)); logErr != nil {
 			logger.Info("写入日志文件失败: %v", logErr)
@@ -302,7 +304,7 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 	}
 
 	// 确保数据写入磁盘并关闭文件
-	if err := tmpFile.Sync(); err != nil {
+	if err = tmpFile.Sync(); err != nil {
 		history.Status = 0
 		if logErr := history.WriteLogToFile("", fmt.Sprintf("同步文件失败: %v", err)); logErr != nil {
 			logger.Info("写入日志文件失败: %v", logErr)
@@ -364,7 +366,7 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 	}
 
 	// 启动命令
-	if err := cmd.Start(); err != nil {
+	if err = cmd.Start(); err != nil {
 		history.Status = 0
 		if logErr := history.AppendLogToFile("", fmt.Sprintf("启动DataX命令失败: %v", err)); logErr != nil {
 			logger.Info("追加日志文件失败: %v", logErr)

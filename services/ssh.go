@@ -63,7 +63,7 @@ func NewSSHClient(host string, port int, username, password string) (*SSHClient,
 	}
 
 	// 请求伪终端
-	if err := session.RequestPty("xterm", 40, 80, ssh.TerminalModes{
+	if err = session.RequestPty("xterm", 40, 80, ssh.TerminalModes{
 		ssh.ECHO:          1,
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
@@ -163,7 +163,7 @@ func NewSSHClientWithKey(host string, port int, username, keyContent, keyPassphr
 	}
 
 	// 请求伪终端
-	if err := session.RequestPty("xterm", 40, 80, ssh.TerminalModes{
+	if err = session.RequestPty("xterm", 40, 80, ssh.TerminalModes{
 		ssh.ECHO:          1,
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,

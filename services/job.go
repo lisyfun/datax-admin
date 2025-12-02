@@ -359,7 +359,8 @@ func (s *JobService) validateAndSerializeParams(jobType string, params any) (str
 		if shellParams.Command == "" {
 			return "", errors.New("shell命令不能为空")
 		}
-		data, err := json.Marshal(shellParams)
+		var data []byte
+		data, err = json.Marshal(shellParams)
 		if err != nil {
 			return "", err
 		}
@@ -375,7 +376,8 @@ func (s *JobService) validateAndSerializeParams(jobType string, params any) (str
 		if httpParams.Method == "" {
 			httpParams.Method = "GET"
 		}
-		data, err := json.Marshal(httpParams)
+		var data []byte
+		data, err = json.Marshal(httpParams)
 		if err != nil {
 			return "", err
 		}
