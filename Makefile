@@ -78,11 +78,7 @@ clean:
 .PHONY: run
 run:
 	@echo -e "$(YELLOW)启动后端服务...$(NC)"
-	@if command -v air >/dev/null 2>&1; then \
-		cd $(MAIN_PACKAGE) && air; \
-	else \
-		cd $(MAIN_PACKAGE) && go run main.go; \
-	fi &
+	cd $(MAIN_PACKAGE) && air &
 	@echo -e "$(GREEN)后端访问地址: http://localhost:28080$(NC)"
 	@echo -e "$(YELLOW)启动前端服务...$(NC)"
 	cd $(FRONTEND_DIR) && pnpm dev
