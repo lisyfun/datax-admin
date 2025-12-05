@@ -60,9 +60,9 @@ func main() {
 
 	// 创建路由
 	r := gin.New()
-	
+
 	// 使用自定义日志中间件
-	r.Use(middleware.GinLogger())
+	// r.Use(middleware.GinLogger())
 	r.Use(gin.Recovery())
 
 	// 设置文件上传大小限制为 500MB
