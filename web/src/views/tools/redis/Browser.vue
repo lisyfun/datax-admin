@@ -86,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from 'vue'
+import { ref, watch, reactive, computed } from 'vue'
 import { Message } from '@arco-design/web-vue'
 import { IconSearch, IconSettings, IconDownload, IconEye, IconEdit, IconCopy, IconSwap } from '@arco-design/web-vue/es/icon'
 import KeyDetail from './KeyDetail.vue'
@@ -98,7 +98,7 @@ import { listKeys, getKey, renameKey, copyKey, moveKey, exportKeys, selectDb, co
 import { usePermission } from '@/composables/usePermission'
 
 const store = useRedisStore()
-const connections = store.$state.connections
+const connections = computed(() => store.connections)
 const connId = ref<number | undefined>(store.currentConnId)
 const pattern = ref<string>('')
 // 已不按类型筛选

@@ -31,13 +31,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { listConnections, createConnection, deleteConnection, testConnection } from '@/api/redis'
+import { createConnection, deleteConnection, testConnection } from '@/api/redis'
 import { useRedisStore } from '@/stores/redis'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits(['update:visible','refresh'])
 const store = useRedisStore()
-const connections = ref<any[]>([])
 const keyword = ref('')
 const list = computed(() => {
   store.setKeyword(keyword.value)
@@ -47,7 +46,7 @@ const form = ref({ name:'', host:'', port:6379, username:'', password:'', db:0, 
 
 function close(){ emit('update:visible', false) }
 
-async function fetchList(){ const { data } = await listConnections({ page:1, page_size:100 }); connections.value = data.items || [] }
+async function fetchList(){ await store.fetchConnections() }
 onMounted(fetchList)
 
 async function test(id:number){ await testConnection(id) }
