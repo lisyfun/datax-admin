@@ -350,21 +350,26 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 			return
 		}
 
-		// 打开文件
-		src, err := file.Open()
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "打开文件失败"})
-			return
-		}
-
 		// 创建目标文件路径
 		destPath := filepath.Join(uploadPath, file.Filename)
 
-		// 上传文件
-		err = sshClient.UploadFile(src, destPath, file.Size, nil)
-		src.Close()
+		// 生成本地临时文件路径
+		localTmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("upload-%d-%s", time.Now().UnixNano(), file.Filename))
+
+		// 保存上传的文件到本地
+		if err := ctx.SaveUploadedFile(file, localTmpFile); err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "保存本地临时文件失败: " + err.Error()})
+			return
+		}
+
+		// 上传文件到远程
+		err = sshClient.UploadLocalFile(localTmpFile, destPath)
+
+		// 清理本地临时文件
+		os.Remove(localTmpFile)
+
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "文件上传失败"})
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "文件上传失败: " + err.Error()})
 			return
 		}
 	}

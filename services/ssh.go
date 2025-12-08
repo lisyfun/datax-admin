@@ -318,83 +318,91 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 	// 关闭临时文件
 	tempFile.Close()
 
-    // 同步上传：在返回前完成远端传输
-    // 从原始客户端获取主机地址和端口
-    addr := c.client.RemoteAddr().String()
-    host, portStr, err := net.SplitHostPort(addr)
-    if err != nil {
-        os.Remove(tempPath)
-        return fmt.Errorf("解析远端地址失败: %v", err)
-    }
-    port, err := strconv.Atoi(portStr)
-    if err != nil {
-        os.Remove(tempPath)
-        return fmt.Errorf("解析远端端口失败: %v", err)
-    }
+	// 调用 UploadLocalFile 进行上传
+	if err := c.UploadLocalFile(tempPath, destPath); err != nil {
+		os.Remove(tempPath)
+		return err
+	}
 
-    // 获取临时文件的绝对路径
-    absTempPath, err := filepath.Abs(tempPath)
-    if err != nil {
-        os.Remove(tempPath)
-        return fmt.Errorf("获取临时文件路径失败: %v", err)
-    }
+	// 上传成功后删除临时文件
+	os.Remove(tempPath)
 
-    // 根据认证类型构建不同的scp命令
-    var cmd *exec.Cmd
-    var keyPath string
-    if c.authType == "key" {
-        // 密钥认证：创建临时密钥文件
-        keyFile, err := os.CreateTemp("", "ssh-key-*.tmp")
-        if err != nil {
-            os.Remove(tempPath)
-            return fmt.Errorf("创建临时密钥失败: %v", err)
-        }
-        keyPath = keyFile.Name()
+	return nil
+}
 
-        // 写入密钥内容
-        if _, err := keyFile.WriteString(c.keyContent); err != nil {
-            keyFile.Close()
-            os.Remove(tempPath)
-            os.Remove(keyPath)
-            return fmt.Errorf("写入密钥失败: %v", err)
-        }
-        keyFile.Close()
+// UploadLocalFile 直接上传本地文件到远程
+func (c *SSHClient) UploadLocalFile(localPath, destPath string) error {
+	if c.client == nil {
+		return fmt.Errorf("SSH客户端未创建")
+	}
 
-        // 设置密钥文件权限为600
-        if err := os.Chmod(keyPath, 0600); err != nil {
-            os.Remove(tempPath)
-            os.Remove(keyPath)
-            return fmt.Errorf("设置密钥权限失败: %v", err)
-        }
+	// 从原始客户端获取主机地址和端口
+	addr := c.client.RemoteAddr().String()
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("解析远端地址失败: %v", err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return fmt.Errorf("解析远端端口失败: %v", err)
+	}
 
-        // 使用密钥文件的scp命令
-        scpCmd := fmt.Sprintf("scp -i %s -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", keyPath, port, absTempPath, c.client.User(), host, destPath)
-        cmd = exec.Command("bash", "-c", scpCmd)
-    } else {
-        // 密码认证：使用sshpass
-        scpCmd := fmt.Sprintf("sshpass -p '%s' scp -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", c.password, port, absTempPath, c.client.User(), host, destPath)
-        cmd = exec.Command("bash", "-c", scpCmd)
-    }
+	// 获取本地文件的绝对路径
+	absLocalPath, err := filepath.Abs(localPath)
+	if err != nil {
+		return fmt.Errorf("获取本地文件路径失败: %v", err)
+	}
 
-    cmd.Stdout = os.Stdout
-    cmd.Stderr = os.Stderr
+	// 根据认证类型构建不同的scp命令
+	var cmd *exec.Cmd
+	var keyPath string
+	if c.authType == "key" {
+		// 密钥认证：创建临时密钥文件
+		keyFile, err := os.CreateTemp("", "ssh-key-*.tmp")
+		if err != nil {
+			return fmt.Errorf("创建临时密钥失败: %v", err)
+		}
+		keyPath = keyFile.Name()
 
-    // 执行上传命令并等待完成
-    runErr := cmd.Run()
+		// 写入密钥内容
+		if _, err := keyFile.WriteString(c.keyContent); err != nil {
+			keyFile.Close()
+			os.Remove(keyPath)
+			return fmt.Errorf("写入密钥失败: %v", err)
+		}
+		keyFile.Close()
 
-    // 清理临时密钥文件
-    if keyPath != "" {
-        os.Remove(keyPath)
-    }
+		// 设置密钥文件权限为600
+		if err := os.Chmod(keyPath, 0600); err != nil {
+			os.Remove(keyPath)
+			return fmt.Errorf("设置密钥权限失败: %v", err)
+		}
 
-    // 上传成功后删除临时文件
-    os.Remove(tempPath)
+		// 使用密钥文件的scp命令
+		scpCmd := fmt.Sprintf("scp -i %s -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", keyPath, port, absLocalPath, c.client.User(), host, destPath)
+		cmd = exec.Command("bash", "-c", scpCmd)
+	} else {
+		// 密码认证：使用sshpass
+		scpCmd := fmt.Sprintf("sshpass -p '%s' scp -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", c.password, port, absLocalPath, c.client.User(), host, destPath)
+		cmd = exec.Command("bash", "-c", scpCmd)
+	}
 
-    if runErr != nil {
-        return fmt.Errorf("远端传输失败: %v", runErr)
-    }
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-    return nil
+	// 执行上传命令并等待完成
+	runErr := cmd.Run()
+
+	// 清理临时密钥文件
+	if keyPath != "" {
+		os.Remove(keyPath)
+	}
+
+	if runErr != nil {
+		return fmt.Errorf("远端传输失败: %v", runErr)
+	}
+
+	return nil
 }
 
 // UploadFile 上传文件（保持原有方法作为备选）
