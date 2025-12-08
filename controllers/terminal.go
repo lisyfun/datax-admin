@@ -330,19 +330,26 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 		return
 	}
 
+	// 记录开始时间
+	startTime := time.Now()
+	logger.Info("开始处理文件上传请求，文件数量: %d", len(files))
+
 	// 创建SSH客户端
+	sshStart := time.Now()
 	sshClient, err := services.NewSSHClientWithAuth(terminal.Host, terminal.Port, terminal.Username, terminal.AuthType, terminal.Password, terminal.KeyFile, terminal.KeyPassphrase)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "SSH连接失败"})
 		return
 	}
 	defer sshClient.Close()
+	logger.Info("SSH连接建立耗时: %v", time.Since(sshStart))
 
 	// 设置最大文件大小限制
 	var maxFileSize = config.GlobalConfig.Server.MaxFileSize * 1024 * 1024
 
 	// 上传文件
 	for _, file := range files {
+		fileStart := time.Now()
 		if file.Size > maxFileSize {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"error": fmt.Sprintf("文件大小超过限制(%dMB)", maxFileSize),
@@ -357,13 +364,17 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 		localTmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("upload-%d-%s", time.Now().UnixNano(), file.Filename))
 
 		// 保存上传的文件到本地
+		saveStart := time.Now()
 		if err := ctx.SaveUploadedFile(file, localTmpFile); err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "保存本地临时文件失败: " + err.Error()})
 			return
 		}
+		logger.Info("文件 [%s] (大小: %d) 保存到本地服务器耗时: %v", file.Filename, file.Size, time.Since(saveStart))
 
 		// 上传文件到远程
+		scpStart := time.Now()
 		err = sshClient.UploadLocalFile(localTmpFile, destPath)
+		logger.Info("文件 [%s] 从本地服务器SCP到远程服务器耗时: %v", file.Filename, time.Since(scpStart))
 
 		// 清理本地临时文件
 		os.Remove(localTmpFile)
@@ -372,9 +383,15 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "文件上传失败: " + err.Error()})
 			return
 		}
+		logger.Info("文件 [%s] 总处理耗时: %v", file.Filename, time.Since(fileStart))
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "文件上传成功"})
+	totalDuration := time.Since(startTime)
+	logger.Info("所有文件上传完成，总耗时: %v", totalDuration)
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":  "文件上传成功",
+		"duration": totalDuration.String(),
+	})
 }
 
 // DisconnectTerminal 断开终端连接

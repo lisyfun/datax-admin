@@ -379,11 +379,13 @@ func (c *SSHClient) UploadLocalFile(localPath, destPath string) error {
 		}
 
 		// 使用密钥文件的scp命令
-		scpCmd := fmt.Sprintf("scp -i %s -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", keyPath, port, absLocalPath, c.client.User(), host, destPath)
+		// 添加 -q 禁止进度输出，-c 指定加密算法
+		scpCmd := fmt.Sprintf("scp -q -c aes128-gcm@openssh.com,aes128-ctr -i %s -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", keyPath, port, absLocalPath, c.client.User(), host, destPath)
 		cmd = exec.Command("bash", "-c", scpCmd)
 	} else {
 		// 密码认证：使用sshpass
-		scpCmd := fmt.Sprintf("sshpass -p '%s' scp -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", c.password, port, absLocalPath, c.client.User(), host, destPath)
+		// 添加 -q 禁止进度输出，-c 指定加密算法
+		scpCmd := fmt.Sprintf("sshpass -p '%s' scp -q -c aes128-gcm@openssh.com,aes128-ctr -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", c.password, port, absLocalPath, c.client.User(), host, destPath)
 		cmd = exec.Command("bash", "-c", scpCmd)
 	}
 
