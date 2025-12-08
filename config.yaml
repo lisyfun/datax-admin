@@ -1,6 +1,6 @@
 server:
   port: ":28080"
-  mode: release
+  mode: debug
   base_path: "/"
   max_file_size: 500  # 500MB
   allowed_origins:

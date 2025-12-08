@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"datax-admin/config"
 	"datax-admin/services"
 	"datax-admin/types"
 	"datax-admin/utils/logger"
@@ -337,14 +338,14 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 	}
 	defer sshClient.Close()
 
-	// 设置最大文件大小限制 (1GB)
-	const maxFileSize = 1 * 1024 * 1024 * 1024
+	// 设置最大文件大小限制
+	var maxFileSize = config.GlobalConfig.Server.MaxFileSize * 1024 * 1024
 
 	// 上传文件
 	for _, file := range files {
 		if file.Size > maxFileSize {
 			ctx.JSON(http.StatusBadRequest, gin.H{
-				"error": "文件大小超过限制(1GB)",
+				"error": fmt.Sprintf("文件大小超过限制(%dMB)", maxFileSize),
 			})
 			return
 		}
