@@ -96,8 +96,8 @@ class CryptoManager {
    * 生成签名
    */
   generateSignature(data: string, timestamp: number): string {
-    const message = `${data}${timestamp}${this.config.secretKey}`;
-    return CryptoJS.SHA256(message).toString();
+    const message = `${data}${timestamp}`;
+    return CryptoJS.HmacSHA256(message, this.config.secretKey).toString();
   }
 
   /**

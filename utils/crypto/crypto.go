@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -123,10 +124,11 @@ func (cm *CryptoManager) DecryptString(ciphertext string) (string, error) {
 
 // GenerateSignature 生成签名
 func (cm *CryptoManager) GenerateSignature(data string, timestamp int64) string {
-	// 使用数据 + 时间戳 + 密钥生成签名
-	message := fmt.Sprintf("%s%d%s", data, timestamp, cm.config.SecretKey)
-	hash := sha256.Sum256([]byte(message))
-	return hex.EncodeToString(hash[:])
+	// 使用 HMAC-SHA256 生成签名
+	message := fmt.Sprintf("%s%d", data, timestamp)
+	h := hmac.New(sha256.New, []byte(cm.config.SecretKey))
+	h.Write([]byte(message))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // VerifySignature 验证签名
