@@ -180,6 +180,14 @@ func createDefaultPermissions(tx *gorm.DB) error {
 		// 终端上传下载权限
 		{ID: 56, Name: "终端上传", Code: "terminal.list.upload", Type: "button", ParentID: uintPtr(7), Path: "", Component: "", Icon: "", Sort: 0, Status: 1, Hidden: 0, Cache: 0},
 		{ID: 57, Name: "终端下载", Code: "terminal.list.download", Type: "button", ParentID: uintPtr(7), Path: "", Component: "", Icon: "", Sort: 0, Status: 1, Hidden: 0, Cache: 0},
+
+		// Redis 管理
+		{ID: 1008, Name: "Redis 管理", Code: "tools.redis", Type: "menu", ParentID: uintPtr(9), Path: "redis", Component: "views/tools/redis/index.vue", Icon: "icon-database", Sort: 2, Status: 1, Hidden: 0, Cache: 0},
+		{ID: 1009, Name: "Redis 查询", Code: "tools.redis.query", Type: "button", ParentID: uintPtr(1008), Path: "", Component: "", Icon: "", Sort: 0, Status: 1, Hidden: 0, Cache: 0},
+		{ID: 1010, Name: "Redis 设置", Code: "tools.redis.set", Type: "button", ParentID: uintPtr(1008), Path: "", Component: "", Icon: "", Sort: 0, Status: 1, Hidden: 0, Cache: 0},
+		{ID: 1011, Name: "Redis 删除", Code: "tools.redis.del", Type: "button", ParentID: uintPtr(1008), Path: "", Component: "", Icon: "", Sort: 0, Status: 1, Hidden: 0, Cache: 0},
+		{ID: 1012, Name: "TTL 设置", Code: "tools.redis.ttl", Type: "button", ParentID: uintPtr(1008), Path: "", Component: "", Icon: "", Sort: 0, Status: 1, Hidden: 0, Cache: 0},
+		{ID: 1013, Name: "连接管理", Code: "tools.redis.conn.manage", Type: "button", ParentID: uintPtr(1008), Path: "", Component: "", Icon: "", Sort: 0, Status: 1, Hidden: 0, Cache: 0},
 	}
 
 	for _, permission := range permissions {
@@ -213,6 +221,7 @@ func assignRolePermissions(tx *gorm.DB) error {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 		22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
 		41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 56, 57,
+		1008, 1009, 1010, 1011, 1012, 1013,
 	}
 
 	for _, permissionID := range adminPermissionIDs {
@@ -227,18 +236,19 @@ func assignRolePermissions(tx *gorm.DB) error {
 
 	// 为普通用户分配基本权限（根据SQL文件中的最新配置）
 	userPermissionIDs := []uint{
-		2,  // 数据面板
-		3,  // 任务管理
-		9,  // 工具管理
-		4,  // 任务列表
-		10, // Json格式化
-		11, // 加解密工具
-		12, // 消息管理
-		13, // 集群管理
-		14, // 主题管理
-		15, // 消息列表
-		56, // 终端上传
-		57, // 终端下载
+		2,    // 数据面板
+		3,    // 任务管理
+		9,    // 工具管理
+		1008, // Redis 管理
+		4,    // 任务列表
+		10,   // Json格式化
+		11,   // 加解密工具
+		12,   // 消息管理
+		13,   // 集群管理
+		14,   // 主题管理
+		15,   // 消息列表
+		56,   // 终端上传
+		57,   // 终端下载
 	}
 
 	for _, permissionID := range userPermissionIDs {
