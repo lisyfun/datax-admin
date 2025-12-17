@@ -24,3 +24,4 @@ tmp/
 .cursor/mcp.json
 logs
 .spec-workflow
+.trae
