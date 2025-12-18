@@ -265,87 +265,47 @@ func getVersionQuery() string {
 	}
 }
 
-// getJobExecutionTrendQuery 根据数据库类型生成查询语句
-func getJobExecutionTrendQuery() string {
-	dbType := config.GlobalConfig.Database.Type
-	if dbType == "" {
-		dbType = "mysql"
-	}
-
-	switch dbType {
-	case "postgres", "postgresql", "gaussdb":
-		// PostgreSQL 查询
-		return `
-		WITH date_series AS (
-			SELECT CURRENT_DATE - INTERVAL '1 day' * s.n AS selected_date
-			FROM generate_series(0, 6) AS s(n)
-		),
-		daily_stats AS (
-			SELECT
-				DATE(created_at) as stat_date,
-				SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as success_count,
-				SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed_count
-			FROM job_histories
-			WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
-			GROUP BY DATE(created_at)
-		)
-		SELECT
-			date_series.selected_date as date,
-			COALESCE(daily_stats.success_count, 0) as success_count,
-			COALESCE(daily_stats.failed_count, 0) as failed_count
-		FROM date_series
-		LEFT JOIN daily_stats ON date_series.selected_date = daily_stats.stat_date
-		ORDER BY date_series.selected_date
-		LIMIT 7`
-	default:
-		// MySQL 查询
-		return `
-		SELECT
-			selected_date as date,
-			COALESCE(success_count, 0) as success_count,
-			COALESCE(failed_count, 0) as failed_count
-		FROM (
-			SELECT DATE_SUB(CURDATE(), INTERVAL n DAY) as selected_date
-			FROM (
-				SELECT 0 as n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
-				UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
-			) numbers
-		) dates
-		LEFT JOIN (
-			SELECT
-				DATE(created_at) as stat_date,
-				SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as success_count,
-				SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed_count
-			FROM job_histories
-			WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-			GROUP BY DATE(created_at)
-		) daily_stats ON dates.selected_date = daily_stats.stat_date
-		ORDER BY selected_date
-		LIMIT 7`
-	}
-}
-
 // getJobExecutionTrend 获取最近7天的任务执行趋势
 func (s *DashboardService) getJobExecutionTrend() ([]types.JobExecutionTrend, error) {
-	var trends []types.JobExecutionTrend
+	now := time.Now()
+	// 获取今天的开始时间
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	// 6天前（共7天）
+	startDate := today.AddDate(0, 0, -6)
 
-	query := getJobExecutionTrendQuery()
-	type Result struct {
-		Date         time.Time
-		SuccessCount int64
-		FailedCount  int64
-	}
-
-	var results []Result
-	if err := models.DB.Raw(query).Scan(&results).Error; err != nil {
+	var histories []models.JobHistory
+	// 只查询需要的字段
+	if err := models.DB.Model(&models.JobHistory{}).
+		Select("status, created_at").
+		Where("created_at >= ?", startDate).
+		Find(&histories).Error; err != nil {
 		return nil, err
 	}
 
-	for _, r := range results {
+	// 内存中聚合数据: 日期字符串 -> {成功数, 失败数}
+	statsMap := make(map[string]struct{ Success, Failed int64 })
+
+	for _, h := range histories {
+		dateStr := h.CreatedAt.Format("2006-01-02")
+		stat := statsMap[dateStr]
+		if h.Status == 1 {
+			stat.Success++
+		} else if h.Status == 0 {
+			stat.Failed++
+		}
+		statsMap[dateStr] = stat
+	}
+
+	// 构建最近7天的结果，确保日期连续
+	var trends []types.JobExecutionTrend
+	for i := 0; i < 7; i++ {
+		date := startDate.AddDate(0, 0, i)
+		dateStr := date.Format("2006-01-02")
+		stat := statsMap[dateStr]
 		trends = append(trends, types.JobExecutionTrend{
-			Date:         r.Date.Format("2006-01-02"),
-			SuccessCount: r.SuccessCount,
-			FailedCount:  r.FailedCount,
+			Date:         dateStr,
+			SuccessCount: stat.Success,
+			FailedCount:  stat.Failed,
 		})
 	}
 
@@ -395,12 +355,26 @@ func (s *DashboardService) getStats(stats *types.DashboardStats) error {
 	// 获取任务执行统计
 	go func() {
 		defer wg.Done()
-		var successCount, failedCount int64
+		type StatusCount struct {
+			Status int
+			Count  int64
+		}
+		var results []StatusCount
 		if err := models.DB.Model(&models.JobHistory{}).
-			Select("COUNT(CASE WHEN status = 1 THEN 1 END) as success_count, COUNT(CASE WHEN status = 0 THEN 1 END) as failed_count").
-			Row().Scan(&successCount, &failedCount); err != nil {
+			Select("status, count(*) as count").
+			Group("status").
+			Scan(&results).Error; err != nil {
 			errChan <- err
 			return
+		}
+
+		var successCount, failedCount int64
+		for _, r := range results {
+			if r.Status == 1 {
+				successCount = r.Count
+			} else if r.Status == 0 {
+				failedCount = r.Count
+			}
 		}
 		stats.SuccessCount = successCount
 		stats.FailedCount = failedCount

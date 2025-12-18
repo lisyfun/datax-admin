@@ -1,6 +1,6 @@
 server:
   port: ":28080"
-  mode: debug
+  mode: "release"
   base_path: "/"
   max_file_size: 500  # 500MB
   allowed_origins:
@@ -8,7 +8,7 @@ server:
     - "http://localhost:3000"
 
 db:
-  type: mysql  # 数据库类型: mysql, postgres
+  type: mysql  # 数据库类型: mysql, postgresql, gaussdb
   host: host.docker.internal
   port: 13306
   username: root
@@ -18,7 +18,7 @@ db:
   max_idle_conns: 25
   max_open_conns: 200
   conn_max_lifetime: 1800
-  log_mode: warn
+  log_mode: warn  # 数据库日志模式: info, warn, error
   charset: utf8mb4
   time_zone: Asia/Shanghai
   ssl_mode: disable  # PostgreSQL SSL模式: disable, require, verify-ca, verify-full
