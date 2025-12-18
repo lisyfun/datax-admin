@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/gaussdb"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -55,7 +56,11 @@ func InitDB() {
 		if timeZone == "" {
 			timeZone = "Asia/Shanghai"
 		}
-		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
+		schema := config.GlobalConfig.Database.Schema
+		if schema == "" {
+			schema = "public"
+		}
+		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s search_path=%s",
 			config.GlobalConfig.Database.Host,
 			config.GlobalConfig.Database.Username,
 			config.GlobalConfig.Database.Password,
@@ -63,8 +68,33 @@ func InitDB() {
 			config.GlobalConfig.Database.Port,
 			sslMode,
 			timeZone,
+			schema,
 		)
 		dialector = postgres.Open(dsn)
+	case "gaussdb":
+		sslMode := config.GlobalConfig.Database.SSLMode
+		if sslMode == "" {
+			sslMode = "disable"
+		}
+		timeZone := config.GlobalConfig.Database.TimeZone
+		if timeZone == "" {
+			timeZone = "Asia/Shanghai"
+		}
+		schema := config.GlobalConfig.Database.Schema
+		if schema == "" {
+			schema = "public"
+		}
+		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s search_path=%s",
+			config.GlobalConfig.Database.Host,
+			config.GlobalConfig.Database.Username,
+			config.GlobalConfig.Database.Password,
+			config.GlobalConfig.Database.DBName,
+			config.GlobalConfig.Database.Port,
+			sslMode,
+			timeZone,
+			schema,
+		)
+		dialector = gaussdb.Open(dsn)
 	default:
 		customLogger.Fatal("不支持的数据库类型: %s", dbType)
 	}
@@ -103,22 +133,22 @@ func InitDB() {
 
 // AutoMigrate 自动迁移数据库表结构
 func AutoMigrate() error {
-    // 逐个迁移表，避免外键约束问题
-    models := []any{
-        &User{},
-        &Role{},
-        &UserRole{},
-        &Permission{},
-        &RolePermission{},
-        &Job{},
-        &JobHistory{},
-        &Terminal{},
-        &LoginLog{},
-        &KafkaCluster{},
-        &KafkaTopic{},
-        &OperationLog{},
-        &RedisConnection{},
-    }
+	// 逐个迁移表，避免外键约束问题
+	models := []any{
+		&User{},
+		&Role{},
+		&UserRole{},
+		&Permission{},
+		&RolePermission{},
+		&Job{},
+		&JobHistory{},
+		&Terminal{},
+		&LoginLog{},
+		&KafkaCluster{},
+		&KafkaTopic{},
+		&OperationLog{},
+		&RedisConnection{},
+	}
 
 	for _, model := range models {
 		if err := DB.AutoMigrate(model); err != nil {

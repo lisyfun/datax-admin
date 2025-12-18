@@ -39,6 +39,7 @@ type DatabaseConfig struct {
 	TimeZone     string `mapstructure:"time_zone"`
 	Charset      string `mapstructure:"charset"`
 	SSLMode      string `mapstructure:"ssl_mode"` // PostgreSQL SSL模式
+	Schema       string `mapstructure:"schema"`   // PostgreSQL Schema
 }
 
 type DataXConfig struct {
