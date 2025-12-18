@@ -273,7 +273,7 @@ func getJobExecutionTrendQuery() string {
 	}
 
 	switch dbType {
-	case "postgres", "postgresql":
+	case "postgres", "postgresql", "gaussdb":
 		// PostgreSQL 查询
 		return `
 		WITH date_series AS (
