@@ -116,7 +116,7 @@ func InitDB() {
 	// 设置连接池
 	sqlDB.SetMaxIdleConns(config.GlobalConfig.Database.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(config.GlobalConfig.Database.MaxOpenConns)
-	sqlDB.SetConnMaxLifetime(time.Hour * time.Duration(config.GlobalConfig.Database.MaxLifetime))
+	sqlDB.SetConnMaxLifetime(time.Hour * time.Duration(config.GlobalConfig.Database.ConnMaxLifetime))
 
 	customLogger.Info("数据库连接成功")
 

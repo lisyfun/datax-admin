@@ -35,7 +35,7 @@ type DatabaseConfig struct {
 	LogMode      string `mapstructure:"log_mode"`
 	MaxIdleConns int    `mapstructure:"max_idle_conns"`
 	MaxOpenConns int    `mapstructure:"max_open_conns"`
-	MaxLifetime  int    `mapstructure:"max_lifetime"`
+	ConnMaxLifetime  int    `mapstructure:"conn_max_lifetime"`
 	TimeZone     string `mapstructure:"time_zone"`
 	Charset      string `mapstructure:"charset"`
 	SSLMode      string `mapstructure:"ssl_mode"` // PostgreSQL SSL模式
