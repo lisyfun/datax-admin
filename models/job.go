@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -83,6 +84,8 @@ type JobHistory struct {
 	Error     string     `json:"error" gorm:"-"`           // 错误信息（虚拟字段，从文件读取）
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
+
+	mu sync.Mutex `json:"-" gorm:"-"` // 互斥锁，用于控制并发写入日志
 }
 
 // TableName 指定表名
@@ -130,9 +133,17 @@ func (jh *JobHistory) WriteLogToFile(output, error string) error {
 		return fmt.Errorf("序列化日志数据失败: %v", err)
 	}
 
-	// 写入文件
-	if err := os.WriteFile(jh.LogPath, data, 0644); err != nil {
-		return fmt.Errorf("写入日志文件失败: %v", err)
+	// 原子写入：写入临时文件 -> 重命名
+	// 这样可以避免在写入过程中文件被读取导致的内容不完整或JSON解析错误
+	tempFile := jh.LogPath + ".tmp"
+	if err := os.WriteFile(tempFile, data, 0644); err != nil {
+		return fmt.Errorf("写入临时日志文件失败: %v", err)
+	}
+
+	if err := os.Rename(tempFile, jh.LogPath); err != nil {
+		// 尝试清理临时文件
+		_ = os.Remove(tempFile)
+		return fmt.Errorf("重命名日志文件失败: %v", err)
 	}
 
 	// 如果有ID（已保存到数据库），立即更新log_path字段
@@ -148,6 +159,9 @@ func (jh *JobHistory) WriteLogToFile(output, error string) error {
 
 // AppendLogToFile 追加日志内容到文件（用于实时日志）
 func (jh *JobHistory) AppendLogToFile(newOutput, newError string) error {
+	jh.mu.Lock()
+	defer jh.mu.Unlock()
+
 	// 如果LogPath为空，先初始化日志文件
 	if jh.LogPath == "" {
 		if err := jh.WriteLogToFile(newOutput, newError); err != nil {
@@ -158,13 +172,19 @@ func (jh *JobHistory) AppendLogToFile(newOutput, newError string) error {
 
 	// 读取现有日志内容
 	var existingData JobLogData
-	if data, err := os.ReadFile(jh.LogPath); err == nil {
+	if data, err := os.ReadFile(jh.LogPath); err == nil && len(data) > 0 {
 		// 如果文件存在，解析现有内容
 		if err := json.Unmarshal(data, &existingData); err != nil {
-			// 如果解析失败，初始化为空
-			existingData = JobLogData{}
+			// 如果解析失败，不要丢弃数据，将原始内容作为Output保留
+			// 这种情况下通常意味着文件被截断或包含非JSON内容
+			existingData.Output = string(data)
+			existingData.Error = fmt.Sprintf("\n[Warning] 日志文件解析失败，原始内容已保留到Output。错误: %v\n", err)
 		}
+	} else if err != nil && !os.IsNotExist(err) {
+		// 如果读取出错（非文件不存在），返回错误
+		return fmt.Errorf("读取日志文件失败: %v", err)
 	}
+	// 如果文件不存在或为空，existingData 默认为空，直接追加
 
 	// 追加新内容
 	if newOutput != "" {
@@ -180,8 +200,16 @@ func (jh *JobHistory) AppendLogToFile(newOutput, newError string) error {
 		return fmt.Errorf("序列化日志数据失败: %v", err)
 	}
 
-	if err := os.WriteFile(jh.LogPath, data, 0644); err != nil {
-		return fmt.Errorf("写入日志文件失败: %v", err)
+	// 原子写入：写入临时文件 -> 重命名
+	tempFile := jh.LogPath + ".tmp"
+	if err := os.WriteFile(tempFile, data, 0644); err != nil {
+		return fmt.Errorf("写入临时日志文件失败: %v", err)
+	}
+
+	if err := os.Rename(tempFile, jh.LogPath); err != nil {
+		// 尝试清理临时文件
+		_ = os.Remove(tempFile)
+		return fmt.Errorf("重命名日志文件失败: %v", err)
 	}
 
 	return nil
@@ -206,10 +234,20 @@ func (jh *JobHistory) ReadLogFromFile() error {
 		return fmt.Errorf("读取日志文件失败: %v", err)
 	}
 
+	// 处理空文件
+	if len(data) == 0 {
+		jh.Output = ""
+		jh.Error = ""
+		return nil
+	}
+
 	// 反序列化JSON
 	var logData JobLogData
 	if err := json.Unmarshal(data, &logData); err != nil {
-		return fmt.Errorf("解析日志文件失败: %v", err)
+		// 如果解析失败，将原始内容作为输出，并记录错误
+		jh.Output = string(data)
+		jh.Error = fmt.Sprintf("解析日志文件失败(显示原始内容): %v", err)
+		return nil
 	}
 
 	jh.Output = logData.Output
