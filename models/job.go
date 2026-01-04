@@ -94,7 +94,7 @@ func (Job) TableName() string {
 }
 
 // TableName 指定表名
-func (JobHistory) TableName() string {
+func (jh *JobHistory) TableName() string {
 	return "job_histories"
 }
 
