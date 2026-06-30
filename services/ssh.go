@@ -224,6 +224,19 @@ func NewSSHClientWithAuth(host string, port int, username, authType, password, k
 	}
 }
 
+// KeepAlive 返回一个发送 keepalive@openssh.com 的函数和一个关闭通知 channel
+// ponytail: 最简单的 SSH keep-alive 方案，不需要额外的依赖
+func (s *SSHClient) KeepAlive() (func(), <-chan struct{}) {
+	done := make(chan struct{})
+	fn := func() {
+		_, _, err := s.client.SendRequest("keepalive@openssh.com", true, nil)
+		if err != nil {
+			close(done)
+		}
+	}
+	return fn, done
+}
+
 // Write 写入数据到SSH会话
 func (s *SSHClient) Write(data []byte) (int, error) {
 	return s.stdin.Write(data)

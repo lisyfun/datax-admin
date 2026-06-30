@@ -170,10 +170,9 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 	}
 
 	logger.Info("正在升级WebSocket连接, ID: %d", id)
-	// 升级HTTP连接为WebSocket
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
-			return true // 在生产环境中，应该根据实际情况配置允许的域名
+			return true
 		},
 		HandshakeTimeout: 10 * time.Second,
 		ReadBufferSize:   1024,
@@ -189,7 +188,6 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 	defer ws.Close()
 
 	logger.Info("正在创建SSH连接, Host: %s, Port: %d", terminal.Host, terminal.Port)
-	// 创建SSH连接
 	sshClient, err := services.NewSSHClientWithAuth(terminal.Host, terminal.Port, terminal.Username, terminal.AuthType, terminal.Password, terminal.KeyFile, terminal.KeyPassphrase)
 	if err != nil {
 		logger.Error("SSH连接失败: %v", err)
@@ -202,7 +200,6 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 	defer sshClient.Close()
 
 	logger.Info("正在更新终端状态为在线, ID: %d", id)
-	// 更新终端状态为在线
 	if err := c.terminalService.UpdateTerminalStatus(uint(id), "online"); err != nil {
 		logger.Error("更新终端状态失败: %v", err)
 		ws.WriteJSON(map[string]any{
@@ -214,10 +211,38 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 
 	logger.Info("终端连接成功, 开始数据传输, ID: %d", id)
 
-	// 创建用于同步的通道
-	done := make(chan bool)
+	const (
+		pongWait   = 60 * time.Second // 等待 pong 的最长时间
+		pingPeriod = 30 * time.Second // ping 发送间隔
+		writeWait  = 10 * time.Second // 写入超时
+	)
 
-	// 从SSH读取数据并发送到WebSocket
+	// ponytail: 全局 done 通道，所有 goroutine 共享
+	done := make(chan struct{})
+
+	// WebSocket ping/pong 心跳
+	ws.SetPongHandler(func(string) error {
+		ws.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	// SSH keep-alive: 每 30s 发一个 keepalive@openssh.com 请求
+	sshKeepAlive, sshKAChan := sshClient.KeepAlive()
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				sshKeepAlive()
+			case <-sshKAChan:
+				return
+			case <-done:
+				return
+			}
+		}
+	}()
+
 	go func() {
 		defer close(done)
 		buf := make([]byte, 1024)
@@ -234,6 +259,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 				return
 			}
 			if n > 0 {
+				ws.SetWriteDeadline(time.Now().Add(writeWait))
 				err = ws.WriteJSON(map[string]any{
 					"type": "output",
 					"data": string(buf[:n]),
@@ -246,16 +272,16 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 		}
 	}()
 
-	// 从WebSocket读取数据并写入SSH
 	go func() {
 		for {
 			var msg struct {
 				Type string `json:"type"`
 				Data string `json:"data"`
 			}
+			ws.SetReadDeadline(time.Now().Add(pongWait))
 			err := ws.ReadJSON(&msg)
 			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
 					logger.Error("读取WebSocket数据失败: %v", err)
 				} else {
 					logger.Info("WebSocket连接已关闭: %v", err)
@@ -265,6 +291,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 
 			switch msg.Type {
 			case "input":
+				ws.SetWriteDeadline(time.Now().Add(writeWait))
 				_, err = sshClient.Write([]byte(msg.Data))
 				if err != nil {
 					logger.Error("写入SSH数据失败: %v", err)
@@ -288,9 +315,25 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 		}
 	}()
 
+	// ping 发送 goroutine
+	go func() {
+		ticker := time.NewTicker(pingPeriod)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				ws.SetWriteDeadline(time.Now().Add(writeWait))
+				if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
+					return
+				}
+			case <-done:
+				return
+			}
+		}
+	}()
+
 	<-done
 
-	// 更新终端状态为离线
 	if err := c.terminalService.UpdateTerminalStatus(uint(id), "offline"); err != nil {
 		logger.Error("更新终端状态失败: %v", err)
 	}
