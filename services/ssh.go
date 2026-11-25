@@ -3,12 +3,8 @@ package services
 import (
 	"fmt"
 	"io"
-	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -33,12 +29,16 @@ type SSHClient struct {
 
 // NewSSHClient 创建新的SSH客户端（密码认证）
 func NewSSHClient(host string, port int, username, password string) (*SSHClient, error) {
+	hostKeyCB, err := hostKeyCallback()
+	if err != nil {
+		return nil, fmt.Errorf("初始化主机密钥校验失败: %v", err)
+	}
 	config := &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(password),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCB,
 		Timeout:         30 * time.Second,
 	}
 
@@ -50,15 +50,15 @@ func NewSSHClient(host string, port int, username, password string) (*SSHClient,
 
 	session, err := client.NewSession()
 	if err != nil {
-		client.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("创建SSH会话失败: %v", err)
 	}
 
 	// 创建SFTP客户端
 	sftpClient, err := sftp.NewClient(client)
 	if err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("创建SFTP客户端失败: %v", err)
 	}
 
@@ -68,36 +68,36 @@ func NewSSHClient(host string, port int, username, password string) (*SSHClient,
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
 	}); err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("请求伪终端失败: %v", err)
 	}
 
 	stdin, err := session.StdinPipe()
 	if err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("获取标准输入失败: %v", err)
 	}
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("获取标准输出失败: %v", err)
 	}
 
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("获取标准错误失败: %v", err)
 	}
 
 	// 启动shell
 	if err := session.Shell(); err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("启动Shell失败: %v", err)
 	}
 
@@ -133,12 +133,16 @@ func NewSSHClientWithKey(host string, port int, username, keyContent, keyPassphr
 		return nil, fmt.Errorf("解析私钥失败: %v", err)
 	}
 
+	hostKeyCB, err := hostKeyCallback()
+	if err != nil {
+		return nil, fmt.Errorf("初始化主机密钥校验失败: %v", err)
+	}
 	config := &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCB,
 		Timeout:         30 * time.Second,
 	}
 
@@ -150,15 +154,15 @@ func NewSSHClientWithKey(host string, port int, username, keyContent, keyPassphr
 
 	session, err := client.NewSession()
 	if err != nil {
-		client.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("创建SSH会话失败: %v", err)
 	}
 
 	// 创建SFTP客户端
 	sftpClient, err := sftp.NewClient(client)
 	if err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("创建SFTP客户端失败: %v", err)
 	}
 
@@ -168,36 +172,36 @@ func NewSSHClientWithKey(host string, port int, username, keyContent, keyPassphr
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
 	}); err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("请求伪终端失败: %v", err)
 	}
 
 	stdin, err := session.StdinPipe()
 	if err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("获取标准输入失败: %v", err)
 	}
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("获取标准输出失败: %v", err)
 	}
 
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("获取标准错误失败: %v", err)
 	}
 
 	// 启动shell
 	if err := session.Shell(); err != nil {
-		session.Close()
-		client.Close()
+		_ = session.Close()
+		_ = client.Close()
 		return nil, fmt.Errorf("启动Shell失败: %v", err)
 	}
 
@@ -228,10 +232,11 @@ func NewSSHClientWithAuth(host string, port int, username, authType, password, k
 // ponytail: 最简单的 SSH keep-alive 方案，不需要额外的依赖
 func (s *SSHClient) KeepAlive() (func(), <-chan struct{}) {
 	done := make(chan struct{})
+	var once sync.Once
 	fn := func() {
 		_, _, err := s.client.SendRequest("keepalive@openssh.com", true, nil)
 		if err != nil {
-			close(done)
+			once.Do(func() { close(done) })
 		}
 	}
 	return fn, done
@@ -252,7 +257,7 @@ func (s *SSHClient) Close() error {
 	var err error
 	s.closeOnce.Do(func() {
 		if s.session != nil {
-			s.session.Close()
+			_ = s.session.Close()
 		}
 		if s.client != nil {
 			err = s.client.Close()
@@ -294,8 +299,8 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 		n, err := src.Read(buf)
 		if err != nil {
 			if err != io.EOF {
-				tempFile.Close()
-				os.Remove(tempPath)
+				_ = tempFile.Close()
+				_ = os.Remove(tempPath)
 				return fmt.Errorf("读取文件失败: %v", err)
 			}
 			break
@@ -305,8 +310,8 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 		}
 
 		if _, err := tempFile.Write(buf[:n]); err != nil {
-			tempFile.Close()
-			os.Remove(tempPath)
+			_ = tempFile.Close()
+			_ = os.Remove(tempPath)
 			return fmt.Errorf("写入临时文件失败: %v", err)
 		}
 
@@ -323,98 +328,57 @@ func (c *SSHClient) UploadFileWithTemp(src io.Reader, destPath string, fileSize 
 
 	// 确保所有数据都写入磁盘
 	if err := tempFile.Sync(); err != nil {
-		tempFile.Close()
-		os.Remove(tempPath)
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
 		return fmt.Errorf("同步临时文件失败: %v", err)
 	}
 
 	// 关闭临时文件
-	tempFile.Close()
+	_ = tempFile.Close()
 
 	// 调用 UploadLocalFile 进行上传
 	if err := c.UploadLocalFile(tempPath, destPath); err != nil {
-		os.Remove(tempPath)
+		_ = os.Remove(tempPath)
 		return err
 	}
 
 	// 上传成功后删除临时文件
-	os.Remove(tempPath)
+	_ = os.Remove(tempPath)
 
 	return nil
 }
 
-// UploadLocalFile 直接上传本地文件到远程
+// UploadLocalFile 直接上传本地文件到远程（通过 SFTP，避免 shell 命令注入）
 func (c *SSHClient) UploadLocalFile(localPath, destPath string) error {
-	if c.client == nil {
-		return fmt.Errorf("SSH客户端未创建")
+	if c.sftpClient == nil {
+		return fmt.Errorf("SFTP客户端未创建")
 	}
 
-	// 从原始客户端获取主机地址和端口
-	addr := c.client.RemoteAddr().String()
-	host, portStr, err := net.SplitHostPort(addr)
+	// #nosec G304 -- localPath 由 os.CreateTemp 生成或内部下载流程传入的临时文件路径
+	src, err := os.Open(localPath)
 	if err != nil {
-		return fmt.Errorf("解析远端地址失败: %v", err)
+		return fmt.Errorf("打开本地文件失败: %v", err)
 	}
-	port, err := strconv.Atoi(portStr)
+	defer src.Close()
+
+	// 自动创建远端目录
+	if dir := filepath.Dir(destPath); dir != "" && dir != "." && dir != "/" {
+		if err := c.sftpClient.MkdirAll(dir); err != nil {
+			return fmt.Errorf("创建远端目录失败: %v", err)
+		}
+	}
+
+	dst, err := c.sftpClient.Create(destPath)
 	if err != nil {
-		return fmt.Errorf("解析远端端口失败: %v", err)
+		return fmt.Errorf("创建远端文件失败: %v", err)
 	}
 
-	// 获取本地文件的绝对路径
-	absLocalPath, err := filepath.Abs(localPath)
-	if err != nil {
-		return fmt.Errorf("获取本地文件路径失败: %v", err)
+	if _, err := io.Copy(dst, src); err != nil {
+		_ = dst.Close()
+		return fmt.Errorf("远端传输失败: %v", err)
 	}
-
-	// 根据认证类型构建不同的scp命令
-	var cmd *exec.Cmd
-	var keyPath string
-	if c.authType == "key" {
-		// 密钥认证：创建临时密钥文件
-		keyFile, err := os.CreateTemp("", "ssh-key-*.tmp")
-		if err != nil {
-			return fmt.Errorf("创建临时密钥失败: %v", err)
-		}
-		keyPath = keyFile.Name()
-
-		// 写入密钥内容
-		if _, err := keyFile.WriteString(c.keyContent); err != nil {
-			keyFile.Close()
-			os.Remove(keyPath)
-			return fmt.Errorf("写入密钥失败: %v", err)
-		}
-		keyFile.Close()
-
-		// 设置密钥文件权限为600
-		if err := os.Chmod(keyPath, 0600); err != nil {
-			os.Remove(keyPath)
-			return fmt.Errorf("设置密钥权限失败: %v", err)
-		}
-
-		// 使用密钥文件的scp命令
-		// 添加 -q 禁止进度输出，-c 指定加密算法
-		scpCmd := fmt.Sprintf("scp -q -c aes128-gcm@openssh.com,aes128-ctr -i %s -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", keyPath, port, absLocalPath, c.client.User(), host, destPath)
-		cmd = exec.Command("bash", "-c", scpCmd)
-	} else {
-		// 密码认证：使用sshpass
-		// 添加 -q 禁止进度输出，-c 指定加密算法
-		scpCmd := fmt.Sprintf("sshpass -p '%s' scp -q -c aes128-gcm@openssh.com,aes128-ctr -o StrictHostKeyChecking=no -P %d %s \"%s@%s:%s\"", c.password, port, absLocalPath, c.client.User(), host, destPath)
-		cmd = exec.Command("bash", "-c", scpCmd)
-	}
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	// 执行上传命令并等待完成
-	runErr := cmd.Run()
-
-	// 清理临时密钥文件
-	if keyPath != "" {
-		os.Remove(keyPath)
-	}
-
-	if runErr != nil {
-		return fmt.Errorf("远端传输失败: %v", runErr)
+	if err := dst.Close(); err != nil {
+		return fmt.Errorf("关闭远端文件失败: %v", err)
 	}
 
 	return nil
@@ -495,26 +459,17 @@ type FileInfo struct {
 	IsDir   bool        `json:"isDir"`
 }
 
-// GetFileList 获取目录下的文件列表
+// GetFileList 获取目录下的文件列表（仅使用 SFTP，避免命令注入）
 func (c *SSHClient) GetFileList(dirPath string) ([]FileInfo, error) {
+	if c.sftpClient == nil {
+		return nil, fmt.Errorf("SFTP客户端未创建")
+	}
+
 	// 如果目录路径为空，使用当前目录
 	if dirPath == "" {
 		dirPath = "."
 	}
 
-	// 首先尝试使用SSH命令获取完整的文件列表（包括隐藏文件）
-	fileList, err := c.getFileListBySSH(dirPath)
-	if err == nil && len(fileList) > 0 {
-		return fileList, nil
-	}
-
-	// 如果SSH命令失败，回退到SFTP方式
-
-	if c.sftpClient == nil {
-		return nil, fmt.Errorf("SFTP客户端未创建")
-	}
-
-	// 获取目录下的文件列表
 	entries, err := c.sftpClient.ReadDir(dirPath)
 	if err != nil {
 		return nil, fmt.Errorf("读取目录失败: %v", err)
@@ -563,7 +518,7 @@ func (c *SSHClient) DownloadFileToLocal(remotePath string) (localPath string, si
 	}
 	localPath = tmpFile.Name()
 	defer func() {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 	}()
 
 	// 拷贝内容
@@ -572,14 +527,14 @@ func (c *SSHClient) DownloadFileToLocal(remotePath string) (localPath string, si
 	for {
 		n, err := srcFile.Read(buf)
 		if err != nil && err != io.EOF {
-			os.Remove(localPath)
+			_ = os.Remove(localPath)
 			return "", 0, fmt.Errorf("读取远程文件失败: %v", err)
 		}
 		if n == 0 {
 			break
 		}
 		if _, err := tmpFile.Write(buf[:n]); err != nil {
-			os.Remove(localPath)
+			_ = os.Remove(localPath)
 			return "", 0, fmt.Errorf("写入本地临时文件失败: %v", err)
 		}
 		total += int64(n)
@@ -587,100 +542,9 @@ func (c *SSHClient) DownloadFileToLocal(remotePath string) (localPath string, si
 
 	// 确保写入磁盘
 	if err := tmpFile.Sync(); err != nil {
-		os.Remove(localPath)
+		_ = os.Remove(localPath)
 		return "", 0, fmt.Errorf("同步本地临时文件失败: %v", err)
 	}
 
 	return localPath, fileInfo.Size(), nil
-}
-
-// getFileListBySSH 通过SSH命令获取文件列表（包括隐藏文件）
-func (c *SSHClient) getFileListBySSH(dirPath string) ([]FileInfo, error) {
-	if c.client == nil {
-		return nil, fmt.Errorf("SSH客户端未创建")
-	}
-
-	// 创建SSH会话
-	session, err := c.client.NewSession()
-	if err != nil {
-		return nil, fmt.Errorf("创建SSH会话失败: %v", err)
-	}
-	defer session.Close()
-
-	// 使用ls -la命令获取详细的文件列表（包括隐藏文件）
-	cmd := fmt.Sprintf("ls -la '%s' 2>/dev/null", dirPath)
-	output, err := session.Output(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("执行ls命令失败: %v", err)
-	}
-
-	// 解析ls命令的输出
-	return c.parseListOutput(string(output), dirPath)
-}
-
-// parseListOutput 解析ls -la命令的输出
-func (c *SSHClient) parseListOutput(output, dirPath string) ([]FileInfo, error) {
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	var fileList []FileInfo
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		// 跳过总计行和当前目录/父目录
-		if strings.HasPrefix(line, "total ") ||
-			strings.HasSuffix(line, " .") ||
-			strings.HasSuffix(line, " ..") {
-			continue
-		}
-
-		// 解析ls -la的输出格式
-		// 格式: drwxr-xr-x 2 user group 4096 Jan 1 12:00 filename
-		fields := strings.Fields(line)
-		if len(fields) < 9 {
-			continue
-		}
-
-		// 获取文件名（可能包含空格，所以需要特殊处理）
-		nameStartIndex := 8
-		fileName := strings.Join(fields[nameStartIndex:], " ")
-
-		// 跳过 . 和 .. 目录
-		if fileName == "." || fileName == ".." {
-			continue
-		}
-
-		// 解析文件大小
-		size, _ := strconv.ParseInt(fields[4], 10, 64)
-
-		// 解析修改时间
-		timeStr := strings.Join(fields[5:8], " ")
-		modTime, _ := time.Parse("Jan 2 15:04", timeStr)
-		if modTime.Year() == 0 {
-			modTime = modTime.AddDate(time.Now().Year(), 0, 0)
-		}
-
-		// 判断是否为目录
-		isDir := strings.HasPrefix(fields[0], "d")
-
-		// 解析文件权限（暂时使用默认值）
-		mode := os.FileMode(0644)
-		if isDir {
-			mode = os.FileMode(0755) | os.ModeDir
-		}
-
-		fileInfo := FileInfo{
-			Name:    fileName,
-			Path:    filepath.Join(dirPath, fileName),
-			Size:    size,
-			Mode:    mode,
-			ModTime: modTime,
-			IsDir:   isDir,
-		}
-		fileList = append(fileList, fileInfo)
-	}
-
-	return fileList, nil
 }

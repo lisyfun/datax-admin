@@ -42,6 +42,9 @@ help:
 	@echo "  build-arm64     构建后端可执行文件 (Linux ARM64)"
 	@echo "  build-frontend  构建前端"
 	@echo "  clean           清理构建产物"
+	@echo "  test            运行后端单元测试"
+	@echo "  lint            运行 go vet 与 golangci-lint"
+	@echo "  sec             安全扫描（gosec + govulncheck）"
 	@echo "  run             运行应用（前端和后端）"
 	@echo "  docker          构建Docker镜像 (AMD64)"
 	@echo "  docker-arm64    构建Docker镜像 (ARM64)"
@@ -73,6 +76,32 @@ clean:
 	@echo -e "$(GREEN)清理完成$(NC)"
 
 # 测试
+.PHONY: test
+test:
+	@echo -e "$(YELLOW)运行后端单元测试...$(NC)"
+	go test ./...
+
+# 静态检查
+.PHONY: lint
+lint:
+	@echo -e "$(YELLOW)运行 go vet...$(NC)"
+	go vet ./...
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		echo -e "$(YELLOW)运行 golangci-lint...$(NC)"; \
+		golangci-lint run ./...; \
+	else \
+		echo -e "$(YELLOW)golangci-lint 未安装，已跳过。$(NC)"; \
+	fi
+
+# 安全扫描
+# 说明：用 go run 现场构建扫描器，避免本机预装的旧版本与当前 Go 工具链不兼容。
+# gosec 的 G201/G202 规则专门检查 SQL 拼接/注入问题。
+.PHONY: sec
+sec:
+	@echo -e "$(YELLOW)运行 gosec（含 SQL 注入规则 G201/G202）...$(NC)"
+	go run github.com/securego/gosec/v2/cmd/gosec@latest ./...
+	@echo -e "$(YELLOW)运行 govulncheck（依赖漏洞）...$(NC)"
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 # 运行应用（前端和后端）
 .PHONY: run

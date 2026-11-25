@@ -18,7 +18,7 @@ import (
 )
 
 // executeShellJob 执行Shell任务
-func (s *JobService) executeShellJob(job *models.Job, params any, history *models.JobHistory) {
+func (s *JobService) executeShellJob(parent context.Context, job *models.Job, params any, history *models.JobHistory) {
 	var shellParams models.JobShellParams
 	if err := mapToStruct(params, &shellParams); err != nil {
 		history.Status = 0
@@ -29,11 +29,11 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 		return
 	}
 
-	// 创建上下文，处理超时
-	ctx := context.Background()
+	// 在任务上下文基础上叠加超时
+	ctx := parent
 	if job.Timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(job.Timeout)*time.Second)
+		ctx, cancel = context.WithTimeout(parent, time.Duration(job.Timeout)*time.Second)
 		defer cancel()
 	}
 
@@ -42,13 +42,14 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 		logger.Info("初始化日志文件失败: %v", logErr)
 	}
 
-    shell := "sh"
-    shellArgs := []string{"-c", shellParams.Command}
-    if _, err := exec.LookPath("bash"); err == nil {
-        shell = "bash"
-        shellArgs = []string{"-lc", shellParams.Command}
-    }
-    cmd := exec.CommandContext(ctx, shell, shellArgs...)
+	shell := "sh"
+	shellArgs := []string{"-c", shellParams.Command}
+	if _, err := exec.LookPath("bash"); err == nil {
+		shell = "bash"
+		shellArgs = []string{"-lc", shellParams.Command}
+	}
+	// #nosec G204 -- Shell 任务本身即以用户配置的命令为执行内容，shell 固定为 sh/bash
+	cmd := exec.CommandContext(ctx, shell, shellArgs...)
 	if shellParams.WorkDir != "" {
 		cmd.Dir = shellParams.WorkDir
 	}
@@ -88,73 +89,73 @@ func (s *JobService) executeShellJob(job *models.Job, params any, history *model
 		return
 	}
 
-    // 实时读取输出
-    var outputBuffer, errorBuffer bytes.Buffer
-    done := make(chan bool, 2)
+	// 实时读取输出
+	var outputBuffer, errorBuffer bytes.Buffer
+	done := make(chan bool, 2)
 
 	// 启动goroutine读取stdout
-    go func() {
-        defer func() { done <- true }()
-        buffer := make([]byte, 1024)
-        for {
-            n, readErr := stdout.Read(buffer)
-            if n > 0 {
-                content := string(buffer[:n])
-                outputBuffer.WriteString(content)
-                // 实时追加到日志文件
-                if logErr := history.AppendLogToFile(content, ""); logErr != nil {
-                    logger.Info("追加输出日志失败: %v", logErr)
-                }
-            }
-            if readErr != nil {
-                break
-            }
-        }
-    }()
+	go func() {
+		defer func() { done <- true }()
+		buffer := make([]byte, 1024)
+		for {
+			n, readErr := stdout.Read(buffer)
+			if n > 0 {
+				content := string(buffer[:n])
+				outputBuffer.WriteString(content)
+				// 实时追加到日志文件
+				if logErr := history.AppendLogToFile(content, ""); logErr != nil {
+					logger.Info("追加输出日志失败: %v", logErr)
+				}
+			}
+			if readErr != nil {
+				break
+			}
+		}
+	}()
 
 	// 启动goroutine读取stderr
-    go func() {
-        defer func() { done <- true }()
-        buffer := make([]byte, 1024)
-        for {
-            n, readErr := stderr.Read(buffer)
-            if n > 0 {
-                content := string(buffer[:n])
-                errorBuffer.WriteString(content)
-                // 实时追加到日志文件
-                if logErr := history.AppendLogToFile("", content); logErr != nil {
-                    logger.Info("追加错误日志失败: %v", logErr)
-                }
-            }
-            if readErr != nil {
-                break
-            }
-        }
-    }()
+	go func() {
+		defer func() { done <- true }()
+		buffer := make([]byte, 1024)
+		for {
+			n, readErr := stderr.Read(buffer)
+			if n > 0 {
+				content := string(buffer[:n])
+				errorBuffer.WriteString(content)
+				// 实时追加到日志文件
+				if logErr := history.AppendLogToFile("", content); logErr != nil {
+					logger.Info("追加错误日志失败: %v", logErr)
+				}
+			}
+			if readErr != nil {
+				break
+			}
+		}
+	}()
 
-    // 等待命令完成（与读取错误隔离）
-    waitErr := cmd.Wait()
+	// 等待命令完成（与读取错误隔离）
+	waitErr := cmd.Wait()
 
 	// 等待所有goroutine完成
 	<-done
 	<-done
 
-    if waitErr != nil {
-        history.Status = 0
-        // 如果有额外的错误信息，追加到日志
-        if logErr := history.AppendLogToFile("", fmt.Sprintf("\n命令执行失败: %v\n", waitErr)); logErr != nil {
-            logger.Info("写入日志文件失败: %v", logErr)
-        }
-    } else {
-        history.Status = 1
-        if logErr := history.AppendLogToFile("\n命令执行成功\n", ""); logErr != nil {
-            logger.Info("写入日志文件失败: %v", logErr)
-        }
-    }
+	if waitErr != nil {
+		history.Status = 0
+		// 如果有额外的错误信息，追加到日志
+		if logErr := history.AppendLogToFile("", fmt.Sprintf("\n命令执行失败: %v\n", waitErr)); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
+	} else {
+		history.Status = 1
+		if logErr := history.AppendLogToFile("\n命令执行成功\n", ""); logErr != nil {
+			logger.Info("写入日志文件失败: %v", logErr)
+		}
+	}
 }
 
 // executeHTTPJob 执行HTTP任务
-func (s *JobService) executeHTTPJob(job *models.Job, params any, history *models.JobHistory) {
+func (s *JobService) executeHTTPJob(parent context.Context, job *models.Job, params any, history *models.JobHistory) {
 	var httpParams models.JobHTTPParams
 	if err := mapToStruct(params, &httpParams); err != nil {
 		history.Status = 0
@@ -162,8 +163,15 @@ func (s *JobService) executeHTTPJob(job *models.Job, params any, history *models
 		return
 	}
 
+	ctx := parent
+	if job.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(parent, time.Duration(job.Timeout)*time.Second)
+		defer cancel()
+	}
+
 	// 创建HTTP请求
-	req, err := http.NewRequest(httpParams.Method, httpParams.URL, strings.NewReader(httpParams.Body))
+	req, err := http.NewRequestWithContext(ctx, httpParams.Method, httpParams.URL, strings.NewReader(httpParams.Body))
 	if err != nil {
 		history.Status = 0
 		if logErr := history.WriteLogToFile("", fmt.Sprintf("创建HTTP请求失败: %v", err)); logErr != nil {
@@ -177,10 +185,8 @@ func (s *JobService) executeHTTPJob(job *models.Job, params any, history *models
 		req.Header.Set(k, v)
 	}
 
-	// 创建带超时的客户端
-	client := &http.Client{
-		Timeout: time.Duration(job.Timeout) * time.Second,
-	}
+	// 超时由 context 控制，避免 0 值导致立即超时
+	client := &http.Client{}
 
 	// 发送请求
 	resp, err := client.Do(req)
@@ -228,7 +234,7 @@ func (s *JobService) executeHTTPJob(job *models.Job, params any, history *models
 }
 
 // executeDataXJob 执行DataX任务
-func (s *JobService) executeDataXJob(job *models.Job, params any, history *models.JobHistory) {
+func (s *JobService) executeDataXJob(parent context.Context, job *models.Job, params any, history *models.JobHistory) {
 	var dataxParams models.JobDataXParams
 	if err := mapToStruct(params, &dataxParams); err != nil {
 		history.Status = 0
@@ -302,7 +308,7 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 		if logErr := history.WriteLogToFile("", fmt.Sprintf("写入配置失败: %v", err)); logErr != nil {
 			logger.Info("写入日志文件失败: %v", logErr)
 		}
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		return
 	}
 
@@ -312,20 +318,21 @@ func (s *JobService) executeDataXJob(job *models.Job, params any, history *model
 		if logErr := history.WriteLogToFile("", fmt.Sprintf("同步文件失败: %v", err)); logErr != nil {
 			logger.Info("写入日志文件失败: %v", logErr)
 		}
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		return
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
-	// 创建上下文，处理超时
-	ctx := context.Background()
+	// 在任务上下文基础上叠加超时
+	ctx := parent
 	if job.Timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(job.Timeout)*time.Second)
+		ctx, cancel = context.WithTimeout(parent, time.Duration(job.Timeout)*time.Second)
 		defer cancel()
 	}
 
 	// 准备命令
+	// #nosec G204 -- 可执行文件来自服务端配置 datax.bin，参数为内部生成的临时 job 文件
 	cmd := exec.CommandContext(ctx, config.GlobalConfig.DataX.Bin, "-job", tmpFileName)
 
 	// 设置工作目录为 DataX home 目录

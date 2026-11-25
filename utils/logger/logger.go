@@ -34,12 +34,12 @@ func Init() error {
 	logConfig := config.GlobalConfig.Logger
 
 	// 确保日志目录存在
-	if err := os.MkdirAll(logConfig.LogPath, 0755); err != nil {
+	if err := os.MkdirAll(logConfig.LogPath, 0750); err != nil {
 		return fmt.Errorf("创建日志目录失败: %v", err)
 	}
 
 	// 创建日志文件
-	logFile, err := os.OpenFile(filepath.Join(logConfig.LogPath, "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	logFile, err := os.OpenFile(filepath.Join(logConfig.LogPath, "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return fmt.Errorf("打开日志文件失败: %v", err)
 	}

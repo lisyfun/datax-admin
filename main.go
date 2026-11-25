@@ -7,6 +7,7 @@ import (
 	"datax-admin/routes"
 	"datax-admin/services"
 	"datax-admin/utils/logger"
+	"datax-admin/utils/secret"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,14 @@ func main() {
 	// 初始化日志系统
 	if err := logger.Init(); err != nil {
 		logger.Fatal("初始化日志系统失败: %v", err)
+	}
+
+	// 初始化敏感数据加密（必须在数据库初始化前完成，GORM 钩子会用到）
+	if config.GlobalConfig.Security.EncryptionKey == "" {
+		logger.Info("未配置 security.encryption_key，将使用 data/encryption.key（请持久化该文件，丢失后无法解密已有凭据）")
+	}
+	if err := secret.Init(config.GlobalConfig.Security.EncryptionKey); err != nil {
+		logger.Fatal("初始化敏感数据加密失败: %v", err)
 	}
 
 	// 初始化数据库
@@ -60,6 +69,17 @@ func main() {
 
 	// 创建路由
 	r := gin.New()
+
+	// 配置可信反向代理：默认不信任任何代理，避免客户端伪造 X-Forwarded-For
+	// 绕过登录限流等基于来源 IP 的保护。部署在 nginx 之后时请配置
+	// server.trusted_proxies（例如 ["127.0.0.1", "::1"]）。
+	if len(config.GlobalConfig.Server.TrustedProxies) > 0 {
+		if err := r.SetTrustedProxies(config.GlobalConfig.Server.TrustedProxies); err != nil {
+			logger.Fatal("配置可信代理失败: %v", err)
+		}
+	} else if err := r.SetTrustedProxies(nil); err != nil {
+		logger.Fatal("设置可信代理失败: %v", err)
+	}
 
 	// 使用自定义日志中间件
 	// r.Use(middleware.GinLogger())

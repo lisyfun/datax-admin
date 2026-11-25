@@ -2,6 +2,7 @@ package v1
 
 import (
 	"datax-admin/controllers"
+	"datax-admin/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -10,8 +11,9 @@ import (
 func RegisterOperationLogRoutes(authenticated *gin.RouterGroup) {
 	logController := controllers.NewOperationLogController()
 
-	authenticated.GET("/operation-logs", logController.GetLogList)
-	authenticated.DELETE("/operation-logs/:id", logController.DeleteLog)
-	authenticated.POST("/operation-logs/batch-delete", logController.BatchDeleteLogs)
-	authenticated.POST("/operation-logs/clear", logController.ClearLogs)
+	logPerm := middleware.RequirePermission("system.logs")
+	authenticated.GET("/operation-logs", logPerm, logController.GetLogList)
+	authenticated.DELETE("/operation-logs/:id", logPerm, logController.DeleteLog)
+	authenticated.POST("/operation-logs/batch-delete", logPerm, logController.BatchDeleteLogs)
+	authenticated.POST("/operation-logs/clear", logPerm, logController.ClearLogs)
 }

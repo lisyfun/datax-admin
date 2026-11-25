@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"sync"
@@ -84,8 +85,20 @@ type JobHistory struct {
 	Error     string     `json:"error" gorm:"-"`           // 错误信息（虚拟字段，从文件读取）
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
+}
 
-	mu sync.Mutex `json:"-" gorm:"-"` // 互斥锁，用于控制并发写入日志
+// 任务日志写入锁按稳定标识分片，避免同一历史记录的多个 JobHistory 副本
+// 并发追加时互相覆盖。固定分片数可避免为每个日志文件长期保留锁对象。
+const jobLogLockStripes = 64
+
+var jobLogLocks [jobLogLockStripes]sync.Mutex
+
+// logLock 返回该历史记录对应的分片锁。
+// key 使用创建后即固定不变的字段，避免依赖可能被并发的 LogPath。
+func (jh *JobHistory) logLock() *sync.Mutex {
+	h := fnv.New32a()
+	_, _ = fmt.Fprintf(h, "%d/%d/%d", jh.JobID, jh.ID, jh.StartTime.UnixNano())
+	return &jobLogLocks[h.Sum32()%jobLogLockStripes]
 }
 
 // TableName 指定表名
@@ -106,9 +119,17 @@ type JobLogData struct {
 
 // WriteLogToFile 将日志写入文件
 func (jh *JobHistory) WriteLogToFile(output, error string) error {
+	mu := jh.logLock()
+	mu.Lock()
+	defer mu.Unlock()
+	return jh.writeLogToFile(output, error)
+}
+
+// writeLogToFile 在已持有分片锁的前提下写入日志文件
+func (jh *JobHistory) writeLogToFile(output, error string) error {
 	// 确保日志目录存在
 	logDir := filepath.Join("logs", "jobs")
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0750); err != nil {
 		return fmt.Errorf("创建日志目录失败: %v", err)
 	}
 
@@ -136,7 +157,7 @@ func (jh *JobHistory) WriteLogToFile(output, error string) error {
 	// 原子写入：写入临时文件 -> 重命名
 	// 这样可以避免在写入过程中文件被读取导致的内容不完整或JSON解析错误
 	tempFile := jh.LogPath + ".tmp"
-	if err := os.WriteFile(tempFile, data, 0644); err != nil {
+	if err := os.WriteFile(tempFile, data, 0600); err != nil {
 		return fmt.Errorf("写入临时日志文件失败: %v", err)
 	}
 
@@ -159,12 +180,13 @@ func (jh *JobHistory) WriteLogToFile(output, error string) error {
 
 // AppendLogToFile 追加日志内容到文件（用于实时日志）
 func (jh *JobHistory) AppendLogToFile(newOutput, newError string) error {
-	jh.mu.Lock()
-	defer jh.mu.Unlock()
+	mu := jh.logLock()
+	mu.Lock()
+	defer mu.Unlock()
 
 	// 如果LogPath为空，先初始化日志文件
 	if jh.LogPath == "" {
-		if err := jh.WriteLogToFile(newOutput, newError); err != nil {
+		if err := jh.writeLogToFile(newOutput, newError); err != nil {
 			return fmt.Errorf("初始化日志文件失败: %v", err)
 		}
 		return nil
@@ -202,7 +224,7 @@ func (jh *JobHistory) AppendLogToFile(newOutput, newError string) error {
 
 	// 原子写入：写入临时文件 -> 重命名
 	tempFile := jh.LogPath + ".tmp"
-	if err := os.WriteFile(tempFile, data, 0644); err != nil {
+	if err := os.WriteFile(tempFile, data, 0600); err != nil {
 		return fmt.Errorf("写入临时日志文件失败: %v", err)
 	}
 

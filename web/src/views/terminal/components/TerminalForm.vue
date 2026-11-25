@@ -157,18 +157,18 @@ watch(
   () => props.data,
   (newVal) => {
     if (newVal) {
-      const { name, host, port, username, authType, keyFile, keyPassphrase } = newVal;
+      const { name, host, port, username, authType, hasKeyFile } = newVal;
       Object.assign(formData, {
         name,
         host,
         port,
         username,
         authType: authType || 'password',
-        keyFile: keyFile || '',
-        keyPassphrase: keyPassphrase || ''
+        keyFile: '',
+        keyPassphrase: ''
       });
-      if (keyFile) {
-        keyFileName.value = '已设置密钥文件';
+      if (hasKeyFile) {
+        keyFileName.value = '已设置密钥文件（不修改请留空）';
       }
     }
   },

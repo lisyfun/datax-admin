@@ -17,15 +17,16 @@ type CreateJobRequest struct {
 	Params      any    `json:"params" binding:"required"`
 }
 
-// UpdateJobRequest 更新任务请求
+// UpdateJobRequest 更新任务请求。
+// 使用指针以区分「不修改」和「显式设置为空/零值」。
 type UpdateJobRequest struct {
-	Name        string `json:"name" binding:"omitempty,max=100"`
-	Description string `json:"description" binding:"max=500"`
-	CronExpr    string `json:"cron_expr" binding:"omitempty,max=100"`
-	Timeout     int    `json:"timeout" binding:"min=0"`
-	RetryCount  int    `json:"retry_count" binding:"min=0"`
-	RetryDelay  int    `json:"retry_delay" binding:"min=0"`
-	Params      any    `json:"params"`
+	Name        *string `json:"name" binding:"omitempty,min=1,max=100"`
+	Description *string `json:"description" binding:"omitempty,max=500"`
+	CronExpr    *string `json:"cron_expr" binding:"omitempty,max=100"`
+	Timeout     *int    `json:"timeout" binding:"omitempty,min=0"`
+	RetryCount  *int    `json:"retry_count" binding:"omitempty,min=0"`
+	RetryDelay  *int    `json:"retry_delay" binding:"omitempty,min=0"`
+	Params      any     `json:"params"`
 }
 
 // JobListRequest 任务列表请求
@@ -52,6 +53,8 @@ type JobHistoryListRequest struct {
 	Keyword   string    `form:"keyword"`
 	StartTime time.Time `form:"start_time"`
 	EndTime   time.Time `form:"end_time"`
+	// IncludeLog 是否在列表响应中携带完整日志（默认 false，避免大日志拖垮列表接口）
+	IncludeLog bool `form:"include_log"`
 }
 
 // JobHistoryListResponse 任务历史列表响应

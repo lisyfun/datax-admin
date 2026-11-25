@@ -1,8 +1,12 @@
 package models
 
 import (
+	"crypto/rand"
 	"datax-admin/config"
 	"datax-admin/utils/logger"
+	"encoding/base64"
+	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -30,22 +34,28 @@ func InitDefaultData() error {
 		return err
 	}
 
-	hasData := userCount > 0 || roleCount > 0 || permissionCount > 0
-
-	if hasData && !forceReset {
-		logger.Info("检测到已有数据，跳过默认数据初始化")
+	// 只要已经存在用户，就说明系统完成过初始化，不再写入任何默认数据。
+	if userCount > 0 && !forceReset {
+		logger.Info("检测到已有用户数据，跳过默认数据初始化")
 		logger.Info("如需重新初始化，请在配置文件中设置 init.force_reset: true")
 		return nil
 	}
 
-	if hasData && forceReset {
+	if forceReset {
 		logger.Info("强制重置模式：清空现有数据...")
 		if err := clearExistingData(); err != nil {
 			return err
 		}
 	}
 
-	// 开启事务
+	if !forceReset && (roleCount > 0 || permissionCount > 0) {
+		// 例如导入了 sql/datax_admin.sql（只含角色/权限，不含内置管理员），
+		// 此时只需补齐缺失数据并创建初始管理员，不覆盖已有配置。
+		logger.Info("检测到已有角色/权限数据，仅补齐缺失的初始化数据")
+	}
+
+	// 使用幂等写入：已存在的角色/权限会被跳过，因此既支持全新数据库，
+	// 也支持导入了角色/权限种子但缺少内置管理员的场景。
 	return DB.Transaction(func(tx *gorm.DB) error {
 		// 1. 创建默认角色
 		if err := createDefaultRoles(tx); err != nil {
@@ -62,9 +72,17 @@ func InitDefaultData() error {
 			return err
 		}
 
-		// 4. 创建默认管理员用户
-		if err := createDefaultAdmin(tx); err != nil {
+		// 4. 仅在没有任何用户时创建默认管理员，避免覆盖真实账号
+		var currentUserCount int64
+		if err := tx.Model(&User{}).Count(&currentUserCount).Error; err != nil {
 			return err
+		}
+		if currentUserCount == 0 {
+			if err := createDefaultAdmin(tx); err != nil {
+				return err
+			}
+		} else {
+			logger.Info("已存在用户数据，跳过初始管理员创建")
 		}
 
 		logger.Info("默认数据初始化完成")
@@ -94,13 +112,29 @@ func createDefaultRoles(tx *gorm.DB) error {
 	}
 
 	for _, role := range roles {
-		if err := tx.Create(&role).Error; err != nil {
+		if err := ensureRole(tx, &role); err != nil {
 			return err
 		}
 	}
 
 	logger.Info("默认角色创建完成")
 	return nil
+}
+
+// ensureRole 幂等创建角色：已存在则跳过，被软删除则恢复。
+func ensureRole(tx *gorm.DB, role *Role) error {
+	var existing Role
+	err := tx.Unscoped().Where("code = ?", role.Code).First(&existing).Error
+	if err == nil {
+		if existing.DeletedAt.Valid {
+			return tx.Unscoped().Model(&existing).Update("deleted_at", nil).Error
+		}
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	return tx.Create(role).Error
 }
 
 // createDefaultPermissions 创建默认权限菜单（与SQL文件保持一致）
@@ -191,15 +225,31 @@ func createDefaultPermissions(tx *gorm.DB) error {
 	}
 
 	for _, permission := range permissions {
-		permission.CreatedAt = time.Now()
-		permission.UpdatedAt = time.Now()
-		if err := tx.Create(&permission).Error; err != nil {
+		if err := ensurePermission(tx, &permission); err != nil {
 			return err
 		}
 	}
 
 	logger.Info("默认权限菜单创建完成")
 	return nil
+}
+
+// ensurePermission 幂等创建权限：按主键判断，已存在则跳过，被软删除则恢复。
+func ensurePermission(tx *gorm.DB, permission *Permission) error {
+	var existing Permission
+	err := tx.Unscoped().First(&existing, permission.ID).Error
+	if err == nil {
+		if existing.DeletedAt.Valid {
+			return tx.Unscoped().Model(&existing).Update("deleted_at", nil).Error
+		}
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	permission.CreatedAt = time.Now()
+	permission.UpdatedAt = time.Now()
+	return tx.Create(permission).Error
 }
 
 // assignRolePermissions 分配角色权限（与SQL文件保持一致）
@@ -225,11 +275,7 @@ func assignRolePermissions(tx *gorm.DB) error {
 	}
 
 	for _, permissionID := range adminPermissionIDs {
-		rolePermission := RolePermission{
-			RoleID:       adminRole.ID,
-			PermissionID: permissionID,
-		}
-		if err := tx.Create(&rolePermission).Error; err != nil {
+		if err := ensureRolePermission(tx, adminRole.ID, permissionID); err != nil {
 			return err
 		}
 	}
@@ -252,11 +298,7 @@ func assignRolePermissions(tx *gorm.DB) error {
 	}
 
 	for _, permissionID := range userPermissionIDs {
-		rolePermission := RolePermission{
-			RoleID:       userRole.ID,
-			PermissionID: permissionID,
-		}
-		if err := tx.Create(&rolePermission).Error; err != nil {
+		if err := ensureRolePermission(tx, userRole.ID, permissionID); err != nil {
 			return err
 		}
 	}
@@ -265,8 +307,34 @@ func assignRolePermissions(tx *gorm.DB) error {
 	return nil
 }
 
+// ensureRolePermission 幂等创建角色-权限关联：已存在则跳过，被软删除则恢复。
+func ensureRolePermission(tx *gorm.DB, roleID, permissionID uint) error {
+	var existing RolePermission
+	err := tx.Unscoped().Where("role_id = ? AND permission_id = ?", roleID, permissionID).First(&existing).Error
+	if err == nil {
+		if existing.DeletedAt.Valid {
+			return tx.Unscoped().Model(&existing).Update("deleted_at", nil).Error
+		}
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	return tx.Create(&RolePermission{RoleID: roleID, PermissionID: permissionID}).Error
+}
+
 // createDefaultAdmin 创建默认管理员用户（与SQL文件保持一致）
 func createDefaultAdmin(tx *gorm.DB) error {
+	// 已存在同名账号时不再创建，避免覆盖真实密码
+	var existing int64
+	if err := tx.Model(&User{}).Where("username = ?", "admin").Count(&existing).Error; err != nil {
+		return err
+	}
+	if existing > 0 {
+		logger.Info("已存在 admin 账号，跳过初始管理员创建")
+		return nil
+	}
+
 	// 创建管理员用户（与SQL文件中的数据一致）
 	admin := User{
 		ID:        1, // 指定ID为1，与SQL文件一致
@@ -278,10 +346,17 @@ func createDefaultAdmin(tx *gorm.DB) error {
 		UpdatedAt: time.Now(),
 	}
 
-	// 从配置中获取默认密码
+	// 从配置中获取默认密码；未配置时生成随机密码并打印一次，
+	// 避免仓库/配置中出现固定弱口令。
 	defaultPassword := config.GlobalConfig.Init.DefaultPassword
+	generated := false
 	if defaultPassword == "" {
-		defaultPassword = "admin123" // 默认值
+		buf := make([]byte, 18)
+		if _, err := rand.Read(buf); err != nil {
+			return fmt.Errorf("生成管理员初始密码失败: %w", err)
+		}
+		defaultPassword = base64.RawURLEncoding.EncodeToString(buf)
+		generated = true
 	}
 	if err := admin.SetPassword(defaultPassword); err != nil {
 		return err
@@ -309,8 +384,11 @@ func createDefaultAdmin(tx *gorm.DB) error {
 		return err
 	}
 
-	// 记录日志时不显示实际密码
-	logger.Info("默认管理员用户创建完成 - 用户名: admin, 密码已从配置中读取")
+	if generated {
+		logger.Info("默认管理员已创建 - 用户名: admin, 初始密码: %s （请登录后立即修改）", defaultPassword)
+	} else {
+		logger.Info("默认管理员用户创建完成 - 用户名: admin, 密码来自 init.default_password 配置")
+	}
 	return nil
 }
 

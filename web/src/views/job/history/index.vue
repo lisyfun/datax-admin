@@ -312,14 +312,25 @@ const getStatusText = (status: number) => {
 const handleView = async (record: JobHistory) => {
   if (isUnmounted) return;
   currentRecord.value = record;
-  currentLog.value = record.output || '无输出';
-  if (record.error) {
-    currentLog.value += `\n\n错误信息：\n${record.error}`;
-  }
+  currentLog.value = '加载中...';
   showLogModal.value = true;
-
-  // 打开弹框后滚动到底部
   scrollToBottom();
+
+  // 列表接口不再携带完整日志，这里按需获取详情
+  try {
+    const { data } = await getJobHistoryDetail(record.id);
+    if (isUnmounted) return;
+    currentRecord.value = data;
+    currentLog.value = data.output || '无输出';
+    if (data.error) {
+      currentLog.value += `\n\n错误信息：\n${data.error}`;
+    }
+    scrollToBottom();
+  } catch (err) {
+    if (!isUnmounted) {
+      currentLog.value = '日志加载失败';
+    }
+  }
 };
 
 // 滚动到日志底部

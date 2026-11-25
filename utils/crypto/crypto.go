@@ -140,7 +140,7 @@ func (cm *CryptoManager) VerifySignature(data string, timestamp int64, signature
 	}
 
 	expectedSignature := cm.GenerateSignature(data, timestamp)
-	return expectedSignature == signature
+	return hmac.Equal([]byte(expectedSignature), []byte(signature))
 }
 
 // EncryptResponse 加密响应数据
@@ -182,6 +182,7 @@ func (cm *CryptoManager) DecryptRequest(encryptedData string, timestamp int64, s
 // pkcs7Pad 添加PKCS7填充
 func pkcs7Pad(data []byte, blockSize int) []byte {
 	padding := blockSize - len(data)%blockSize
+	// #nosec G115 -- padding 取值范围为 1..blockSize，blockSize 为 AES 分组长度 16
 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(data, padtext...)
 }

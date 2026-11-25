@@ -25,3 +25,8 @@ tmp/
 logs
 .spec-workflow
 .trae
+
+# 本地自动生成的敏感数据密钥
+data/
+# 本地环境变量
+*.local

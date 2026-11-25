@@ -73,7 +73,7 @@ func main() {
 	fmt.Print("确认要继续吗？(y/N): ")
 
 	var confirm string
-	fmt.Scanln(&confirm)
+	_, _ = fmt.Scanln(&confirm)
 
 	if confirm != "y" && confirm != "Y" {
 		fmt.Println("❌ 操作已取消")

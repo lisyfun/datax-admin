@@ -9,10 +9,10 @@ ENV TZ=Asia/Shanghai \
     LANG=C.UTF-8
 
 # 安装依赖
-RUN apk add --no-cache tzdata bash curl sshpass openssh-client && \
+RUN apk add --no-cache tzdata bash curl openssh-client && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo "Asia/Shanghai" > /etc/timezone && \
-    mkdir -p /app/logs /app/bin
+    mkdir -p /app/logs /app/bin /app/data && chmod 750 /app/logs && chmod 700 /app/data
 
 # 参数定义
 ARG BINARY_NAME=datax-admin

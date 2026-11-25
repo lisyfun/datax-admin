@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"encoding/json"
@@ -155,7 +157,6 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 		return
 	}
 
-	logger.Info("正在获取终端信息, ID: %d", id)
 	terminal, err := c.terminalService.GetTerminalByID(uint(id))
 	if err != nil {
 		logger.Error("获取终端信息失败: %v", err)
@@ -163,16 +164,20 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 		return
 	}
 
-	if terminal.Password == "" {
-		logger.Error("终端密码未设置, ID: %d", id)
+	// 按认证类型校验凭据，密钥认证不再要求密码
+	if terminal.AuthType == "key" {
+		if terminal.KeyFile == "" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "终端密钥未设置"})
+			return
+		}
+	} else if terminal.Password == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "终端密码未设置"})
 		return
 	}
 
-	logger.Info("正在升级WebSocket连接, ID: %d", id)
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
-			return true
+			return isAllowedWebSocketOrigin(r)
 		},
 		HandshakeTimeout: 10 * time.Second,
 		ReadBufferSize:   1024,
@@ -182,51 +187,57 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 	ws, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
 		logger.Error("WebSocket升级失败: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "WebSocket升级失败"})
 		return
 	}
 	defer ws.Close()
+
+	// gorilla/websocket 不允许并发写，所有写操作必须串行化
+	var writeMu sync.Mutex
+	const writeWait = 10 * time.Second
+	writeJSON := func(v any) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		_ = ws.SetWriteDeadline(time.Now().Add(writeWait))
+		return ws.WriteJSON(v)
+	}
 
 	logger.Info("正在创建SSH连接, Host: %s, Port: %d", terminal.Host, terminal.Port)
 	sshClient, err := services.NewSSHClientWithAuth(terminal.Host, terminal.Port, terminal.Username, terminal.AuthType, terminal.Password, terminal.KeyFile, terminal.KeyPassphrase)
 	if err != nil {
 		logger.Error("SSH连接失败: %v", err)
-		ws.WriteJSON(map[string]any{
-			"type": "error",
-			"data": err.Error(),
-		})
+		_ = writeJSON(map[string]any{"type": "error", "data": err.Error()})
 		return
 	}
 	defer sshClient.Close()
 
-	logger.Info("正在更新终端状态为在线, ID: %d", id)
 	if err := c.terminalService.UpdateTerminalStatus(uint(id), "online"); err != nil {
 		logger.Error("更新终端状态失败: %v", err)
-		ws.WriteJSON(map[string]any{
-			"type": "error",
-			"data": "更新终端状态失败",
-		})
+		_ = writeJSON(map[string]any{"type": "error", "data": "更新终端状态失败"})
 		return
 	}
+	defer func() {
+		if err := c.terminalService.UpdateTerminalStatus(uint(id), "offline"); err != nil {
+			logger.Error("更新终端状态失败: %v", err)
+		}
+	}()
 
 	logger.Info("终端连接成功, 开始数据传输, ID: %d", id)
 
 	const (
-		pongWait   = 60 * time.Second // 等待 pong 的最长时间
-		pingPeriod = 30 * time.Second // ping 发送间隔
-		writeWait  = 10 * time.Second // 写入超时
+		pongWait   = 60 * time.Second
+		pingPeriod = 30 * time.Second
 	)
 
-	// ponytail: 全局 done 通道，所有 goroutine 共享
 	done := make(chan struct{})
+	var closeOnce sync.Once
+	closeDone := func() { closeOnce.Do(func() { close(done) }) }
 
-	// WebSocket ping/pong 心跳
 	ws.SetPongHandler(func(string) error {
-		ws.SetReadDeadline(time.Now().Add(pongWait))
+		_ = ws.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 
-	// SSH keep-alive: 每 30s 发一个 keepalive@openssh.com 请求
+	// SSH keep-alive
 	sshKeepAlive, sshKAChan := sshClient.KeepAlive()
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
@@ -236,6 +247,7 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 			case <-ticker.C:
 				sshKeepAlive()
 			case <-sshKAChan:
+				closeDone()
 				return
 			case <-done:
 				return
@@ -243,62 +255,51 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 		}
 	}()
 
+	// SSH -> WebSocket
 	go func() {
-		defer close(done)
-		buf := make([]byte, 1024)
+		defer closeDone()
+		buf := make([]byte, 4096)
 		for {
-			n, err := sshClient.Read(buf)
-			if err != nil {
-				if err != io.EOF {
-					logger.Error("读取SSH数据失败: %v", err)
-					ws.WriteJSON(map[string]any{
-						"type": "error",
-						"data": err.Error(),
-					})
+			n, readErr := sshClient.Read(buf)
+			if readErr != nil {
+				if readErr != io.EOF {
+					logger.Error("读取SSH数据失败: %v", readErr)
+					_ = writeJSON(map[string]any{"type": "error", "data": readErr.Error()})
 				}
 				return
 			}
 			if n > 0 {
-				ws.SetWriteDeadline(time.Now().Add(writeWait))
-				err = ws.WriteJSON(map[string]any{
-					"type": "output",
-					"data": string(buf[:n]),
-				})
-				if err != nil {
-					logger.Error("发送WebSocket数据失败: %v", err)
+				if writeErr := writeJSON(map[string]any{"type": "output", "data": string(buf[:n])}); writeErr != nil {
+					logger.Error("发送WebSocket数据失败: %v", writeErr)
 					return
 				}
 			}
 		}
 	}()
 
+	// WebSocket -> SSH
 	go func() {
+		defer closeDone()
 		for {
 			var msg struct {
 				Type string `json:"type"`
 				Data string `json:"data"`
 			}
-			ws.SetReadDeadline(time.Now().Add(pongWait))
-			err := ws.ReadJSON(&msg)
-			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
-					logger.Error("读取WebSocket数据失败: %v", err)
+			_ = ws.SetReadDeadline(time.Now().Add(pongWait))
+			if readErr := ws.ReadJSON(&msg); readErr != nil {
+				if websocket.IsUnexpectedCloseError(readErr, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
+					logger.Error("读取WebSocket数据失败: %v", readErr)
 				} else {
-					logger.Info("WebSocket连接已关闭: %v", err)
+					logger.Info("WebSocket连接已关闭: %v", readErr)
 				}
 				return
 			}
 
 			switch msg.Type {
 			case "input":
-				ws.SetWriteDeadline(time.Now().Add(writeWait))
-				_, err = sshClient.Write([]byte(msg.Data))
-				if err != nil {
-					logger.Error("写入SSH数据失败: %v", err)
-					ws.WriteJSON(map[string]any{
-						"type": "error",
-						"data": err.Error(),
-					})
+				if _, writeErr := sshClient.Write([]byte(msg.Data)); writeErr != nil {
+					logger.Error("写入SSH数据失败: %v", writeErr)
+					_ = writeJSON(map[string]any{"type": "error", "data": writeErr.Error()})
 					return
 				}
 			case "resize":
@@ -315,15 +316,19 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 		}
 	}()
 
-	// ping 发送 goroutine
+	// WebSocket ping
 	go func() {
 		ticker := time.NewTicker(pingPeriod)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				ws.SetWriteDeadline(time.Now().Add(writeWait))
-				if err := ws.WriteMessage(websocket.PingMessage, nil); err != nil {
+				writeMu.Lock()
+				_ = ws.SetWriteDeadline(time.Now().Add(writeWait))
+				err := ws.WriteMessage(websocket.PingMessage, nil)
+				writeMu.Unlock()
+				if err != nil {
+					closeDone()
 					return
 				}
 			case <-done:
@@ -333,10 +338,33 @@ func (c *TerminalController) ConnectTerminal(ctx *gin.Context) {
 	}()
 
 	<-done
+}
 
-	if err := c.terminalService.UpdateTerminalStatus(uint(id), "offline"); err != nil {
-		logger.Error("更新终端状态失败: %v", err)
+// isAllowedWebSocketOrigin 校验 WebSocket 握手来源，防止跨站 WebSocket 劫持。
+// 非浏览器客户端通常不发送 Origin，此时依赖 Session 认证。
+func isAllowedWebSocketOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
 	}
+
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	if strings.EqualFold(u.Host, r.Host) {
+		return true
+	}
+	for _, allowed := range config.GlobalConfig.Server.AllowedOrigins {
+		if strings.EqualFold(allowed, origin) {
+			return true
+		}
+		if a, err := url.Parse(allowed); err == nil &&
+			strings.EqualFold(a.Scheme, u.Scheme) && strings.EqualFold(a.Host, u.Host) {
+			return true
+		}
+	}
+	return false
 }
 
 // UploadFiles 上传文件到终端
@@ -395,7 +423,7 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 		fileStart := time.Now()
 		if file.Size > maxFileSize {
 			ctx.JSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("文件大小超过限制(%dMB)", maxFileSize),
+				"error": fmt.Sprintf("文件大小超过限制(%dMB)", maxFileSize/(1024*1024)),
 			})
 			return
 		}
@@ -420,7 +448,7 @@ func (c *TerminalController) UploadFiles(ctx *gin.Context) {
 		logger.Info("文件 [%s] 从本地服务器SCP到远程服务器耗时: %v", file.Filename, time.Since(scpStart))
 
 		// 清理本地临时文件
-		os.Remove(localTmpFile)
+		_ = os.Remove(localTmpFile)
 
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "文件上传失败: " + err.Error()})

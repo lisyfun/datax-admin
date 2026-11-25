@@ -8,6 +8,7 @@ import (
 	"datax-admin/models"
 	"datax-admin/services"
 	"datax-admin/types"
+	"datax-admin/utils/secret"
 
 	"github.com/gin-gonic/gin"
 )
@@ -75,8 +76,27 @@ func (c *RedisController) UpdateConnection(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	updates := map[string]any{"name": req.Name, "host": req.Host, "port": req.Port, "username": req.Username, "password": req.Password, "db": req.DB, "use_tls": req.UseTLS}
-	if err := models.DB.Model(&models.RedisConnection{}).Where("id = ?", uint(id)).Updates(updates).Error; err != nil {
+	fields := []string{"name", "host", "port", "username", "db", "use_tls"}
+	updates := models.RedisConnection{
+		Name:     req.Name,
+		Host:     req.Host,
+		Port:     req.Port,
+		Username: req.Username,
+		DB:       req.DB,
+		UseTLS:   req.UseTLS,
+	}
+	// 密码为空表示不修改，避免编辑连接时把已有密码清空
+	if req.Password != "" {
+		encrypted, encErr := secret.Encrypt(req.Password)
+		if encErr != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "密码加密失败"})
+			return
+		}
+		updates.Password = encrypted
+		fields = append(fields, "password")
+	}
+
+	if err := models.DB.Model(&models.RedisConnection{}).Where("id = ?", uint(id)).Select(fields).Updates(&updates).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

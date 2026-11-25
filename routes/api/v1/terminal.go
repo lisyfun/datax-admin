@@ -2,6 +2,7 @@ package v1
 
 import (
 	"datax-admin/controllers"
+	"datax-admin/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,17 +13,17 @@ func RegisterTerminalRoutes(authenticated *gin.RouterGroup) {
 
 	terminals := authenticated.Group("/terminals")
 	{
-		terminals.POST("", terminalController.CreateTerminal)
-		terminals.PUT("/:id", terminalController.UpdateTerminal)
-		terminals.DELETE("/:id", terminalController.DeleteTerminal)
-		terminals.GET("", terminalController.GetTerminalList)
-		terminals.GET("/:id", terminalController.GetTerminalByID)
-		terminals.PUT("/:id/status", terminalController.UpdateTerminalStatus)
-		terminals.POST("/:id/connect", terminalController.ConnectTerminal)
-		terminals.POST("/:id/disconnect", terminalController.DisconnectTerminal)
-		terminals.POST("/:id/upload", terminalController.UploadFiles)
-		terminals.GET("/:id/download", terminalController.DownloadFile)
-		terminals.GET("/:id/files", terminalController.GetFileList)
+		terminals.POST("", middleware.RequirePermission("terminal.list.create"), terminalController.CreateTerminal)
+		terminals.PUT("/:id", middleware.RequirePermission("terminal.list.update"), terminalController.UpdateTerminal)
+		terminals.DELETE("/:id", middleware.RequirePermission("terminal.list.delete"), terminalController.DeleteTerminal)
+		terminals.GET("", middleware.RequirePermission("terminal.list.query", "terminal.list"), terminalController.GetTerminalList)
+		terminals.GET("/:id", middleware.RequirePermission("terminal.list.query", "terminal.list"), terminalController.GetTerminalByID)
+		terminals.PUT("/:id/status", middleware.RequirePermission("terminal.list.update"), terminalController.UpdateTerminalStatus)
+		terminals.POST("/:id/connect", middleware.RequirePermission("terminal.list.query", "terminal.list"), middleware.RequirePermission("terminal.list.connect"), terminalController.ConnectTerminal)
+		terminals.POST("/:id/disconnect", middleware.RequirePermission("terminal.list.update"), terminalController.DisconnectTerminal)
+		terminals.POST("/:id/upload", middleware.RequirePermission("terminal.list.query", "terminal.list"), middleware.RequirePermission("terminal.list.upload"), terminalController.UploadFiles)
+		terminals.GET("/:id/download", middleware.RequirePermission("terminal.list.query", "terminal.list"), middleware.RequirePermission("terminal.list.download"), terminalController.DownloadFile)
+		terminals.GET("/:id/files", middleware.RequirePermission("terminal.list.query", "terminal.list"), terminalController.GetFileList)
 	}
 }
 
@@ -30,5 +31,5 @@ func RegisterTerminalRoutes(authenticated *gin.RouterGroup) {
 func RegisterWebSocketRoutes(wsGroup *gin.RouterGroup) {
 	terminalController := controllers.NewTerminalController()
 
-	wsGroup.GET("/terminals/:id", terminalController.ConnectTerminal)
+	wsGroup.GET("/terminals/:id", middleware.RequirePermission("terminal.list.query", "terminal.list"), middleware.RequirePermission("terminal.list.connect"), terminalController.ConnectTerminal)
 }

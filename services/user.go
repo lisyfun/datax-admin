@@ -6,6 +6,7 @@ import (
 	"datax-admin/utils"
 	"datax-admin/utils/logger"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -80,7 +81,8 @@ func (s *UserService) Login(req *types.LoginRequest) (*types.LoginResponse, erro
 	var user models.User
 	// 使用参数化查询，防止SQL注入
 	if err := models.DB.Where("username = ?", safeUsername).First(&user).Error; err != nil {
-		return nil, errors.New("用户不存在")
+		// 不区分「用户不存在」和「密码错误」，避免用户名枚举
+		return nil, errors.New("用户名或密码错误")
 	}
 
 	// 检查用户状态
@@ -89,7 +91,7 @@ func (s *UserService) Login(req *types.LoginRequest) (*types.LoginResponse, erro
 	}
 
 	if !utils.ComparePasswords(user.Password, safePassword) {
-		return nil, errors.New("密码错误")
+		return nil, errors.New("用户名或密码错误")
 	}
 
 	// 不再生成JWT token，改用session
@@ -213,8 +215,9 @@ func (s *UserService) GetUserList(req *types.UserListRequest) (*types.UserListRe
 
 	// 基础查询 - 使用数据库兼容的聚合函数
 	var selectSQL string
+	// GaussDB 与 PostgreSQL 语法一致（Dialector.Name() 返回 "gaussdb"）
 	dbType := models.DB.Dialector.Name()
-	if dbType == "postgres" {
+	if dbType == "postgres" || dbType == "gaussdb" {
 		selectSQL = "users.*, STRING_AGG(DISTINCT roles.name, ',') as role_names"
 	} else {
 		selectSQL = "users.*, GROUP_CONCAT(DISTINCT roles.name SEPARATOR ',') as role_names"
@@ -281,6 +284,110 @@ func (s *UserService) GetUserList(req *types.UserListRequest) (*types.UserListRe
 		Total: total,
 		List:  list,
 	}, nil
+}
+
+// CreateUser 管理员创建用户
+func (s *UserService) CreateUser(req *types.CreateUserRequest) error {
+	var count int64
+	if err := models.DB.Model(&models.User{}).Where("username = ?", req.Username).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return errors.New("用户名已存在")
+	}
+
+	return models.DB.Transaction(func(tx *gorm.DB) error {
+		user := &models.User{
+			Username: strings.TrimSpace(req.Username),
+			Nickname: strings.TrimSpace(req.Nickname),
+			Email:    strings.TrimSpace(req.Email),
+			Status:   1,
+		}
+		if req.Status != nil {
+			user.Status = *req.Status
+		}
+		if err := user.SetPassword(req.Password); err != nil {
+			return err
+		}
+		if err := tx.Create(user).Error; err != nil {
+			return err
+		}
+
+		roleIDs := req.RoleIDs
+		if len(roleIDs) == 0 {
+			var defaultRole models.Role
+			if err := tx.Where("code = ? AND status = 1", "user").First(&defaultRole).Error; err == nil {
+				roleIDs = []uint{defaultRole.ID}
+			}
+		}
+
+		for _, roleID := range roleIDs {
+			var roleCount int64
+			if err := tx.Model(&models.Role{}).Where("id = ? AND status = 1", roleID).Count(&roleCount).Error; err != nil {
+				return err
+			}
+			if roleCount == 0 {
+				return fmt.Errorf("角色不存在或已禁用: %d", roleID)
+			}
+			if err := tx.Create(&models.UserRole{UserID: user.ID, RoleID: roleID}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// UpdateUser 管理员更新用户资料/状态
+func (s *UserService) UpdateUser(userID uint, req *types.UpdateUserRequest) error {
+	var user models.User
+	if err := models.DB.First(&user, userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("用户不存在")
+		}
+		return err
+	}
+
+	updates := map[string]any{}
+	if req.Nickname != nil {
+		updates["nickname"] = strings.TrimSpace(*req.Nickname)
+	}
+	if req.Email != nil {
+		updates["email"] = strings.TrimSpace(*req.Email)
+	}
+	if req.Avatar != nil {
+		updates["avatar"] = *req.Avatar
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+	return models.DB.Model(&user).Updates(updates).Error
+}
+
+// IsLastEnabledAdmin 判断用户是否为最后一个启用状态的管理员
+func (s *UserService) IsLastEnabledAdmin(userID uint) (bool, error) {
+	var isAdmin int64
+	err := models.DB.Table("user_roles").
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("user_roles.user_id = ? AND user_roles.deleted_at IS NULL AND roles.deleted_at IS NULL AND roles.status = 1 AND roles.code = ?", userID, "admin").
+		Count(&isAdmin).Error
+	if err != nil || isAdmin == 0 {
+		return false, err
+	}
+
+	var adminCount int64
+	err = models.DB.Table("users").
+		Joins("JOIN user_roles ON user_roles.user_id = users.id AND user_roles.deleted_at IS NULL").
+		Joins("JOIN roles ON roles.id = user_roles.role_id AND roles.deleted_at IS NULL AND roles.status = 1").
+		Where("roles.code = ? AND users.status = 1 AND users.deleted_at IS NULL", "admin").
+		Distinct("users.id").
+		Count(&adminCount).Error
+	if err != nil {
+		return false, err
+	}
+	return adminCount <= 1, nil
 }
 
 // ResetPassword 重置用户密码

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"datax-admin/models"
 	"datax-admin/types"
 	"datax-admin/utils/cron"
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -16,6 +18,10 @@ import (
 // JobService 任务服务
 type JobService struct {
 	scheduler *cron.Scheduler
+
+	// 正在执行的任务，用于停止与防止定时任务重入
+	runMu   sync.Mutex
+	running map[uint]context.CancelFunc
 }
 
 var (
@@ -28,6 +34,7 @@ func GetJobService() *JobService {
 	jobServiceOnce.Do(func() {
 		jobServiceInstance = &JobService{
 			scheduler: cron.NewScheduler(),
+			running:   make(map[uint]context.CancelFunc),
 		}
 		jobServiceInstance.scheduler.Start() // 启动调度器
 
@@ -119,33 +126,42 @@ func (s *JobService) UpdateJob(jobID uint, req *types.UpdateJobRequest, userID u
 		return errors.New("任务正在运行，无法更新")
 	}
 
-	// 验证Cron表达式
-	if req.CronExpr != "" && !cron.IsValidCronExpr(req.CronExpr) {
-		return errors.New("无效的Cron表达式")
+	// 只更新请求中显式提供的字段，避免局部更新把其它字段覆盖为空值
+	updates := map[string]any{
+		"updater":    userID,
+		"updated_at": time.Now(),
 	}
 
-	// 验证并序列化任务参数
-	var params string
+	if req.Name != nil {
+		name := strings.TrimSpace(*req.Name)
+		if name == "" {
+			return errors.New("任务名称不能为空")
+		}
+		updates["name"] = name
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.CronExpr != nil {
+		if !cron.IsValidCronExpr(*req.CronExpr) {
+			return errors.New("无效的Cron表达式")
+		}
+		updates["cron_expr"] = *req.CronExpr
+	}
+	if req.Timeout != nil {
+		updates["timeout"] = *req.Timeout
+	}
+	if req.RetryCount != nil {
+		updates["retry_count"] = *req.RetryCount
+	}
+	if req.RetryDelay != nil {
+		updates["retry_delay"] = *req.RetryDelay
+	}
 	if req.Params != nil {
-		var err error
-		params, err = s.validateAndSerializeParams(string(job.Type), req.Params)
+		params, err := s.validateAndSerializeParams(string(job.Type), req.Params)
 		if err != nil {
 			return err
 		}
-	}
-
-	updates := map[string]any{
-		"name":        req.Name,
-		"description": req.Description,
-		"cron_expr":   req.CronExpr,
-		"timeout":     req.Timeout,
-		"retry_count": req.RetryCount,
-		"retry_delay": req.RetryDelay,
-		"updater":     userID,
-		"updated_at":  time.Now(),
-	}
-
-	if req.Params != nil {
 		updates["params"] = params
 	}
 
@@ -208,15 +224,50 @@ func (s *JobService) StopJob(jobID uint) error {
 		return err
 	}
 
-	if job.Status != models.JobStatusRunning {
-		return errors.New("任务未在运行")
-	}
-
-	// 从调度器中移除
+	// 从调度器中移除，阻止后续触发
 	s.scheduler.Remove(fmt.Sprintf("job_%d", job.ID))
 
-	// 更新状态
-	return models.DB.Model(&job).Update("status", models.JobStatusStop).Error
+	// 终止正在执行的进程/请求
+	s.runMu.Lock()
+	cancel, active := s.running[job.ID]
+	s.runMu.Unlock()
+
+	// 手动执行时 job.Status 可能仍是 stop，此时只要确实有运行中的实例也允许停止
+	if !active && job.Status != models.JobStatusRunning {
+		return errors.New("任务未在运行")
+	}
+	if active {
+		cancel()
+	}
+
+	if job.Status == models.JobStatusRunning {
+		return models.DB.Model(&job).Update("status", models.JobStatusStop).Error
+	}
+	return nil
+}
+
+// beginRun 标记任务开始执行。若任务已在执行则返回 false，避免 cron 重入。
+func (s *JobService) beginRun(jobID uint) (context.Context, bool) {
+	s.runMu.Lock()
+	defer s.runMu.Unlock()
+
+	if _, exists := s.running[jobID]; exists {
+		return nil, false
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s.running[jobID] = cancel
+	return ctx, true
+}
+
+// endRun 标记任务执行结束。
+func (s *JobService) endRun(jobID uint) {
+	s.runMu.Lock()
+	defer s.runMu.Unlock()
+
+	if cancel, ok := s.running[jobID]; ok {
+		cancel()
+		delete(s.running, jobID)
+	}
 }
 
 // GetJobList 获取任务列表
@@ -303,10 +354,15 @@ func (s *JobService) GetJobHistoryList(req *types.JobHistoryListRequest) (*types
 		histories[i] = item.JobHistory
 		histories[i].JobName = item.JobName
 
-		// 从文件读取日志内容
-		if err := histories[i].ReadLogFromFile(); err != nil {
-			logger.Info("读取任务日志文件失败 (ID: %d): %v", histories[i].ID, err)
-			// 如果读取失败，设置默认值
+		// 列表默认不读取日志文件，避免每条记录都做一次磁盘 IO；
+		// 日志通过 /jobs/history/:id 详情接口按需获取。
+		if req.IncludeLog {
+			if err := histories[i].ReadLogFromFile(); err != nil {
+				logger.Info("读取任务日志文件失败 (ID: %d): %v", histories[i].ID, err)
+				histories[i].Output = ""
+				histories[i].Error = ""
+			}
+		} else {
 			histories[i].Output = ""
 			histories[i].Error = ""
 		}
@@ -402,6 +458,14 @@ func (s *JobService) validateAndSerializeParams(jobType string, params any) (str
 
 // executeJob 执行任务
 func (s *JobService) executeJob(job *models.Job) {
+	// 同一个任务不允许并发执行
+	ctx, started := s.beginRun(job.ID)
+	if !started {
+		logger.Info("任务 [%s] (ID: %d) 仍在执行，跳过本次触发", job.Name, job.ID)
+		return
+	}
+	defer s.endRun(job.ID)
+
 	logger.Info("开始执行任务: [%s] (ID: %d)", job.Name, job.ID)
 
 	history := &models.JobHistory{
@@ -472,11 +536,11 @@ func (s *JobService) executeJob(job *models.Job) {
 	// 根据任务类型执行不同的逻辑
 	switch job.Type {
 	case models.JobTypeShell:
-		s.executeShellJob(job, params, history)
+		s.executeShellJob(ctx, job, params, history)
 	case models.JobTypeHTTP:
-		s.executeHTTPJob(job, params, history)
+		s.executeHTTPJob(ctx, job, params, history)
 	case models.JobTypeDataX:
-		s.executeDataXJob(job, params, history)
+		s.executeDataXJob(ctx, job, params, history)
 	}
 }
 

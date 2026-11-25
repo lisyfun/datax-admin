@@ -6,13 +6,19 @@ server:
   allowed_origins:
     - "http://localhost:28080"
     - "http://localhost:3000"
+  # 可信反向代理 IP/CIDR。留空表示不信任任何代理的 X-Forwarded-For。
+  # 经 nginx 等反向代理部署时，必须填入代理地址，否则所有请求都会被识别为代理 IP。
+  trusted_proxies:
+    - "127.0.0.1"
+    - "::1"
 
 db:
   type: mysql  # 数据库类型: mysql, postgresql, gaussdb
   host: host.docker.internal
   port: 13306
   username: root
-  password: 123456
+  # 请通过环境变量 DB_PASSWORD 注入，不要提交到仓库
+  password: ""
   dbname: datax_admin
   schema: public  # 数据库模式（仅对 PostgreSQL, GaussDB 有效）
   max_idle_conns: 25
@@ -38,8 +44,11 @@ logger:
 
 # 认证配置
 auth:
-  secret: "a266d59b88e44d618aaab77bac0f7a50"    # Session密钥
+  # 请通过环境变量 AUTH_SECRET 注入（>=32 字节随机字符串）；为空时每次启动随机生成
+  secret: ""
   expiration: 86400                # Session过期时间(秒)，86400=1天
+  allow_register: false            # 是否允许公开注册（生产环境务必保持 false）
+  cookie_secure: false             # 启用 HTTPS 后建议设为 true
 
 # 任务日志配置
 job_log:
@@ -49,4 +58,23 @@ job_log:
 # 初始化配置
 init:
   force_reset: false       # 是否强制重新初始化数据（会清空现有数据菜单用户权限）
-  default_password: 123456  # 默认管理员用户密码，只有当force_reset=true 时生效
+  # 为空时首次启动会生成随机管理员密码并打印到日志
+  default_password: ""
+
+# 敏感数据加密（SSH/Kafka/Redis 凭据）
+security:
+  # 建议通过环境变量 SECURITY_ENCRYPTION_KEY 注入；
+  # 为空时自动生成 data/encryption.key（请随数据一起备份，丢失将无法解密已有凭据）
+  encryption_key: ""
+
+# SSH 安全配置
+ssh:
+  known_hosts_path: ""             # 为空使用 ~/.ssh/known_hosts
+  insecure_ignore_host_key: false  # 危险：仅测试环境可设为 true
+
+# Kafka 客户端 TLS 配置
+kafka:
+  # 危险：跳过 broker 证书与主机名校验，仅测试环境可设为 true
+  insecure_skip_verify: false
+  # 自签 CA 证书路径（PEM），用于安全地校验自建 Kafka 集群
+  ca_file: ""

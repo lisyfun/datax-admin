@@ -336,8 +336,11 @@
             </template>
           </a-upload>
           <div v-if="keyFileName" style="margin-top: 8px; color: #165dff;">
-            已选择: {{ keyFileName }}
+            {{ keyFileName }}
           </div>
+          <template #extra>
+            <span class="form-extra-tip">{{ formData.id ? '不修改密钥请留空' : '请选择私钥文件' }}</span>
+          </template>
         </a-form-item>
         <a-form-item
           v-if="formData.authType === 'key'"
@@ -346,7 +349,7 @@
         >
           <a-input-password
             v-model="formData.keyPassphrase"
-            placeholder="如果密钥文件有密码请输入"
+            :placeholder="formData.id ? '不修改请留空' : '如果密钥文件有密码请输入'"
             allow-clear
           >
             <template #prefix>
@@ -716,14 +719,10 @@ const handleEdit = (record: TerminalInfo) => {
   formData.username = record.username;
   formData.authType = record.authType || 'password';
   formData.password = '';
-  formData.keyFile = record.keyFile || '';
-  formData.keyPassphrase = record.keyPassphrase || '';
+  formData.keyFile = '';
+  formData.keyPassphrase = '';
   keyFileList.value = [];
-  if (record.keyFile) {
-    keyFileName.value = '已设置密钥文件';
-  } else {
-    keyFileName.value = '';
-  }
+  keyFileName.value = record.hasKeyFile ? '已设置密钥文件（不修改请留空）' : '';
   visible.value = true;
 };
 

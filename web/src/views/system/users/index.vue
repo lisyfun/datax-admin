@@ -126,6 +126,15 @@
         <a-form-item field="email" label="邮箱" :rules="[{ type: 'email', message: '请输入正确的邮箱地址' }]">
           <a-input v-model="userForm.email" placeholder="请输入邮箱" />
         </a-form-item>
+        <a-form-item v-if="!isEdit" field="roleIds" label="角色">
+          <a-select
+            v-model="userForm.roleIds"
+            placeholder="不选则分配默认角色"
+            multiple
+            :options="roles"
+            :field-names="{ value: 'id', label: 'name' }"
+          />
+        </a-form-item>
       </a-form>
     </a-modal>
 
@@ -221,6 +230,7 @@ const userForm = reactive({
   password: '',
   nickname: '',
   email: '',
+  roleIds: [] as number[],
 });
 
 // 密码表单
@@ -321,6 +331,7 @@ const handleAdd = () => {
   userForm.password = '';
   userForm.nickname = '';
   userForm.email = '';
+  userForm.roleIds = [];
   showUserForm.value = true;
 };
 
@@ -383,17 +394,18 @@ const handleUserFormSubmit = async () => {
     await userFormRef.value.validate();
 
     if (isEdit.value) {
-      await userApi.updateProfile({
+      await userApi.updateUser(userForm.id, {
         nickname: userForm.nickname,
         email: userForm.email
       });
       Message.success('编辑成功');
     } else {
-      await userApi.register({
+      await userApi.createUser({
         username: userForm.username,
-        password: (userForm.password),
+        password: userForm.password,
         nickname: userForm.nickname,
-        email: userForm.email
+        email: userForm.email,
+        roleIds: userForm.roleIds
       });
       Message.success('新增成功');
     }

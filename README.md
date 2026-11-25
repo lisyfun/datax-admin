@@ -27,7 +27,7 @@ DataX Admin 是一个基于 Go 和 Vue.js 构建的现代化数据同步任务�
 
 ## 系统要求
 
-- Go 1.20 或更高版本
+- Go 1.27.4 或更高版本（go.mod 已声明 `go 1.27.4`，低于该版本会由 Go 自动下载工具链）
 - Node.js 18 或更高版本
 - 数据库（二选一）：
   - MySQL 8.0 或更高版本
@@ -112,7 +112,7 @@ docker run -d \
 - `DB_TIME_ZONE`: 数据库时区（默认：Asia/Shanghai）
 - `JWT_SECRET`: JWT密钥（建议设置复杂密钥）
 - `INIT_FORCE_RESET`: 初始化强制重置（默认：false） // 刷新数据库，初始化数据
-- `INIT_DEFAULT_PASSWORD`: admin123  # 默认管理员用户密码，只有当force_reset=true 时生效
+- `INIT_DEFAULT_PASSWORD`: 默认管理员用户密码（首次初始化或 force_reset=true 时生效；留空则随机生成并打印到日志）
 
 **注意：** 请确保数据库已创建并可访问，系统会自动创建所需的表结构。
 
@@ -228,7 +228,10 @@ make run
 | `DB_NAME` | 数据库名称 | datax_admin |
 | `DB_SSL_MODE` | PostgreSQL SSL模式 | disable |
 | `DB_TIME_ZONE` | 数据库时区 | Asia/Shanghai |
-| `JWT_SECRET` | JWT密钥 | 无（建议设置） |
+| `AUTH_SECRET` | Session 签名密钥（建议 >=32 字节随机字符串） | 空（每次启动随机生成） |
+| `AUTH_ALLOW_REGISTER` | 是否开放公开注册 | false |
+| `SECURITY_ENCRYPTION_KEY` | 凭据加密密钥（SSH/Kafka/Redis） | 空（自动生成 `data/encryption.key`） |
+| `INIT_DEFAULT_PASSWORD` | 首次初始化时 admin 的密码 | 空（随机生成并打印到日志） |
 | `SERVER_PORT` | 服务端口 | 28080 |
 | `DATAX_HOME` | DataX-Admin 可执行文件路径 | /app |
 | `DATAX_BIN` | DataX 可执行文件路径 | /app/bin/datax |
@@ -244,6 +247,10 @@ server:
   mode: release
   base_path: "/"
   max_file_size: 500  # 500MB
+  # 可信反向代理 IP/CIDR；经 nginx 等代理部署时填入代理地址，留空则不信任任何代理
+  trusted_proxies:
+    - "127.0.0.1"
+    - "::1"
 
 db:
   type: mysql  # 数据库类型: mysql, postgres
@@ -266,8 +273,25 @@ datax:
 
 # 认证配置
 auth:
-  secret: "your-auth-secret-key"    # 认证密钥
+  secret: ""                        # 建议通过 AUTH_SECRET 注入；为空时每次启动随机生成
   expiration: 86400                 # 过期时间(秒)，86400=1天
+  allow_register: false             # 是否允许公开注册（生产环境保持 false）
+  cookie_secure: false              # 启用 HTTPS 后建议设为 true
+
+# 敏感数据加密（SSH/Kafka/Redis 凭据）
+# 为空时自动生成 data/encryption.key，请持久化该文件；丢失后已有凭据无法解密
+security:
+  encryption_key: ""
+
+# SSH 主机密钥校验
+ssh:
+  known_hosts_path: ""              # 为空使用 ~/.ssh/known_hosts
+  insecure_ignore_host_key: false   # 仅测试环境可设为 true
+
+# Kafka 客户端 TLS 校验（SASL_SSL 连接）
+kafka:
+  insecure_skip_verify: false       # 仅测试环境可设为 true；默认校验证书与主机名
+  ca_file: ""                       # 自签 CA 证书路径（PEM）
 
 logger:
   log_path: "logs"  # 日志文件路径
@@ -278,8 +302,13 @@ logger:
 
 # 初始化配置
 init:
-  force_reset: false # 是否强制重新初始化数据（会清空现有数据）
+  force_reset: false        # 是否强制重新初始化数据（会清空现有数据）
+  default_password: ""      # 为空时随机生成并打印到日志
 ```
+
+> 升级提示：旧版本把 SSH/Kafka/Redis 凭据以明文写入数据库。升级后这些历史数据仍可正常读取，
+> 首次保存时会自动转为加密存储。请务必持久化 `data/encryption.key`（或固定
+> `SECURITY_ENCRYPTION_KEY`），否则重建容器后无法解密已有凭据。
 
 ## 项目结构
 
@@ -339,7 +368,7 @@ datax-admin/
 - Axios（HTTP 客户端）
 
 **后端技术栈：**
-- Go 1.20+
+- Go 1.27.4+
 - Gin（Web 框架）
 - GORM（ORM 框架）
 - MySQL（数据库）

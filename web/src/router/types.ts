@@ -11,6 +11,8 @@ export interface AppRouteRecordRaw {
     order?: number;
     hideInMenu?: boolean;
     roles?: string[];
+    // 访问该路由所需的权限码（与后端 permissions.code 对应）
+    permission?: string;
   };
   children?: AppRouteRecordRaw[];
   redirect?: string;

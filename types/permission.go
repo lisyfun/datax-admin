@@ -13,7 +13,7 @@ type CreatePermissionRequest struct {
 	Hidden      int    `json:"hidden" binding:"oneof=0 1"`
 	Cache       int    `json:"cache" binding:"oneof=0 1"`
 	IsExternal  int    `json:"is_external" binding:"oneof=0 1"` // 是否为外部链接，0-否，1-是
-	ExternalURL string `json:"external_url" binding:"max=500"`   // 外部链接地址
+	ExternalURL string `json:"external_url" binding:"max=500"`  // 外部链接地址
 	OpenType    int    `json:"open_type" binding:"oneof=0 1"`   // 打开方式，0-内嵌，1-新窗口
 }
 
@@ -30,7 +30,7 @@ type UpdatePermissionRequest struct {
 	Hidden      int    `json:"hidden" binding:"oneof=0 1"`
 	Cache       int    `json:"cache" binding:"oneof=0 1"`
 	IsExternal  int    `json:"is_external" binding:"oneof=0 1"` // 是否为外部链接，0-否，1-是
-	ExternalURL string `json:"external_url" binding:"max=500"`   // 外部链接地址
+	ExternalURL string `json:"external_url" binding:"max=500"`  // 外部链接地址
 	OpenType    int    `json:"open_type" binding:"oneof=0 1"`   // 打开方式，0-内嵌，1-新窗口
 }
 

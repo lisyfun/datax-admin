@@ -1,16 +1,25 @@
 package controllers
 
 import (
-    "datax-admin/config"
-    "datax-admin/services"
-    "datax-admin/types"
-    "fmt"
-    "net/http"
-    "strconv"
-    "strings"
+	"datax-admin/config"
+	"datax-admin/services"
+	"datax-admin/types"
+	"datax-admin/utils/loginlimit"
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+)
+
+// 同一 IP + 用户名在 15 分钟内最多失败 5 次；
+// 同时限制单个用户名的失败总数，避免通过伪造 X-Forwarded-For 绕过。
+var (
+	loginLimiter     = loginlimit.New(5, 15*time.Minute)
+	loginUserLimiter = loginlimit.New(20, 15*time.Minute)
 )
 
 // UserController 用户控制器
@@ -27,6 +36,13 @@ func NewUserController() *UserController {
 
 // Register 用户注册
 func (c *UserController) Register(ctx *gin.Context) {
+	// 默认关闭公开注册：数据集成平台涉及服务器与数据库凭据，
+	// 用户应由管理员通过「用户管理」创建。
+	if !config.GlobalConfig.Auth.AllowRegister {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "系统未开放注册，请联系管理员创建账号"})
+		return
+	}
+
 	var req types.RegisterRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -49,23 +65,38 @@ func (c *UserController) Login(ctx *gin.Context) {
 		return
 	}
 
-	// 获取客户端 IP
-	if ip := ctx.GetHeader("X-Real-IP"); ip != "" {
-		req.IP = ip
-	} else if ip := ctx.GetHeader("X-Forwarded-For"); ip != "" {
-		req.IP = ip
-	} else {
-		req.IP = ctx.ClientIP()
+	// 获取客户端 IP：统一使用 gin 的 ClientIP，它只会按 server.trusted_proxies
+	// 配置解析 X-Forwarded-For，避免直接信任可被伪造的请求头。
+	req.IP = ctx.ClientIP()
+
+	usernameKey := strings.ToLower(strings.TrimSpace(req.Username))
+	limiterKey := req.IP + "|" + usernameKey
+	if !loginLimiter.Allowed(limiterKey) || !loginUserLimiter.Allowed(usernameKey) {
+		// 两个限流器可能各自触发，取剩余时间较长的那个展示
+		remaining := loginLimiter.Remaining(limiterKey)
+		if userRemaining := loginUserLimiter.Remaining(usernameKey); userRemaining > remaining {
+			remaining = userRemaining
+		}
+		minutes := int(remaining.Minutes()) + 1
+		ctx.JSON(http.StatusTooManyRequests, gin.H{
+			"error": fmt.Sprintf("登录失败次数过多，请 %d 分钟后再试", minutes),
+		})
+		return
 	}
 
 	resp, err := c.userService.Login(&req)
 	if err != nil {
+		loginLimiter.Fail(limiterKey)
+		loginUserLimiter.Fail(usernameKey)
+		// 使用 400 而非 401：401 会被前端全局拦截为「登录已过期」并跳转
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	loginLimiter.Reset(limiterKey)
+	loginUserLimiter.Reset(usernameKey)
 
-    // 设置Session
-    session := sessions.Default(ctx)
+	// 设置Session
+	session := sessions.Default(ctx)
 	if session == nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Session初始化失败"})
 		return
@@ -79,20 +110,20 @@ func (c *UserController) Login(ctx *gin.Context) {
 		}
 	}()
 
-    session.Set("userID", resp.User.ID)
-    session.Set("username", resp.User.Username)
-    // 为当前会话设置更安全的 Cookie 选项
-    session.Options(sessions.Options{
-        Path:     "/",
-        MaxAge:   config.GlobalConfig.Auth.Expiration,
-        HttpOnly: true,
-        Secure:   isHTTPS(ctx),
-        SameSite: http.SameSiteLaxMode,
-    })
-    if err := session.Save(); err != nil {
-        ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Session保存失败"})
-        return
-    }
+	session.Set("userID", resp.User.ID)
+	session.Set("username", resp.User.Username)
+	// 为当前会话设置更安全的 Cookie 选项
+	session.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   config.GlobalConfig.Auth.Expiration,
+		HttpOnly: true,
+		Secure:   isHTTPS(ctx),
+		SameSite: http.SameSiteLaxMode,
+	})
+	if err := session.Save(); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Session保存失败"})
+		return
+	}
 
 	ctx.JSON(http.StatusOK, resp)
 }
@@ -166,6 +197,17 @@ func (c *UserController) UpdateUserStatus(ctx *gin.Context) {
 	operatorID := ctx.GetUint("userID")
 	operatorName := ctx.GetString("username")
 
+	if uint(userID) == operatorID && req.Status != nil && *req.Status == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "不能禁用自己的账号"})
+		return
+	}
+	if req.Status != nil && *req.Status == 0 {
+		if last, checkErr := c.userService.IsLastEnabledAdmin(uint(userID)); checkErr == nil && last {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "系统至少需要保留一个启用的管理员"})
+			return
+		}
+	}
+
 	if err := c.userService.UpdateUserStatus(uint(userID), &req); err != nil {
 		// 记录失败日志
 		services.LogOperation(
@@ -216,6 +258,74 @@ func (c *UserController) GetUserList(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, resp)
+}
+
+// CreateUser 管理员创建用户
+func (c *UserController) CreateUser(ctx *gin.Context) {
+	var req types.CreateUserRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := c.userService.CreateUser(&req); err != nil {
+		services.LogOperation(
+			ctx.GetUint("userID"), ctx.GetString("username"),
+			"user", "create", fmt.Sprintf("创建用户失败: %s", req.Username),
+			ctx.ClientIP(), ctx.GetHeader("User-Agent"),
+			map[string]interface{}{"username": req.Username}, 0, err.Error(),
+		)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	services.LogOperation(
+		ctx.GetUint("userID"), ctx.GetString("username"),
+		"user", "create", fmt.Sprintf("创建用户: %s", req.Username),
+		ctx.ClientIP(), ctx.GetHeader("User-Agent"),
+		map[string]interface{}{"username": req.Username}, 1, "",
+	)
+	ctx.JSON(http.StatusOK, gin.H{"message": "创建成功"})
+}
+
+// UpdateUser 管理员更新用户资料
+func (c *UserController) UpdateUser(ctx *gin.Context) {
+	userID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
+		return
+	}
+
+	var req types.UpdateUserRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	operatorID := ctx.GetUint("userID")
+	if uint(userID) == operatorID && req.Status != nil && *req.Status == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "不能禁用自己的账号"})
+		return
+	}
+	if req.Status != nil && *req.Status == 0 {
+		if last, checkErr := c.userService.IsLastEnabledAdmin(uint(userID)); checkErr == nil && last {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "系统至少需要保留一个启用的管理员"})
+			return
+		}
+	}
+
+	if err := c.userService.UpdateUser(uint(userID), &req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	services.LogOperation(
+		operatorID, ctx.GetString("username"),
+		"user", "update", fmt.Sprintf("更新用户资料，用户ID: %d", userID),
+		ctx.ClientIP(), ctx.GetHeader("User-Agent"),
+		map[string]interface{}{"user_id": userID}, 1, "",
+	)
+	ctx.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }
 
 // ResetPassword 重置用户密码
@@ -287,6 +397,15 @@ func (c *UserController) DeleteUser(ctx *gin.Context) {
 	operatorID := ctx.GetUint("userID")
 	operatorName := ctx.GetString("username")
 
+	if uint(userID) == operatorID {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "不能删除自己的账号"})
+		return
+	}
+	if last, checkErr := c.userService.IsLastEnabledAdmin(uint(userID)); checkErr == nil && last {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "系统至少需要保留一个启用的管理员"})
+		return
+	}
+
 	// 调用服务删除用户
 	if err := c.userService.DeleteUser(uint(userID)); err != nil {
 		// 记录失败日志
@@ -349,54 +468,26 @@ func (c *UserController) Logout(ctx *gin.Context) {
 
 	// 清除 Session
 	session := sessions.Default(ctx)
-    if session != nil {
-        session.Clear()
-        session.Options(sessions.Options{
-            Path:     "/",
-            MaxAge:   -1,
-            HttpOnly: true,
-            Secure:   isHTTPS(ctx),
-            SameSite: http.SameSiteLaxMode,
-        })
-        _ = session.Save()
-    }
+	if session != nil {
+		session.Clear()
+		session.Options(sessions.Options{
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			Secure:   isHTTPS(ctx),
+			SameSite: http.SameSiteLaxMode,
+		})
+		_ = session.Save()
+	}
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "登出成功"})
 }
 
 // isHTTPS 判断当前请求是否 HTTPS 或经由代理为 HTTPS
 func isHTTPS(c *gin.Context) bool {
-    if c.Request.TLS != nil { return true }
-    proto := c.GetHeader("X-Forwarded-Proto")
-    return strings.EqualFold(proto, "https")
-}
-
-// 检查SQL注入的辅助函数
-func containsSQLInjection(input string) bool {
-	// 检查常见的SQL注入模式
-	sqlPatterns := []string{
-		"--", ";", "/*", "*/", "@@", "@",
-		"char", "nchar", "varchar", "nvarchar",
-		"alter", "begin", "cast", "create", "cursor",
-		"declare", "delete", "drop", "end", "exec",
-		"execute", "fetch", "insert", "kill", "select",
-		"sys", "sysobjects", "syscolumns",
-		"table", "update", "xp_",
-		"or 1=1", "or 1=", "or 1 =",
-		"union", "UNION", "HAVING",
-		"1=1", "1 = 1",
-	}
-
-	for _, pattern := range sqlPatterns {
-		if strings.Contains(strings.ToLower(input), strings.ToLower(pattern)) {
-			return true
-		}
-	}
-
-	// 检查XML/XSLT注入
-	if strings.Contains(input, "<") && strings.Contains(input, ">") {
+	if c.Request.TLS != nil {
 		return true
 	}
-
-	return false
+	proto := c.GetHeader("X-Forwarded-Proto")
+	return strings.EqualFold(proto, "https")
 }

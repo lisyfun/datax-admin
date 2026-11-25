@@ -15,6 +15,31 @@ const request = axios.create({
   withCredentials: true,
 });
 
+// 后端错误响应可能是 { error: "..." }，也可能是 { code, message: "..." }，
+// 统一提取可展示的文案。
+function extractErrorMessage(data: any, fallback: string): string {
+  if (data && typeof data === 'object') {
+    return data.error || data.message || fallback;
+  }
+  return fallback;
+}
+
+// 如果响应被加密，尝试解密（成功/失败响应都需要处理）
+function maybeDecryptResponse(response: AxiosResponse | undefined): void {
+  if (!response) return;
+  if (response.headers?.['content-encryption'] !== 'true' || !isEncryptionEnabled()) {
+    return;
+  }
+  try {
+    const encryptedResponse = response.data as EncryptedResponse;
+    if (encryptedResponse?.data && encryptedResponse?.signature && encryptedResponse?.timestamp) {
+      response.data = decryptData(encryptedResponse);
+    }
+  } catch (error) {
+    // 解密失败时保留原始数据
+  }
+}
+
 // 请求拦截器
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -48,23 +73,14 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   (response: AxiosResponse) => {
-    // 如果响应包含加密标识，尝试解密
-    if (response.headers['content-encryption'] === 'true' && isEncryptionEnabled()) {
-      try {
-        const encryptedResponse = response.data as EncryptedResponse;
-        if (encryptedResponse.data && encryptedResponse.signature && encryptedResponse.timestamp) {
-          // 解密响应数据
-          response.data = decryptData(encryptedResponse);
-        }
-      } catch (error) {
-        // 如果解密失败，使用原始数据
-      }
-    }
-
+    maybeDecryptResponse(response);
     return response;
   },
   (error) => {
     if (error.response) {
+      // 错误响应也可能被应用层加密，先尝试解密再取文案
+      maybeDecryptResponse(error.response);
+
       // 如果是blob类型的响应，需要特殊处理
       if (error.response.config.responseType === 'blob') {
         // 尝试将blob转换为json以读取错误信息
@@ -74,7 +90,7 @@ request.interceptors.response.use(
             try {
               const errorData = JSON.parse(reader.result as string);
               error.response.data = errorData;
-              Message.error(errorData.message || '下载失败');
+              Message.error(extractErrorMessage(errorData, '下载失败'));
             } catch (e) {
               Message.error('下载失败');
             }
@@ -89,6 +105,7 @@ request.interceptors.response.use(
       }
 
       const { status } = error.response;
+      const message = extractErrorMessage(error.response.data, '');
       switch (status) {
         case 401:
           Message.error('登录已过期，请重新登录');
@@ -96,16 +113,16 @@ request.interceptors.response.use(
           router.push('/login');
           break;
         case 403:
-          Message.error('没有权限访问');
+          Message.error(message || '没有权限访问');
           break;
         case 404:
-          Message.error('请求的资源不存在');
+          Message.error(message || '请求的资源不存在');
           break;
         case 500:
-          Message.error('服务器错误');
+          Message.error(message || '服务器错误');
           break;
         default:
-          Message.error(error.response.data?.message || '请求失败');
+          Message.error(message || '请求失败');
       }
     } else {
       Message.error('网络错误，请检查网络连接');

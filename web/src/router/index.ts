@@ -1,8 +1,22 @@
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
+import { Message } from '@arco-design/web-vue';
 import type { AppRouteRecordRaw } from './types';
 import DefaultLayout from '@/layouts/default.vue';
 import { useUserStore } from '@/stores/user';
+import { usePermissionStore } from '@/stores/permission';
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    title?: string;
+    requiresAuth?: boolean;
+    icon?: string;
+    order?: number;
+    hideInMenu?: boolean;
+    roles?: string[];
+    permission?: string;
+  }
+}
 
 export const appRoutes: AppRouteRecordRaw[] = [
   {
@@ -59,6 +73,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               icon: 'icon-unordered-list',
               roles: ['*'],
+              permission: 'job.list',
             },
           },
           {
@@ -70,6 +85,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               icon: 'icon-clock-circle',
               roles: ['*'],
+              permission: 'job.history',
             },
           },
         ],
@@ -95,6 +111,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               icon: 'icon-desktop',
               roles: ['*'],
+              permission: 'terminal.list',
             },
           },
           {
@@ -106,6 +123,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               hideInMenu: true,
               roles: ['*'],
+              permission: 'terminal.connect',
             },
           },
         ],
@@ -131,6 +149,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
                   requiresAuth: true,
                   roles: ['*'],
                   icon: 'icon-apps',
+                  permission: 'tools.kafka.cluster',
                 },
               },
               {
@@ -142,6 +161,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
                   requiresAuth: true,
                   roles: ['*'],
                   hideInMenu: true,
+                  permission: 'tools.kafka.topic',
                 },
               },
               {
@@ -153,6 +173,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
                   requiresAuth: true,
                   roles: ['*'],
                   hideInMenu: true,
+                  permission: 'tools.kafka.message',
                 },
               },
             ],
@@ -178,6 +199,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               icon: 'icon-code',
               roles: ['*'],
+              permission: 'tools.json-formatter',
             },
           },
           {
@@ -189,6 +211,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               icon: 'icon-lock',
               roles: ['*'],
+              permission: 'tools.crypto',
             },
           },
 
@@ -201,6 +224,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               icon: 'icon-database',
               roles: ['*'],
+              permission: 'tools.redis',
             },
           },
 
@@ -238,6 +262,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               icon: 'icon-user',
               roles: ['admin'],
+              permission: 'system.users',
             },
           },
           {
@@ -249,6 +274,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               icon: 'icon-user-group',
               roles: ['admin'],
+              permission: 'system.roles',
             },
           },
           {
@@ -260,6 +286,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               icon: 'icon-safe',
               roles: ['admin'],
+              permission: 'system.permissions',
             },
           },
           {
@@ -271,6 +298,7 @@ export const appRoutes: AppRouteRecordRaw[] = [
               requiresAuth: true,
               icon: 'icon-file',
               roles: ['admin'],
+              permission: 'system.logs',
             },
           },
         ],
@@ -297,31 +325,53 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false);
+
+  // 不需要认证的路由直接放行
+  if (!requiresAuth) {
+    next();
+    return;
+  }
+
   const userStore = useUserStore();
 
-  if (requiresAuth) {
-    try {
-      // 尝试获取用户信息，如果成功表示已登录
-      await userStore.getUserInfo();
-      
-      // 已登录用户访问登录页，重定向到首页
-      if (to.path === '/login') {
-        next({ path: '/' });
-      } else {
-        next();
-      }
-    } catch (err) {
-      // 获取用户信息失败，表示未登录
-      if (to.path !== '/login') {
+  try {
+    // 尝试获取用户信息，如果成功表示已登录
+    await userStore.getUserInfo();
+  } catch (err) {
+    // 获取用户信息失败，表示未登录
+    if (to.path !== '/login') {
       next({ path: '/login', query: { redirect: to.fullPath } });
-  } else {
-        next();
-      }
+    } else {
+      next();
     }
-  } else {
-    // 不需要认证的路由直接放行
-    next();
+    return;
   }
+
+  // 已登录用户访问登录页，重定向到首页
+  if (to.path === '/login') {
+    next({ path: '/' });
+    return;
+  }
+
+  // 路由级权限校验：没有对应权限码时不允许直接通过地址栏访问
+  const permissionCode = to.meta.permission;
+  if (permissionCode) {
+    const permissionStore = usePermissionStore();
+    try {
+      await permissionStore.ensurePermissions(userStore.userInfo?.id);
+    } catch (err) {
+      // 权限加载失败时按无权限处理，避免绕过路由限制
+      console.error('加载用户权限失败:', err);
+    }
+
+    if (!permissionStore.hasPermissionCode(permissionCode)) {
+      Message.warning('您没有访问该页面的权限');
+      next({ path: '/dashboard', replace: true });
+      return;
+    }
+  }
+
+  next();
 });
 
 export default router;

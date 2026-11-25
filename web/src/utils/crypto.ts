@@ -165,8 +165,9 @@ class CryptoManager {
 }
 
 // 创建全局加密管理器实例
+const cryptoKey = import.meta.env.VITE_CRYPTO_SECRET_KEY || '';
 const cryptoManager = new CryptoManager({
-  secretKey: import.meta.env.VITE_CRYPTO_SECRET_KEY || 'your-32-character-secret-key-here',
+  secretKey: cryptoKey,
   enableLog: import.meta.env.DEV,
 });
 
@@ -185,7 +186,7 @@ export const decryptData = (encryptedResponse: EncryptedResponse): any => {
   return cryptoManager.decryptResponse(encryptedResponse);
 };
 
-// 检查是否启用加密
+// 检查是否启用加密（必须显式开启且提供 32 位密钥）
 export const isEncryptionEnabled = (): boolean => {
-  return import.meta.env.VITE_ENABLE_ENCRYPTION === 'true';
+  return import.meta.env.VITE_ENABLE_ENCRYPTION === 'true' && cryptoKey.length === 32;
 };

@@ -3,11 +3,15 @@ package services
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"datax-admin/config"
 	"datax-admin/models"
 	"datax-admin/utils/logger"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +20,49 @@ import (
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl/plain"
 )
+
+var (
+	kafkaCAsOnce sync.Once
+	kafkaCAs     *x509.CertPool
+)
+
+// newKafkaTLSConfig 构建 Kafka 客户端 TLS 配置。
+// 默认校验 broker 证书与主机名；仅当 kafka.insecure_skip_verify=true 时跳过，
+// 也可通过 kafka.ca_file 指定自签 CA。
+func newKafkaTLSConfig() *tls.Config {
+	cfg := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		// 由 kafka.insecure_skip_verify 控制，默认 false（校验证书与主机名）
+		InsecureSkipVerify: config.GlobalConfig.Kafka.InsecureSkipVerify, // #nosec G402 -- 配置项控制，默认安全
+	}
+	if pool := kafkaRootCAs(); pool != nil {
+		cfg.RootCAs = pool
+	}
+	return cfg
+}
+
+// kafkaRootCAs 懒加载并缓存 kafka.ca_file 指定的 CA 证书。
+func kafkaRootCAs() *x509.CertPool {
+	kafkaCAsOnce.Do(func() {
+		path := config.GlobalConfig.Kafka.CAFile
+		if path == "" {
+			return
+		}
+		// #nosec G304 -- 路径来自运维配置项 kafka.ca_file，不接受外部请求输入
+		pem, err := os.ReadFile(path)
+		if err != nil {
+			logger.Error("读取 Kafka CA 证书失败: %v", err)
+			return
+		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(pem) {
+			logger.Error("解析 Kafka CA 证书失败: %s", path)
+			return
+		}
+		kafkaCAs = pool
+	})
+	return kafkaCAs
+}
 
 // KafkaService 提供 Kafka 集群管理相关的服务
 type KafkaService struct{}
@@ -418,9 +465,7 @@ func (s *KafkaService) getKafkaConn(cluster *models.KafkaCluster) (*kafka.Conn, 
 				Password: cluster.Password,
 			}
 			dialer.SASLMechanism = mechanism
-			dialer.TLS = &tls.Config{
-				InsecureSkipVerify: true,
-			}
+			dialer.TLS = newKafkaTLSConfig()
 		}
 	}
 
@@ -444,6 +489,10 @@ func (s *KafkaService) ListTopics(clusterID uint, page, pageSize int, search str
 
 // ConsumeMessages 消费消息
 func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition int, offset int64, count int, keyFilter, valueFilter string) ([]KafkaMessage, error) {
+	if partition < 0 || partition > math.MaxInt32 {
+		return nil, fmt.Errorf("分区号超出范围: %d", partition)
+	}
+
 	// 获取集群信息
 	cluster, err := s.GetKafkaCluster(clusterID)
 	if err != nil {
@@ -505,9 +554,7 @@ func (s *KafkaService) ConsumeMessages(clusterID uint, topic string, partition i
 				Password: cluster.Password,
 			}
 			dialer.SASLMechanism = mechanism
-			dialer.TLS = &tls.Config{
-				InsecureSkipVerify: true,
-			}
+			dialer.TLS = newKafkaTLSConfig()
 		}
 	}
 
@@ -834,6 +881,9 @@ func (s *KafkaService) GetTopicPartitions(clusterID uint, name string) ([]int32,
 	// 创建分区 ID 数组
 	result := make([]int32, len(partitions))
 	for i, p := range partitions {
+		if p.ID < 0 || p.ID > math.MaxInt32 {
+			return nil, fmt.Errorf("分区号超出范围: %d", p.ID)
+		}
 		result[i] = int32(p.ID)
 	}
 
@@ -885,9 +935,7 @@ func (s *KafkaService) GetPartitionOffsets(clusterID uint, topicName string, par
 				Password: cluster.Password,
 			}
 			dialer.SASLMechanism = mechanism
-			dialer.TLS = &tls.Config{
-				InsecureSkipVerify: true,
-			}
+			dialer.TLS = newKafkaTLSConfig()
 		}
 	}
 
@@ -964,9 +1012,7 @@ func (s *KafkaService) GetTopicInfo(clusterID uint, topicName string) (int64, in
 				Password: cluster.Password,
 			}
 			dialer.SASLMechanism = mechanism
-			dialer.TLS = &tls.Config{
-				InsecureSkipVerify: true,
-			}
+			dialer.TLS = newKafkaTLSConfig()
 		}
 	}
 
@@ -1096,9 +1142,7 @@ func (s *KafkaService) GetPartitionOffset(clusterID uint, topicName string, part
 				Password: cluster.Password,
 			}
 			dialer.SASLMechanism = mechanism
-			dialer.TLS = &tls.Config{
-				InsecureSkipVerify: true,
-			}
+			dialer.TLS = newKafkaTLSConfig()
 		}
 	}
 

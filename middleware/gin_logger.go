@@ -49,11 +49,11 @@ func GinLogger() gin.HandlerFunc {
 		// 根据状态码记录不同级别的日志
 		switch {
 		case statusCode >= 400 && statusCode < 500:
-			logger.Warn(logMsg)
+			logger.Warn("%s", logMsg)
 		case statusCode >= 500:
-			logger.Error(logMsg)
+			logger.Error("%s", logMsg)
 		default:
-			logger.Info(logMsg)
+			logger.Info("%s", logMsg)
 		}
 	}
 }

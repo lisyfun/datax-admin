@@ -92,11 +92,13 @@ import * as userApi from '@/api/user';
 import Sidebar from '@/components/Sidebar/index.vue';
 import { useMenuStore } from '@/stores/menu';
 import { usePermissionStore } from '@/stores/permission';
+import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
 const route = useRoute();
 const menuStore = useMenuStore();
 const permissionStore = usePermissionStore();
+const userStore = useUserStore();
 const collapsed = ref(false);
 const isDarkMode = ref(false);
 const isFullscreen = ref(false);
@@ -181,6 +183,10 @@ const handleLogout = () => {
     onOk: async () => {
       try {
         await userApi.logout();
+        // 清理本地状态，避免下一个登录用户复用上个用户的权限
+        userStore.logout();
+        permissionStore.resetPermissions();
+        menuStore.resetMenuState();
         Message.success('退出登录成功');
         router.push('/login');
       } catch (error: any) {

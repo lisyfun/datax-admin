@@ -18,6 +18,29 @@ export function register(data: RegisterParams) {
   return request.post('/register', data);
 }
 
+export interface CreateUserParams {
+  username: string;
+  password: string;
+  nickname?: string;
+  email?: string;
+  roleIds?: number[];
+}
+
+export function createUser(data: CreateUserParams) {
+  return request.post('/users', data);
+}
+
+export interface UpdateUserParams {
+  nickname?: string;
+  email?: string;
+  avatar?: string;
+  status?: 0 | 1;
+}
+
+export function updateUser(id: number, data: UpdateUserParams) {
+  return request.put(`/users/${id}`, data);
+}
+
 export function getUserInfo() {
   return request.get<UserInfo>('/user/info');
 }

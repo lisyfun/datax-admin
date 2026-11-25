@@ -3,6 +3,7 @@ package controllers
 import (
 	"datax-admin/models"
 	"datax-admin/services"
+	"datax-admin/types"
 	"datax-admin/utils/logger"
 	"net/http"
 	"strconv"
@@ -80,13 +81,28 @@ func (c *KafkaController) GetCluster(ctx *gin.Context) {
 
 // CreateCluster 创建集群
 func (c *KafkaController) CreateCluster(ctx *gin.Context) {
-	var cluster models.KafkaCluster
-	if err := ctx.ShouldBindJSON(&cluster); err != nil {
+	var req types.KafkaClusterRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusOK, gin.H{
 			"code":    1,
 			"message": "参数错误：" + err.Error(),
 		})
 		return
+	}
+
+	cluster := models.KafkaCluster{
+		Name:             req.Name,
+		BrokerServers:    req.BrokerServers,
+		DelayMessage:     req.DelayMessage,
+		SecurityProtocol: req.SecurityProtocol,
+		SaslMechanism:    req.SaslMechanism,
+		Username:         req.Username,
+		Password:         req.Password,
+		Description:      req.Description,
+		Status:           true,
+	}
+	if req.Status != nil {
+		cluster.Status = *req.Status
 	}
 
 	if err := c.kafkaService.CreateKafkaCluster(&cluster); err != nil {
@@ -115,8 +131,8 @@ func (c *KafkaController) UpdateCluster(ctx *gin.Context) {
 		return
 	}
 
-	var cluster models.KafkaCluster
-	if err := ctx.ShouldBindJSON(&cluster); err != nil {
+	var req types.KafkaClusterRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusOK, gin.H{
 			"code":    1,
 			"message": "参数错误：" + err.Error(),
@@ -124,8 +140,32 @@ func (c *KafkaController) UpdateCluster(ctx *gin.Context) {
 		return
 	}
 
+	cluster, err := c.kafkaService.GetKafkaCluster(uint(id))
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    1,
+			"message": "集群不存在",
+		})
+		return
+	}
+
+	cluster.Name = req.Name
+	cluster.BrokerServers = req.BrokerServers
+	cluster.DelayMessage = req.DelayMessage
+	cluster.SecurityProtocol = req.SecurityProtocol
+	cluster.SaslMechanism = req.SaslMechanism
+	cluster.Username = req.Username
+	// 密码为空表示不修改
+	if req.Password != "" {
+		cluster.Password = req.Password
+	}
+	cluster.Description = req.Description
+	if req.Status != nil {
+		cluster.Status = *req.Status
+	}
 	cluster.ID = uint(id)
-	if err := c.kafkaService.UpdateKafkaCluster(&cluster); err != nil {
+
+	if err := c.kafkaService.UpdateKafkaCluster(cluster); err != nil {
 		ctx.JSON(http.StatusOK, gin.H{
 			"code":    1,
 			"message": err.Error(),

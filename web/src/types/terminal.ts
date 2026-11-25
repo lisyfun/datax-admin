@@ -6,9 +6,9 @@ export interface TerminalInfo {
   port: number;
   username: string;
   authType: 'password' | 'key';
-  password?: string;
-  keyFile?: string;
-  keyPassphrase?: string;
+  // 敏感凭据不会从后端返回，仅用于展示是否已配置
+  hasPassword?: boolean;
+  hasKeyFile?: boolean;
   status: 'online' | 'offline';
   lastSeen: string;
   createdAt: string;

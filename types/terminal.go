@@ -37,15 +37,18 @@ type TerminalListRequest struct {
 
 // TerminalInfo 终端信息
 type TerminalInfo struct {
-	ID            uint      `json:"id"`
-	Name          string    `json:"name"`
-	Host          string    `json:"host"`
-	Port          int       `json:"port"`
-	Username      string    `json:"username"`
-	AuthType      string    `json:"authType"`
-	Password      string    `json:"password,omitempty"`
-	KeyFile       string    `json:"keyFile,omitempty"`
-	KeyPassphrase string    `json:"keyPassphrase,omitempty"`
+	ID       uint   `json:"id"`
+	Name     string `json:"name"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	AuthType string `json:"authType"`
+	// 敏感凭据永远不通过接口返回
+	Password      string    `json:"-"`
+	KeyFile       string    `json:"-"`
+	KeyPassphrase string    `json:"-"`
+	HasPassword   bool      `json:"hasPassword"`
+	HasKeyFile    bool      `json:"hasKeyFile"`
 	Status        string    `json:"status"`
 	LastSeen      time.Time `json:"lastSeen"`
 	CreatedAt     time.Time `json:"createdAt"`

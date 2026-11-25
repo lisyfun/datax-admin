@@ -106,6 +106,7 @@ func (c *JobLogCleaner) CleanOrphanedLogs() error {
 		if !dbPathMap[path] {
 			// 检查文件是否过期（超过7天的孤立文件）
 			if time.Since(info.ModTime()) > 7*24*time.Hour {
+				// #nosec G122 -- path 来自对应用自身日志目录的 Walk，删除的只是过期日志文件
 				if err := os.Remove(path); err != nil {
 					logger.Info("删除孤立日志文件失败: %s, 错误: %v", path, err)
 					errorCount++
